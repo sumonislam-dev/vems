@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Trip;
 use App\Models\TripPassenger;
 use App\Models\TripPassengerEvent;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -24,6 +25,7 @@ class TripPassengerController extends Controller implements HasMiddleware
      */
     public function checkIn(Request $request, Trip $trip, TripPassenger $tripPassenger)
     {
+        $this->authorizeAttendanceAction($request->user(), $trip);
         $this->ensurePassengerBelongsToTrip($trip, $tripPassenger);
         $this->ensureTripAcceptsAttendance($trip);
 
@@ -52,6 +54,7 @@ class TripPassengerController extends Controller implements HasMiddleware
      */
     public function checkOut(Request $request, Trip $trip, TripPassenger $tripPassenger)
     {
+        $this->authorizeAttendanceAction($request->user(), $trip);
         $this->ensurePassengerBelongsToTrip($trip, $tripPassenger);
         $this->ensureTripAcceptsAttendance($trip);
 
@@ -80,6 +83,7 @@ class TripPassengerController extends Controller implements HasMiddleware
      */
     public function markNoShow(Request $request, Trip $trip, TripPassenger $tripPassenger)
     {
+        $this->authorizeAttendanceAction($request->user(), $trip);
         $this->ensurePassengerBelongsToTrip($trip, $tripPassenger);
         $this->ensureTripAcceptsAttendance($trip);
 
@@ -100,6 +104,7 @@ class TripPassengerController extends Controller implements HasMiddleware
      */
     public function correctEvent(Request $request, Trip $trip, TripPassenger $tripPassenger, TripPassengerEvent $tripPassengerEvent)
     {
+        $this->authorizeAttendanceAction($request->user(), $trip);
         $this->ensurePassengerBelongsToTrip($trip, $tripPassenger);
         $this->ensureEventBelongsToPassenger($tripPassenger, $tripPassengerEvent);
 
@@ -154,6 +159,20 @@ class TripPassengerController extends Controller implements HasMiddleware
                 'user_agent' => $request->userAgent(),
             ],
         ];
+    }
+
+    /**
+     * capture-passenger-attendance/correct-passenger-attendance are held broadly
+     * (e.g. by every driver), so the permission alone doesn't stop a driver from
+     * acting on a trip that isn't theirs. Restrict to: users with edit-trips
+     * (managers/officers, who legitimately act on any trip) or the driver
+     * currently assigned to the trip's vehicle.
+     */
+    protected function authorizeAttendanceAction(User $user, Trip $trip): void
+    {
+        $isAssignedDriver = $trip->vehicle && $trip->vehicle->driver_id === $user->id;
+
+        abort_unless($user->can('edit-trips') || $isAssignedDriver, 403);
     }
 
     /**

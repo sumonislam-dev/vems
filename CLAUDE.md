@@ -42,7 +42,7 @@ npm run types                   # tsc --noEmit
 ```bash
 php artisan setup:permissions
 ```
-Related one-off commands in `app/Console/Commands/`: `SetupMissingPermissions`, `CheckUserPermissions`, `BackfillVehicleAssignments`, `ShowRouteData`.
+Related one-off commands in `app/Console/Commands/`: `CheckUserPermissions`, `BackfillVehicleAssignments`, `ShowRouteData`.
 
 ## Architecture
 
@@ -53,9 +53,9 @@ Every page is a Laravel route (`routes/web.php`, plus `routes/auth.php` / `route
 
 ### Auth & permissions
 - Roles/permissions via `spatie/laravel-permission` (`Role`, `Permission` models, `HasRoles` trait on `User`).
-- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. **Note:** roles are seeded with the display name `'Super Admin'` (see `SetupPermissions`), not `'super-admin'` — check actual role names in the DB/seeder before assuming this gate bypass fires.
-- Route-level role gating uses `Route::middleware('role:Super Admin')->group(...)` (see the `/debug/auth` route).
-- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `SetupPermissions`.
+- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`).
+- Route-level role gating uses `Route::middleware('role:super-admin')->group(...)` (see the `/debug/auth` route).
+- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `employee`/`driver` get a scoped-down subset for their day-to-day flows.
 
 ### Users, drivers, vendors
 There is no separate `Driver` model — drivers are `User` rows with `user_type` (`driver`, `transport_manager`, `employee`, `admin`, ...) and a `driver_status` enum (`available`, `on_trip`, etc.). `User::isDriver()`, `scopeDrivers`, `scopeAvailableDrivers`, `canDrive()` encode the driver-specific rules (license expiry, status). `DriverController` is a thin, filtered view over the same `users` table/`UserController` logic (same Form Requests, same table) rather than a distinct resource.

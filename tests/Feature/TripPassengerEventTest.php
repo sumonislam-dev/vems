@@ -3,6 +3,7 @@
 use App\Models\Trip;
 use App\Models\TripPassenger;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 
@@ -16,6 +17,22 @@ function seedAttendancePermissions(): void
     Permission::firstOrCreate(['name' => 'capture-passenger-attendance', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'correct-passenger-attendance', 'guard_name' => 'web']);
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+}
+
+/**
+ * TripPassengerController::authorizeAttendanceAction() requires the acting user
+ * to be the trip's assigned driver (or hold edit-trips) — build a vehicle
+ * assigned to $driver so attendance-capture tests reflect real trip shape.
+ */
+function assignVehicleWithDriver(User $driver): Vehicle
+{
+    return Vehicle::create([
+        'brand' => 'Toyota',
+        'model' => 'Hiace',
+        'registration_number' => 'VEH-' . uniqid(),
+        'driver_id' => $driver->id,
+        'is_active' => true,
+    ]);
 }
 
 it('records passenger attendance events while updating the trip passenger snapshot', function () {
@@ -110,6 +127,7 @@ it('captures passenger check-in through the trip attendance endpoint', function 
 
     // Grant the capture permission
     $requester->givePermissionTo('capture-passenger-attendance');
+    $vehicle = assignVehicleWithDriver($requester);
 
     $passengerUser = User::create([
         'name' => 'Trip Passenger Web',
@@ -123,6 +141,7 @@ it('captures passenger check-in through the trip attendance endpoint', function 
     $trip = Trip::create([
         'trip_number' => 'TRIP-1002',
         'requested_by' => $requester->id,
+        'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
         'scheduled_date' => '2026-05-03',
         'scheduled_start_time' => '08:00:00',
@@ -177,6 +196,7 @@ it('voids the original event and supersedes it when an attendance correction is 
 
     // Grant the correction permission
     $requester->givePermissionTo('correct-passenger-attendance');
+    $vehicle = assignVehicleWithDriver($requester);
 
     $passengerUser = User::create([
         'name' => 'Trip Passenger Corrected',
@@ -190,6 +210,7 @@ it('voids the original event and supersedes it when an attendance correction is 
     $trip = Trip::create([
         'trip_number' => 'TRIP-1003',
         'requested_by' => $requester->id,
+        'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
         'scheduled_date' => '2026-05-03',
         'scheduled_start_time' => '08:00:00',
@@ -308,6 +329,7 @@ it('allows access to check-in endpoint for users with capture-passenger-attendan
     ]);
 
     $authorized->givePermissionTo('capture-passenger-attendance');
+    $vehicle = assignVehicleWithDriver($authorized);
 
     $requester = User::create([
         'name' => 'Trip Requester Auth Allowed',
@@ -330,6 +352,7 @@ it('allows access to check-in endpoint for users with capture-passenger-attendan
     $trip = Trip::create([
         'trip_number' => 'TRIP-AUTH-ALLOWED',
         'requested_by' => $requester->id,
+        'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
         'scheduled_date' => '2026-05-03',
         'scheduled_start_time' => '08:00:00',
@@ -434,6 +457,7 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
     ]);
 
     $authorized->givePermissionTo('correct-passenger-attendance');
+    $vehicle = assignVehicleWithDriver($authorized);
 
     $requester = User::create([
         'name' => 'Trip Requester Correct Auth',
@@ -456,6 +480,7 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
     $trip = Trip::create([
         'trip_number' => 'TRIP-CORRECT-AUTH',
         'requested_by' => $requester->id,
+        'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
         'scheduled_date' => '2026-05-03',
         'scheduled_start_time' => '08:00:00',
@@ -486,4 +511,62 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
 
     $event->refresh();
     expect($event->is_valid)->toBeFalse();
+});
+
+it('denies check-in on a trip whose vehicle is assigned to a different driver', function () {
+    seedAttendancePermissions();
+
+    $otherDriversTrip = assignVehicleWithDriver(User::create([
+        'name' => 'Other Driver',
+        'username' => 'other-driver-attendance',
+        'email' => 'other-driver-attendance@example.com',
+        'user_type' => 'driver',
+        'status' => 'active',
+        'password' => Hash::make('password'),
+    ]));
+
+    $unrelatedDriver = User::create([
+        'name' => 'Unrelated Driver',
+        'username' => 'unrelated-driver-attendance',
+        'email' => 'unrelated-driver-attendance@example.com',
+        'user_type' => 'driver',
+        'status' => 'active',
+        'password' => Hash::make('password'),
+    ]);
+    $unrelatedDriver->givePermissionTo('capture-passenger-attendance');
+
+    $requester = User::create([
+        'name' => 'Requester Attendance Ownership',
+        'username' => 'requester-attendance-ownership',
+        'email' => 'requester-attendance-ownership@example.com',
+        'user_type' => 'admin',
+        'status' => 'active',
+        'password' => Hash::make('password'),
+    ]);
+
+    $trip = Trip::create([
+        'trip_number' => 'TRIP-OWNERSHIP-1',
+        'requested_by' => $requester->id,
+        'vehicle_id' => $otherDriversTrip->id,
+        'priority' => 'medium',
+        'scheduled_date' => '2026-05-03',
+        'scheduled_start_time' => '08:00:00',
+        'scheduled_end_time' => '09:00:00',
+        'status' => 'pending',
+    ]);
+
+    $tripPassenger = TripPassenger::create([
+        'trip_id' => $trip->id,
+        'user_id' => $requester->id,
+        'status' => 'pending',
+    ]);
+
+    $response = $this->actingAs($unrelatedDriver)->post("/trips/{$trip->id}/passengers/{$tripPassenger->id}/check-in", [
+        'event_time' => '2026-05-03 08:12:00',
+    ]);
+
+    $response->assertForbidden();
+
+    $tripPassenger->refresh();
+    expect($tripPassenger->status)->toBe('pending');
 });

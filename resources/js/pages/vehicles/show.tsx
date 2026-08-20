@@ -436,10 +436,12 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                             <p className="text-sm font-mono">{vehicle.driver.nid_number}</p>
                                         </div>
                                     )}
-                                    <div>
-                                        <label className="text-sm font-medium text-muted-foreground">Email</label>
-                                        <p className="text-sm">{vehicle.driver.email || 'N/A'}</p>
-                                    </div>
+                                    {vehicle.driver.email && (
+                                        <div>
+                                            <label className="text-sm font-medium text-muted-foreground">Email</label>
+                                            <p className="text-sm">{vehicle.driver.email}</p>
+                                        </div>
+                                    )}
                                     {vehicle.driver.official_phone && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Official Phone</label>

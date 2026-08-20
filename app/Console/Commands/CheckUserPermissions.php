@@ -51,20 +51,20 @@ class CheckUserPermissions extends Command
         $currentRoles = $user->roles->pluck('name')->toArray();
         $this->info("Current roles: " . (empty($currentRoles) ? 'None' : implode(', ', $currentRoles)));
 
-        // Check if Super Admin role exists
-        $superAdminRole = Role::where('name', 'Super Admin')->first();
+        // Check if super-admin role exists
+        $superAdminRole = Role::where('name', 'super-admin')->first();
         if (!$superAdminRole) {
-            $this->error('Super Admin role not found! Please run: php artisan setup:permissions');
+            $this->error('super-admin role not found! Please run: php artisan setup:permissions');
             return;
         }
 
-        // Assign Super Admin role if not already assigned
-        if (!$user->hasRole('Super Admin')) {
-            $this->info('Assigning Super Admin role...');
-            $user->assignRole('Super Admin');
-            $this->info('✅ Super Admin role assigned successfully!');
+        // Assign super-admin role if not already assigned
+        if (!$user->hasRole('super-admin')) {
+            $this->info('Assigning super-admin role...');
+            $user->assignRole('super-admin');
+            $this->info('✅ super-admin role assigned successfully!');
         } else {
-            $this->info('✅ User already has Super Admin role');
+            $this->info('✅ User already has super-admin role');
         }
 
         // Check department permissions

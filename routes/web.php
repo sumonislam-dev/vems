@@ -50,7 +50,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // Debug route — restricted to Super Admin only
-    Route::middleware('role:Super Admin')->group(function () {
+    Route::middleware('role:super-admin')->group(function () {
         Route::get('/debug/auth', [DebugController::class, 'authCheck'])->name('debug.auth');
     });
 

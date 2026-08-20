@@ -226,6 +226,25 @@ class Trip extends Model
     }
 
     // Scopes
+
+    /**
+     * Visibility scope: users with the "view all" permission see every trip.
+     * Everyone else (view-own-trips only) is restricted to trips they requested,
+     * ride as a passenger on, or — for drivers — are assigned to via their vehicle.
+     */
+    public function scopeVisibleTo($query, User $user)
+    {
+        if ($user->can('view-trips')) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($user) {
+            $q->where('requested_by', $user->id)
+                ->orWhereHas('passengers', fn ($pq) => $pq->where('user_id', $user->id))
+                ->orWhereHas('vehicle', fn ($vq) => $vq->where('driver_id', $user->id));
+        });
+    }
+
     public function scopePending($query)
     {
         return $query->where('status', 'pending');

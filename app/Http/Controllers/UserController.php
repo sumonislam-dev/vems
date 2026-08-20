@@ -425,8 +425,7 @@ class UserController extends Controller implements HasMiddleware
         $roleMapping = [
             'employee' => 'employee',
             'driver' => 'driver',
-            'transport_manager' => 'transport-manager',
-            'admin' => 'super-admin',
+            'admin' => 'admin',
         ];
 
         if (isset($roleMapping[$userType])) {

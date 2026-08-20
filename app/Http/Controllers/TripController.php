@@ -21,7 +21,8 @@ class TripController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-trips', only: ['index', 'show', 'passengerEvents']),
+            new Middleware('permission:view-trips', only: ['passengerEvents']),
+            new Middleware('permission:view-trips|view-own-trips', only: ['index', 'show']),
             new Middleware('permission:create-trips', only: ['create', 'store', 'storeRecurring']),
             new Middleware('permission:edit-trips', only: ['edit', 'update', 'reassignVehicle']),
             new Middleware('permission:delete-trips', only: ['destroy']),
@@ -128,7 +129,7 @@ class TripController extends Controller implements HasMiddleware
             'approver',
             'department',
             'passengers.user'
-        ]);
+        ])->visibleTo($request->user());
 
         // Apply search
         if ($request->filled('search')) {
@@ -175,7 +176,7 @@ class TripController extends Controller implements HasMiddleware
             ->withQueryString();
 
         // Get stats with a single aggregate query
-        $tripStats = Trip::selectRaw(
+        $tripStats = Trip::visibleTo($request->user())->selectRaw(
             'COUNT(*) as total, ' .
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending, ' .
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved, ' .
@@ -476,6 +477,8 @@ class TripController extends Controller implements HasMiddleware
      */
     public function show(Trip $trip)
     {
+        $this->authorizeTripView(auth()->user(), $trip);
+
         $trip->load([
             'vehicle.driver',
             'vehicleRoute.routeStops.stop',
@@ -745,5 +748,23 @@ class TripController extends Controller implements HasMiddleware
         }
 
         return back()->with('success', 'Vehicle reassigned successfully!');
+    }
+
+    /**
+     * A user with only view-own-trips may view a trip they requested, ride as a
+     * passenger on, or (as the assigned driver) are driving. Full view-trips
+     * bypasses this check entirely.
+     */
+    private function authorizeTripView(User $user, Trip $trip): void
+    {
+        if ($user->can('view-trips')) {
+            return;
+        }
+
+        $isRequester = $trip->requested_by === $user->id;
+        $isPassenger = $trip->passengers()->where('user_id', $user->id)->exists();
+        $isDriver = $trip->vehicle && $trip->vehicle->driver_id === $user->id;
+
+        abort_unless($isRequester || $isPassenger || $isDriver, 403);
     }
 }

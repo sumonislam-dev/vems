@@ -275,9 +275,14 @@ class VehicleController extends Controller implements HasMiddleware
      */
     public function show(Vehicle $vehicle)
     {
+        // The assigned driver's contact/identity details (license no., NID, phone,
+        // address, emergency contact) are only shown to viewers who can also
+        // manage drivers — everyone else with view-vehicles sees just who's driving.
+        $canViewDriverDetails = auth()->user()->can('view-drivers');
+
         $vehicle->load([
             'vendor.contactPersons',
-            'driver',
+            $canViewDriverDetails ? 'driver' : 'driver:id,name,status,employee_id,user_type',
             'driverAssignments.driver:id,name,email',
             'driverAssignments.assigner:id,name',
         ]);

@@ -23,6 +23,8 @@ export interface NavItem {
     icon?: LucideIcon | null;
     isActive?: boolean;
     children?: NavItem[];
+    /** Permission name(s) required to show this item. An array means "any of". Omit to always show. */
+    permission?: string | string[];
 }
 
 export interface SharedData {

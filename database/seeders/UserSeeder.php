@@ -353,10 +353,10 @@ class UserSeeder extends Seeder
                 $admin->assignRole('super-admin');
             }
 
-            if (Role::where('name', 'transport-manager')->exists()) {
-                $transportManager->assignRole('transport-manager');
+            if (Role::where('name', 'admin')->exists()) {
+                $transportManager->assignRole('admin');
             }
-            
+
 
             if (Role::where('name', 'driver')->exists()) {
                 $drivers = User::where('user_type', 'driver')->get();

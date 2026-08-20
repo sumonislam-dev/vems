@@ -10,6 +10,11 @@ class RolePermissionSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * Role model is intentionally flat: super-admin, admin, employee, driver.
+     * super-admin/admin both get every permission (super-admin additionally
+     * bypasses all permission checks via AppServiceProvider's Gate::before —
+     * see CLAUDE.md); employee/driver get only what their day-to-day flows need.
      */
     public function run(): void
     {
@@ -18,6 +23,22 @@ class RolePermissionSeeder extends Seeder
 
         // Create Permissions
         $permissions = [
+            // Product Management
+            'view-products',
+            'create-products',
+            'edit-products',
+            'delete-products',
+
+            // Stop Management
+            'view-stops',
+            'create-stops',
+
+            // Vendor Management
+            'view-vendors',
+            'create-vendors',
+            'edit-vendors',
+            'delete-vendors',
+
             // Vehicle Management
             'view-vehicles',
             'create-vehicles',
@@ -28,6 +49,7 @@ class RolePermissionSeeder extends Seeder
 
             // Trip Management
             'view-trips',
+            'view-own-trips',
             'create-trips',
             'edit-trips',
             'delete-trips',
@@ -102,6 +124,14 @@ class RolePermissionSeeder extends Seeder
             'manage-user-roles',
             'view-user-activity',
 
+            // Role & Permission Management
+            'view-roles',
+            'create-roles',
+            'edit-roles',
+            'delete-roles',
+            'view-permissions',
+            'edit-permissions',
+
             // System Settings
             'view-settings',
             'edit-settings',
@@ -118,158 +148,72 @@ class RolePermissionSeeder extends Seeder
             'view-live-tracking',
             'manage-tracking-settings',
             'view-route-history',
+
+            // Factory Management
+            'view-factories',
+            'create-factories',
+            'edit-factories',
+            'delete-factories',
+
+            // Logistics Management
+            'view-logistics',
+            'create-logistics',
+            'edit-logistics',
+            'delete-logistics',
+
+            // User Group Management
+            'view-user-groups',
+            'create-user-groups',
+            'edit-user-groups',
+            'delete-user-groups',
+
+            // Route Management
+            'view-routes',
+            'create-routes',
+            'edit-routes',
+            'delete-routes',
         ];
 
         foreach ($permissions as $permission) {
             Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
         }
 
-        // Create Roles and Assign Permissions
-
-        // 1. Super Admin - Full Access
+        // 1. Super Admin - Full access, plus the Gate::before bypass
         $superAdmin = Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
         $superAdmin->syncPermissions(Permission::all());
 
-        // 2. Transport Manager - Fleet Management
-        $transportManager = Role::firstOrCreate(['name' => 'transport-manager', 'guard_name' => 'web']);
-        $transportManager->syncPermissions([
-            // Vehicle Management
-            'view-vehicles', 'create-vehicles', 'edit-vehicles', 'delete-vehicles',
-            'assign-vehicles', 'manage-vehicle-documents',
+        // 2. Admin - Full operational access (everything super-admin has,
+        // explicitly granted rather than via the Gate::before bypass)
+        $admin = Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+        $admin->syncPermissions(Permission::all());
 
-            // Trip Management
-            'view-trips', 'create-trips', 'edit-trips', 'approve-trips', 'reject-trips',
-            'assign-drivers', 'check-in-trips', 'check-out-trips',
-            'capture-passenger-attendance', 'correct-passenger-attendance', 'view-passenger-events',
-
-            // Trip Feedback & Complaints
-            'view-complaints', 'create-complaints', 'assign-complaints', 'resolve-complaints', 'delete-complaints',
-
-            // Driver Management
-            'view-drivers', 'create-drivers', 'edit-drivers', 'manage-driver-documents',
-            'view-driver-performance',
-
-            // Scheduling
-            'view-schedules', 'create-schedules', 'edit-schedules', 'delete-schedules',
-            'manage-recurring-schedules',
-
-            // Maintenance
-            'view-maintenance', 'create-maintenance', 'edit-maintenance', 'schedule-maintenance',
-            'approve-maintenance',
-
-            // Fuel Management
-            'view-fuel-logs', 'create-fuel-logs', 'edit-fuel-logs', 'manage-fuel-budget',
-
-            // Reports
-            'view-reports', 'create-reports', 'export-reports', 'view-analytics', 'view-cost-analysis',
-
-            // GPS Tracking
-            'view-live-tracking', 'manage-tracking-settings', 'view-route-history',
-
-            // Notifications
-            'view-notifications', 'send-notifications', 'manage-notification-settings',
-        ]);
-
-        // 3. Assistant Transport Manager - Limited Management
-        $assistantTransportManager = Role::firstOrCreate(['name' => 'assistant-transport-manager', 'guard_name' => 'web']);
-        $assistantTransportManager->syncPermissions([
-            'view-vehicles', 'edit-vehicles', 'assign-vehicles',
-            'view-trips', 'create-trips', 'edit-trips', 'approve-trips', 'assign-drivers',
-            'capture-passenger-attendance', 'view-passenger-events',
-            'view-complaints', 'create-complaints', 'assign-complaints', 'resolve-complaints',
-            'view-drivers', 'edit-drivers', 'view-driver-performance',
-            'view-schedules', 'create-schedules', 'edit-schedules',
-            'view-maintenance', 'create-maintenance', 'schedule-maintenance',
-            'view-fuel-logs', 'create-fuel-logs',
-            'view-reports', 'view-analytics',
-            'view-live-tracking', 'view-route-history',
-            'view-notifications',
-        ]);
-
-        // 4. Department Head - Department-specific Approval
-        $departmentHead = Role::firstOrCreate(['name' => 'department-head', 'guard_name' => 'web']);
-        $departmentHead->syncPermissions([
-            'view-vehicles', 'view-trips', 'create-trips', 'approve-trips',
-            'view-complaints', 'create-complaints',
-            'view-drivers', 'view-schedules', 'view-reports',
-            'view-notifications', 'manage-department-budget',
-        ]);
-
-        // 5. Transport Officer - Operations
-        $transportOfficer = Role::firstOrCreate(['name' => 'transport-officer', 'guard_name' => 'web']);
-        $transportOfficer->syncPermissions([
-            'view-vehicles', 'edit-vehicles', 'assign-vehicles',
-            'view-trips', 'create-trips', 'edit-trips', 'assign-drivers',
-            'check-in-trips', 'check-out-trips',
-            'capture-passenger-attendance', 'view-passenger-events',
+        // 3. Employee - Regular staff who request vehicles/trips and can raise feedback
+        $employee = Role::firstOrCreate(['name' => 'employee', 'guard_name' => 'web']);
+        $employee->syncPermissions([
+            'view-vehicles',
+            'view-own-trips', 'create-trips',
+            'view-schedules',
+            'view-departments',
             'create-complaints', 'view-own-complaints',
-            'view-drivers', 'edit-drivers',
-            'view-schedules', 'create-schedules', 'edit-schedules',
-            'view-maintenance', 'create-maintenance',
-            'view-fuel-logs', 'create-fuel-logs', 'edit-fuel-logs',
-            'view-reports',
-            'view-live-tracking', 'view-route-history',
             'view-notifications',
         ]);
 
-        // 6. Admin Officer - Documentation & Admin
-        $adminOfficer = Role::firstOrCreate(['name' => 'admin-officer', 'guard_name' => 'web']);
-        $adminOfficer->syncPermissions([
-            'view-vehicles', 'manage-vehicle-documents',
-            'view-trips', 'create-trips',
-            'view-complaints', 'create-complaints',
-            'view-drivers', 'manage-driver-documents',
-            'view-schedules', 'view-maintenance',
-            'view-fuel-logs', 'view-reports',
-            'view-departments', 'view-users',
-            'view-notifications',
-        ]);
-
-        // 7. Senior Driver - Advanced Driver Privileges
-        $seniorDriver = Role::firstOrCreate(['name' => 'senior-driver', 'guard_name' => 'web']);
-        $seniorDriver->syncPermissions([
-            'view-vehicles', 'view-trips', 'check-in-trips', 'check-out-trips',
-            'capture-passenger-attendance', 'view-passenger-events',
-            'create-complaints', 'view-own-complaints',
-            'view-drivers', 'view-schedules',
-            'view-fuel-logs', 'create-fuel-logs',
-            'view-notifications',
-        ]);
-
-        // 8. Driver - Basic Driver Access
+        // 4. Driver - Operates trips: check-in/out, attendance capture, own fuel logs
         $driver = Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'web']);
         $driver->syncPermissions([
-            'view-trips', 'check-in-trips', 'check-out-trips',
+            'view-vehicles',
+            'view-own-trips', 'check-in-trips', 'check-out-trips',
             'capture-passenger-attendance', 'view-passenger-events',
-            'create-complaints', 'view-own-complaints',
-            'view-schedules', 'view-fuel-logs', 'create-fuel-logs',
-            'view-notifications',
-        ]);
-
-        // 9. Junior Driver - Limited Access
-        $juniorDriver = Role::firstOrCreate(['name' => 'junior-driver', 'guard_name' => 'web']);
-        $juniorDriver->syncPermissions([
-            'view-trips', 'check-in-trips', 'check-out-trips',
-            'capture-passenger-attendance', 'view-passenger-events',
-            'create-complaints', 'view-own-complaints',
-            'view-schedules', 'view-notifications',
-        ]);
-
-        // 10. Senior Executive - Priority Access
-        $seniorExecutive = Role::firstOrCreate(['name' => 'senior-executive', 'guard_name' => 'web']);
-        $seniorExecutive->syncPermissions([
-            'view-vehicles', 'view-trips', 'create-trips',
-            'create-complaints', 'view-own-complaints',
-            'view-schedules', 'view-reports',
-            'view-notifications',
-        ]);
-
-        // 11. Executive - Basic Employee Access
-        $executive = Role::firstOrCreate(['name' => 'executive', 'guard_name' => 'web']);
-        $executive->syncPermissions([
-            'view-trips', 'create-trips', 'view-schedules',
+            'view-schedules',
+            'view-fuel-logs', 'create-fuel-logs',
             'create-complaints', 'view-own-complaints',
             'view-notifications',
         ]);
+
+        // Remove any previously-seeded roles this refactor no longer keeps
+        Role::where('guard_name', 'web')
+            ->whereNotIn('name', ['super-admin', 'admin', 'employee', 'driver'])
+            ->get()
+            ->each(fn (Role $role) => $role->delete());
     }
 }
