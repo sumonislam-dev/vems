@@ -49,9 +49,9 @@ class RoleController extends Controller implements HasMiddleware
 
         // Get stats with a single aggregate query
         $roleStats = Role::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN EXISTS (SELECT 1 FROM model_has_roles mhr WHERE mhr.role_id = roles.id AND mhr.model_type = ?) THEN 1 ELSE 0 END) as with_users, ' .
-            'SUM(CASE WHEN EXISTS (SELECT 1 FROM role_has_permissions rhp WHERE rhp.role_id = roles.id) THEN 1 ELSE 0 END) as with_permissions, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN EXISTS (SELECT 1 FROM model_has_roles mhr WHERE mhr.role_id = roles.id AND mhr.model_type = ?) THEN 1 ELSE 0 END) as with_users, '.
+            'SUM(CASE WHEN EXISTS (SELECT 1 FROM role_has_permissions rhp WHERE rhp.role_id = roles.id) THEN 1 ELSE 0 END) as with_permissions, '.
             'SUM(CASE WHEN NOT EXISTS (SELECT 1 FROM model_has_roles mhr WHERE mhr.role_id = roles.id AND mhr.model_type = ?) AND NOT EXISTS (SELECT 1 FROM role_has_permissions rhp WHERE rhp.role_id = roles.id) THEN 1 ELSE 0 END) as empty_roles',
             [User::class, User::class]
         )->first();
@@ -98,9 +98,15 @@ class RoleController extends Controller implements HasMiddleware
 
         $role = Role::create($validated);
 
-        if (!empty($validated['permissions'])) {
+        if (! empty($validated['permissions'])) {
             $role->permissions()->sync($validated['permissions']);
         }
+
+        activity('roles')
+            ->causedBy($request->user())
+            ->withProperties(['new' => ['name' => $role->name, 'permissions' => $role->permissions()->pluck('name')->all()]])
+            ->event('created')
+            ->log("Role \"{$role->name}\" created");
 
         return redirect()
             ->route('roles.index')
@@ -139,7 +145,7 @@ class RoleController extends Controller implements HasMiddleware
     public function update(Request $request, Role $role)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name,' . $role->id,
+            'name' => 'required|string|max:255|unique:roles,name,'.$role->id,
             'guard_name' => 'nullable|string|max:255',
             'permissions' => 'nullable|array',
             'permissions.*' => 'exists:permissions,id',
@@ -147,10 +153,24 @@ class RoleController extends Controller implements HasMiddleware
 
         $validated['guard_name'] = $validated['guard_name'] ?? 'web';
 
+        $oldPermissionNames = $role->permissions()->pluck('name')->all();
+
         $role->update($validated);
 
         if (isset($validated['permissions'])) {
             $role->permissions()->sync($validated['permissions']);
+        }
+
+        $newPermissionNames = $role->permissions()->pluck('name')->all();
+        sort($oldPermissionNames);
+        sort($newPermissionNames);
+
+        if ($oldPermissionNames !== $newPermissionNames) {
+            activity('roles')
+                ->causedBy($request->user())
+                ->withProperties(['old' => ['permissions' => $oldPermissionNames], 'new' => ['permissions' => $newPermissionNames]])
+                ->event('permissions_changed')
+                ->log("Permissions updated for role \"{$role->name}\"");
         }
 
         return redirect()
@@ -170,7 +190,13 @@ class RoleController extends Controller implements HasMiddleware
                 ->with('error', 'Cannot delete role that has users assigned to it!');
         }
 
+        $roleName = $role->name;
         $role->delete();
+
+        activity('roles')
+            ->withProperties(['old' => ['name' => $roleName]])
+            ->event('deleted')
+            ->log("Role \"{$roleName}\" deleted");
 
         return redirect()
             ->route('roles.index')

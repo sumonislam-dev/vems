@@ -4,16 +4,28 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles;
+    use HasFactory, HasRoles, LogsActivity, Notifiable;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['password', 'remember_token', 'last_login_at', 'last_login_ip', 'last_login_location', 'last_login_device', 'last_login_country', 'last_login_timezone', 'updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('users');
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -53,6 +65,8 @@ class User extends Authenticatable
         'total_trips_completed',
         'average_rating',
         'driver_status',
+        'attendance_mode_override',
+        'biometric_id',
         'last_login_at',
         'last_login_ip',
         'last_login_location',
@@ -107,6 +121,7 @@ class User extends Authenticatable
     public static function findByLogin(string $login): ?User
     {
         $field = self::getLoginField($login);
+
         return self::where($field, $login)->first();
     }
 
@@ -151,11 +166,16 @@ class User extends Authenticatable
         return $this->hasMany(TripPassenger::class);
     }
 
+    public function attendanceRecords(): HasMany
+    {
+        return $this->hasMany(AttendanceRecord::class);
+    }
+
     // Scopes
     public function scopeDrivers($query)
     {
         return $query->where('user_type', 'driver')
-                    ->orWhere('user_type', 'transport_manager');
+            ->orWhere('user_type', 'transport_manager');
     }
 
     public function scopeEmployees($query)
@@ -166,8 +186,8 @@ class User extends Authenticatable
     public function scopeAvailableDrivers($query)
     {
         return $query->drivers()
-                    ->where('driver_status', 'available')
-                    ->where('status', 'active');
+            ->where('driver_status', 'available')
+            ->where('status', 'active');
     }
 
     public function scopeActive($query)
@@ -184,7 +204,7 @@ class User extends Authenticatable
     public function isDriver(): bool
     {
         return in_array($this->user_type, ['driver', 'transport_manager'])
-               && !empty($this->driving_license_no);
+               && ! empty($this->driving_license_no);
     }
 
     public function isEmployee(): bool
@@ -213,6 +233,17 @@ class User extends Authenticatable
     public function canApproveTrips(): bool
     {
         return $this->can('approve-trips');
+    }
+
+    /**
+     * §4.3: resolves the per-user override if set, else the department
+     * default, else 'biometric'.
+     */
+    public function attendanceMode(): string
+    {
+        return $this->attendance_mode_override
+            ?? $this->department?->attendance_mode
+            ?? 'biometric';
     }
 
     public function getFullNameAttribute(): string
@@ -256,8 +287,8 @@ class User extends Authenticatable
     private function updateAverageRating(int $newRating): void
     {
         $totalRatedTrips = $this->driverTrips()
-                               ->whereNotNull('driver_rating')
-                               ->count();
+            ->whereNotNull('driver_rating')
+            ->count();
 
         if ($totalRatedTrips === 1) {
             $this->average_rating = $newRating;
@@ -269,7 +300,7 @@ class User extends Authenticatable
 
     public function getLicenseStatusAttribute(): string
     {
-        if (!$this->license_expiry_date) {
+        if (! $this->license_expiry_date) {
             return 'not_provided';
         }
 

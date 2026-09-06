@@ -39,6 +39,18 @@ An optional, non-authoritative soft link is allowed: `attendance_events.related_
 
 **Auto-populated at check-in, passenger side only** (scope decision: driver-side linking is out of scope for this plan — a driver has no `trip_passengers` row and would need a separate `related_trip_id` FK; not built here). When a `check_in` event is created, look up whether the subject user has a `trip_passengers` row for `work_date` on a trip that is currently `in_progress` (or, failing that, any trip that day — same lookup already used for `used_transport` in §5.1, just run at event time instead of only at record-recalculation time). If found, set `related_trip_passenger_event_id` on the event automatically — the employee never has to pick a trip manually. Full trip info (route, vehicle, stops, current status) is then derivable by joining `related_trip_passenger_event_id` → `trip_passenger_events.trip_passenger_id` → `trip_passengers.trip_id` → `trips`, so the attendance UI/report can show trip context next to the check-in without duplicating any trip data onto `attendance_events` itself.
 
+### 3.1 One button, not two (UX decision)
+
+The dashboard already lets an employee self-mark their own trip boarding (the existing "Active Trip Attendance Banner", §11.1) by pressing Check In/Check Out on `trip_passenger_events`. Requiring that same employee to *also* press a separate Check In for work attendance minutes later is bad UX — two taps for what is, to the employee, one moment. Decision: **there is exactly one Check In button and one Check Out button, ever** — not one pair for trips and a second pair for attendance. Both tables stay separate underneath (the reasons in the table above still hold), but the single button's backend action decides what needs writing:
+
+- **Check In pressed, and the user has a `trip_passengers` row for today not yet `boarded`** (a pending pickup): the action writes **both** — creates the `trip_passenger_events` check_in row (same as the existing trip flow) and updates `trip_passengers.status` to `boarded`, **and** creates the `attendance_events` check_in row in the same request, with `related_trip_passenger_event_id` pointing at the row it just created.
+- **Check In pressed, and the user's `trip_passengers` row for today is already `boarded`** (someone else — e.g. a driver — already marked them, or a prior action already ran): no new trip write happens; the action only creates the `attendance_events` check_in row and links it to the existing boarding event (the read-only lookup described above).
+- **Check In pressed, and there's no `trip_passengers` row for today at all**: only `attendance_events` is written, exactly as if trips didn't exist.
+- **Check Out mirrors this** against a pending drop-off (`trip_passengers.status = boarded`, not yet `completed`): fan out to both tables if the drop-off is still pending, link-only if it's already been recorded by someone else, attendance-only if there's no trip. The factory/location dialog (§4.2.1) pre-fills the factory from the trip's `dropoff_stop_id` when one applies, and the employee just confirms or edits it rather than re-entering it.
+- **Start Break / End Break never fan out.** A trip has no concept of a break, so these two actions only ever write `attendance_events` — regardless of whether the day involves a trip or not.
+
+This keeps the data model exactly as designed (two independent, differently-scoped event logs) while giving the employee a single, always-in-the-same-place action for each real-world moment.
+
 ## 4. Data model
 
 ### 4.1 `attendance_records` — one row per user per day (fast-read snapshot)
@@ -143,8 +155,9 @@ checkOut()    : allowed from checked_in or on_break
 Each transition:
 1. Validates current status.
 2. Requires an `idempotency_key` (client-generated for self-service; derived from BioTime's transaction id for device punches).
-3. Writes one `attendance_events` row with whatever GPS/device/source data is available for that channel.
-4. Recalculates `break_minutes` / `gross_minutes` / `net_minutes` / `overtime_minutes` on the parent `attendance_records` row.
+3. For `checkIn()`/`checkOut()` only: runs the fan-out check from §3.1 first — write/link the matching `trip_passenger_events` row if a pending trip action applies, or link-only, or skip entirely if no trip exists.
+4. Writes one `attendance_events` row with whatever GPS/device/source data is available for that channel (plus `related_trip_passenger_event_id` if §3.1 produced one).
+5. Recalculates `break_minutes` / `gross_minutes` / `net_minutes` / `overtime_minutes` on the parent `attendance_records` row.
 
 ### 5.1 Mixed-source days
 
@@ -240,7 +253,31 @@ Anomalies are surfaced as a flag column on the report — never hidden, never si
 
 ## 11. Frontend
 
-- `resources/js/pages/attendance/index.tsx` — status-driven action button (only shown if `attendanceMode() === 'self_service'` for the current user), today's summary, event trail.
+### 11.1 Placement
+
+The dashboard (`resources/js/pages/dashboard.tsx`) already has an "Active Trip Attendance Banner" (L239-313) that shows a Check In/Check Out button **only when `activeAttendanceAction` is present** — i.e. only when the user has a trip pickup/drop-off happening, and its click handler only posts to the trip-passenger endpoint. Per §3.1, this banner is **replaced**, not kept alongside a second one: there is one status card, always visible, and its button is the single fan-out Check In/Check Out action.
+
+The card's content changes with `attendance_records.status` (per §5), and shows trip context inline when it applies, rather than as a separate element:
+
+```
+Not checked in                       →  [ Check In ]
+Checked in since 07:42 (Trip #245    →  [ Start Break ]  [ Check Out ]
+  pickup — Uttara Circle 3)
+On break since 13:00                 →  [ End Break ]
+Checked out at 17:00 · 8h25m         →  (no button — day is closed)
+  · overtime 25m
+```
+
+Check In / Start Break / End Break post immediately; Check Out opens the factory/location dialog (§4.2.1), pre-filled from the trip's drop-off stop when a pending drop-off applies. `Start Break`/`Check Out` are both offered together once checked in — an employee can go straight to Check Out without ever taking a break; there is no rule forcing a break first.
+
+Recommended placement, in order of how much is built:
+- **Dashboard**: the always-visible status card described above, in the exact slot the old trip-only banner occupied.
+- **Global header pill** (optional, in `AppSidebarHeader` next to the notification bell) — same always-visible status, reachable from any page, not just the dashboard.
+- **Full page** `resources/js/pages/attendance/index.tsx` — status-driven action button, today's summary, full event trail (not gated on `attendanceMode()`, since biometric/manual-sourced users should still be able to view their own history even though they don't self-capture).
+
+### 11.2 Pages/types
+
+- `resources/js/pages/attendance/index.tsx` — see §11.1.
 - `resources/js/pages/attendance/reports.tsx` — admin table via `base-data-table.tsx`, filters (date range, department, source, used-transport, factory), anomaly-flag column, used-transport column, factory-visited/location-name columns, `base-export-button.tsx`.
 - `resources/js/types/attendance.ts` — TS mirror of `AttendanceRecord`/`AttendanceEvent`.
 - Sidebar entry in `app-sidebar.tsx`, gated with the existing `hasPermission()` helper (`resources/js/lib/permissions.ts`).
@@ -257,6 +294,7 @@ Anomalies are surfaced as a flag column on the report — never hidden, never si
 - `used_transport`: a record for a user with a boarded `trip_passengers` pickup/dropoff that day gets `used_transport = true` and a populated `trip_passenger_event_id` regardless of `attendanceMode()` or which source won check-in; a day with no trip pickup leaves it `false`.
 - Factory visit at checkout (§4.2.1): a `check_out` event with `factory_id`/`location_name` set persists both and surfaces on the report; omitting them at checkout leaves both `null` without blocking the checkout.
 - Auto-linked trip on check-in (§3): a `check_in` event for a user with an `in_progress` trip's `trip_passengers` row that day gets `related_trip_passenger_event_id` set automatically, and trip info is retrievable through the join chain; a user with no trip that day leaves it `null` without blocking check-in.
+- Unified check-in/check-out fan-out (§3.1): pressing Check In with a pending (`confirmed`, not yet `boarded`) `trip_passengers` row creates both the `trip_passenger_events` row and the `attendance_events` row in one action, correctly linked; pressing Check In when the trip row is already `boarded` (e.g. a driver marked it first) creates only the `attendance_events` row and links to the existing boarding event, without a duplicate trip write; pressing Check In with no trip row at all writes only `attendance_events`. Same three cases mirrored for Check Out against `dropoff_stop_id`/`completed`. Start Break/End Break never write to `trip_passenger_events` under any of these cases.
 
 ## 13. Build order
 

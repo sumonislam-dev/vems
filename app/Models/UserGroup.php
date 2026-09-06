@@ -7,10 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class UserGroup extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, LogsActivity, SoftDeletes;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('user-groups');
+    }
 
     protected $fillable = [
         'name',
@@ -87,11 +99,12 @@ class UserGroup extends Model
      */
     public function removeMember(int $userId): bool
     {
-        if (!$this->hasMember($userId)) {
+        if (! $this->hasMember($userId)) {
             return false;
         }
 
         $this->users()->detach($userId);
+
         return true;
     }
 

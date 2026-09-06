@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { hasPermission } from '@/lib/permissions';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Key, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, MessageSquareWarning } from 'lucide-react';
+import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Key, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, MessageSquareWarning, ClipboardCheck, History } from 'lucide-react';
 import AppLogo from './app-logo';
 
 // `permission` gates each item to match its target page's controller middleware
@@ -104,6 +104,18 @@ const mainNavItems: NavItem[] = [
         permission: 'view-trips',
     },
     {
+        title: 'Attendance',
+        href: '/attendance',
+        icon: ClipboardCheck,
+        permission: 'capture-own-attendance',
+    },
+    {
+        title: 'Attendance Reports',
+        href: '/attendance/reports',
+        icon: ClipboardCheck,
+        permission: 'view-attendance-reports',
+    },
+    {
         title: 'Feedback & Complaints',
         href: '/complaints',
         icon: MessageSquareWarning,
@@ -114,6 +126,12 @@ const mainNavItems: NavItem[] = [
         href: '/reports',
         icon: BarChart3,
         permission: 'view-reports',
+    },
+    {
+        title: 'Activity Log',
+        href: '/activity-logs',
+        icon: History,
+        permission: 'view-user-activity',
     },
 
 ];

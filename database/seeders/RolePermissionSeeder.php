@@ -3,8 +3,8 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
 
 class RolePermissionSeeder extends Seeder
 {
@@ -172,6 +172,11 @@ class RolePermissionSeeder extends Seeder
             'create-routes',
             'edit-routes',
             'delete-routes',
+
+            // Employee Attendance
+            'capture-own-attendance',
+            'manage-attendance',
+            'view-attendance-reports',
         ];
 
         foreach ($permissions as $permission) {
@@ -196,6 +201,7 @@ class RolePermissionSeeder extends Seeder
             'view-departments',
             'create-complaints', 'view-own-complaints',
             'view-notifications',
+            'capture-own-attendance',
         ]);
 
         // 4. Driver - Operates trips: check-in/out, attendance capture, own fuel logs
@@ -208,6 +214,7 @@ class RolePermissionSeeder extends Seeder
             'view-fuel-logs', 'create-fuel-logs',
             'create-complaints', 'view-own-complaints',
             'view-notifications',
+            'capture-own-attendance',
         ]);
 
         // Remove any previously-seeded roles this refactor no longer keeps

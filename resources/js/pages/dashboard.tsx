@@ -1,4 +1,4 @@
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import {
     Activity,
@@ -6,8 +6,6 @@ import {
     Calendar,
     CheckCircle,
     Clock,
-    LogIn,
-    LogOut,
     Truck,
     UserCheck,
     Users,
@@ -15,10 +13,11 @@ import {
 } from 'lucide-react';
 import { DashboardModuleCards } from '@/components/dashboard-module-cards';
 import { DashboardCharts } from '@/components/dashboard-charts';
+import { AttendanceStatusCard } from '@/components/attendance-status-card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type BreadcrumbItem } from '@/types';
+import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
 import {
     Cell,
     PieChart,
@@ -35,14 +34,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface DashboardProps extends Record<string, unknown> {
-    activeAttendanceAction: {
-        action: 'check_in' | 'check_out';
-        trip_passenger_id: number;
-        trip_id: number;
-        trip_number: string;
-        scheduled_date: string;
-        stop_name: string | null;
-    } | null;
+    attendanceStatus: AttendanceStatusSummary | null;
+    factories: Factory[];
     stats: {
         total_users: number;
         total_vehicles: number;
@@ -174,7 +167,8 @@ interface DashboardProps extends Record<string, unknown> {
 
 export default function Dashboard() {
     const {
-        activeAttendanceAction,
+        attendanceStatus,
+        factories,
         moduleStats,
         recentActivities,
         upcomingSchedules,
@@ -213,104 +207,12 @@ export default function Dashboard() {
         }
     };
 
-    const formatHumanDateTime = (value?: string | null) => {
-        if (!value) {
-            return 'Scheduled time not available';
-        }
-
-        const parsed = new Date(value);
-        if (Number.isNaN(parsed.getTime())) {
-            return value;
-        }
-
-        return parsed.toLocaleString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-    };
-
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="p-6 space-y-6">
-                {/* Active Trip Attendance Banner */}
-                <div
-                    className={`flex items-center justify-between rounded-lg border px-5 py-4 ${
-                        activeAttendanceAction
-                                ? 'border-green-300 bg-green-50 dark:border-green-500/30 dark:bg-green-500/15'
-                            : 'border-slate-300 bg-slate-50 dark:border-slate-700 dark:bg-slate-900'
-                    }`}
-                >
-                    <div className="flex items-center gap-3">
-                        <div
-                            className={`flex h-10 w-10 items-center justify-center rounded-full ${
-                                activeAttendanceAction
-                                        ? 'bg-green-100 dark:bg-green-500/20'
-                                    : 'bg-slate-200 dark:bg-slate-800'
-                            }`}
-                        >
-                            {activeAttendanceAction ? (
-                                activeAttendanceAction.action === 'check_in' ? (
-                                    <LogIn className="h-5 w-5 text-green-700 dark:text-green-300" />
-                                ) : (
-                                    <LogOut className="h-5 w-5 text-green-700 dark:text-green-300" />
-                                )
-                            ) : (
-                                <Clock className="h-5 w-5 text-slate-600 dark:text-slate-300" />
-                            )}
-                        </div>
-                        {activeAttendanceAction ? (
-                            <div>
-                                <p className="font-semibold text-green-800 dark:text-green-200">
-                                    Active Trip: {activeAttendanceAction.trip_number}
-                                </p>
-                                <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-green-700 dark:text-green-300">
-                                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium dark:bg-green-500/20">
-                                        In Progress
-                                    </span>
-                                    <span>{formatHumanDateTime(activeAttendanceAction.scheduled_date)}</span>
-                                    {activeAttendanceAction.stop_name && (
-                                        <span>
-                                            {activeAttendanceAction.action === 'check_in' ? 'Pickup' : 'Drop-off'}: {activeAttendanceAction.stop_name}
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div>
-                                <p className="font-semibold text-slate-800 dark:text-slate-200">No active trip right now</p>
-                                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Check-in and check-out actions will appear here when your trip starts.</p>
-                            </div>
-                        )}
-                    </div>
-                    {activeAttendanceAction && (
-                        <Button
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() =>
-                                router.post(
-                                    `/trips/${activeAttendanceAction.trip_id}/passengers/${activeAttendanceAction.trip_passenger_id}/${
-                                        activeAttendanceAction.action === 'check_in' ? 'check-in' : 'check-out'
-                                    }`,
-                                    {},
-                                    {
-                                        preserveScroll: true,
-                                        onSuccess: () => router.reload({ only: ['activeAttendanceAction'] }),
-                                    },
-                                )
-                            }
-                        >
-                            {activeAttendanceAction.action === 'check_in' ? (
-                                <LogIn className="mr-2 h-4 w-4" />
-                            ) : (
-                                <LogOut className="mr-2 h-4 w-4" />
-                            )}
-                            {activeAttendanceAction.action === 'check_in' ? 'Check In' : 'Check Out'}
-                        </Button>
-                    )}
-                </div>
+                {/* Attendance status — single always-visible widget, see ATTENDANCE_SYSTEM_PLAN.md §11.1 */}
+                {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} factories={factories} />}
 
                 {/* Header */}
                 <div className="flex items-center justify-between">

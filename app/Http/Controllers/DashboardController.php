@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AttendanceRecord;
+use App\Models\Factory;
 use App\Models\TripPassenger;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -14,32 +16,9 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
-        // Find the current user's active attendance action on any in_progress trip
-        $activeAttendanceAction = null;
-        if ($request->user()) {
-            $activePassenger = TripPassenger::with(['trip:id,trip_number,scheduled_date,status', 'pickupStop:id,name', 'dropoffStop:id,name'])
-                ->where('user_id', $request->user()->id)
-                ->whereIn('status', ['pending', 'no_show', 'boarded'])
-                ->whereHas('trip', fn($q) => $q->where('status', 'in_progress'))
-                ->orderByRaw("CASE WHEN status IN ('pending','no_show') THEN 0 ELSE 1 END")
-                ->first();
-
-            if ($activePassenger) {
-                $isCheckIn = in_array($activePassenger->status, ['pending', 'no_show']);
-
-                $activeAttendanceAction = [
-                    'action'            => $isCheckIn ? 'check_in' : 'check_out',
-                    'trip_passenger_id' => $activePassenger->id,
-                    'trip_id'           => $activePassenger->trip_id,
-                    'trip_number'       => $activePassenger->trip?->trip_number,
-                    'scheduled_date'    => $activePassenger->trip?->scheduled_date,
-                    'stop_name'         => $isCheckIn ? $activePassenger->pickupStop?->name : $activePassenger->dropoffStop?->name,
-                ];
-            }
-        }
-
         return Inertia::render('dashboard', [
-            'activeAttendanceAction' => $activeAttendanceAction,
+            'attendanceStatus' => $request->user() ? $this->buildAttendanceStatus($request->user()) : null,
+            'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
             // Basic stats from existing models
             'stats' => [
                 'total_users' => User::count(),
@@ -300,5 +279,46 @@ class DashboardController extends Controller
                 ],
             ],
         ]);
+    }
+
+    /**
+     * §11.1: the single always-visible attendance widget's data — today's
+     * status plus, when one applies, the trip pickup/drop-off context shown
+     * inline. Read-only: no fan-out write happens here, only on the actual
+     * Check In/Check Out button press (AttendanceController).
+     */
+    protected function buildAttendanceStatus(User $user): array
+    {
+        $record = AttendanceRecord::where('user_id', $user->id)
+            ->whereDate('work_date', today()->toDateString())
+            ->first();
+
+        $pendingTrip = TripPassenger::with(['trip:id,trip_number', 'pickupStop:id,name', 'dropoffStop:id,name'])
+            ->where('user_id', $user->id)
+            ->whereIn('status', ['pending', 'no_show', 'boarded'])
+            ->whereHas('trip', fn ($q) => $q->where('status', 'in_progress'))
+            ->orderByRaw("CASE WHEN status IN ('pending','no_show') THEN 0 ELSE 1 END")
+            ->first();
+
+        $trip = null;
+        if ($pendingTrip) {
+            $isPickup = in_array($pendingTrip->status, ['pending', 'no_show'], true);
+            $trip = [
+                'trip_number' => $pendingTrip->trip?->trip_number,
+                'stage' => $isPickup ? 'pickup' : 'dropoff',
+                'stop_name' => $isPickup ? $pendingTrip->pickupStop?->name : $pendingTrip->dropoffStop?->name,
+            ];
+        }
+
+        return [
+            'attendance_mode' => $user->attendanceMode(),
+            'status' => $record?->status ?? 'not_checked_in',
+            'check_in_at' => $record?->check_in_at?->toIso8601String(),
+            'check_out_at' => $record?->check_out_at?->toIso8601String(),
+            'break_minutes' => $record?->break_minutes ?? 0,
+            'net_minutes' => $record?->net_minutes,
+            'overtime_minutes' => $record?->overtime_minutes ?? 0,
+            'trip' => $trip,
+        ];
     }
 }

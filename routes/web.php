@@ -1,30 +1,32 @@
 <?php
 
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\VehicleController;
-use App\Http\Controllers\VehicleRouteController;
-use App\Http\Controllers\StopController;
-use App\Http\Controllers\VendorController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DriverController;
-use App\Http\Controllers\UserGroupController;
-use App\Http\Controllers\DebugController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\TripController;
-use App\Http\Controllers\TripPassengerController;
-use App\Http\Controllers\TripStateController;
-use App\Http\Controllers\TripFeedbackController;
-use App\Http\Controllers\TripFeedbackStateController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\Settings\ProfileController;
+use App\Http\Controllers\StopController;
+use App\Http\Controllers\TripController;
+use App\Http\Controllers\TripFeedbackController;
+use App\Http\Controllers\TripFeedbackStateController;
+use App\Http\Controllers\TripPassengerController;
+use App\Http\Controllers\TripStateController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\UserGroupController;
+use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleRouteController;
+use App\Http\Controllers\VendorController;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Route;
+use Inertia\Inertia;
 
 /*
 |--------------------------------------------------------------------------
@@ -124,6 +126,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/trips/{trip}/passengers/{tripPassenger}/no-show', [TripPassengerController::class, 'markNoShow'])->name('trips.passengers.no-show');
     Route::post('/trips/{trip}/passengers/{tripPassenger}/events/{tripPassengerEvent}/correct', [TripPassengerController::class, 'correctEvent'])->name('trips.passengers.events.correct');
 
+    // Employee attendance routes
+    Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/attendance/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::post('/attendance/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.check-out');
+    Route::post('/attendance/break-start', [AttendanceController::class, 'breakStart'])->name('attendance.break-start');
+    Route::post('/attendance/break-end', [AttendanceController::class, 'breakEnd'])->name('attendance.break-end');
+    Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
+    Route::post('/attendance/events/{event}/correct', [AttendanceController::class, 'correctEvent'])->name('attendance.events.correct');
+
     // Trip feedback & complaints routes
     Route::resource('complaints', TripFeedbackController::class)->except(['edit', 'update']);
     Route::post('/complaints/{complaint}/assign', [TripFeedbackStateController::class, 'assign'])->name('complaints.assign');
@@ -134,6 +145,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Role and Permission management routes
     Route::resource('roles', RoleController::class);
     Route::resource('permissions', PermissionController::class);
+
+    // Activity / audit log viewer
+    Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
 
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');

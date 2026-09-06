@@ -2,13 +2,20 @@
 
 namespace App\Providers;
 
+use App\Listeners\LogFailedLogin;
+use App\Listeners\LogSuccessfulLogin;
+use App\Listeners\LogSuccessfulLogout;
+use App\Models\Trip;
+use App\Models\Vehicle;
+use App\Observers\TripObserver;
+use App\Observers\VehicleObserver;
+use Illuminate\Auth\Events\Failed;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
-use App\Models\Vehicle;
-use App\Models\Trip;
-use App\Observers\VehicleObserver;
-use App\Observers\TripObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,5 +44,10 @@ class AppServiceProvider extends ServiceProvider
 
         // Observe trip changes to track vehicle assignments
         Trip::observe(TripObserver::class);
+
+        // Log authentication events to the activity log
+        Event::listen(Login::class, LogSuccessfulLogin::class);
+        Event::listen(Logout::class, LogSuccessfulLogout::class);
+        Event::listen(Failed::class, LogFailedLogin::class);
     }
 }

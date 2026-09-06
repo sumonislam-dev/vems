@@ -4,10 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vehicle extends Model
 {
-    use HasFactory;
+    use HasFactory, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('vehicles');
+    }
+
     protected $fillable = [
         'brand',
         'model',
@@ -113,7 +126,7 @@ class Vehicle extends Model
      */
     public function isTaxTokenExpiring(): bool
     {
-        if (!$this->tax_token_last_date || !$this->tax_token_alert_enabled) {
+        if (! $this->tax_token_last_date || ! $this->tax_token_alert_enabled) {
             return false;
         }
 
@@ -125,7 +138,7 @@ class Vehicle extends Model
      */
     public function isFitnessExpiring(): bool
     {
-        if (!$this->fitness_certificate_last_date || !$this->fitness_alert_enabled) {
+        if (! $this->fitness_certificate_last_date || ! $this->fitness_alert_enabled) {
             return false;
         }
 
@@ -137,7 +150,7 @@ class Vehicle extends Model
      */
     public function isInsuranceExpiring(): bool
     {
-        if (!$this->insurance_last_date || !$this->insurance_alert_enabled) {
+        if (! $this->insurance_last_date || ! $this->insurance_alert_enabled) {
             return false;
         }
 
@@ -156,7 +169,7 @@ class Vehicle extends Model
                 'type' => 'tax_token',
                 'name' => 'Tax Token',
                 'date' => $this->tax_token_last_date,
-                'days_left' => $this->tax_token_last_date ? $this->tax_token_last_date->diffInDays(now(), false) : null
+                'days_left' => $this->tax_token_last_date ? $this->tax_token_last_date->diffInDays(now(), false) : null,
             ];
         }
 
@@ -165,7 +178,7 @@ class Vehicle extends Model
                 'type' => 'fitness',
                 'name' => 'Fitness Certificate',
                 'date' => $this->fitness_certificate_last_date,
-                'days_left' => $this->fitness_certificate_last_date ? $this->fitness_certificate_last_date->diffInDays(now(), false) : null
+                'days_left' => $this->fitness_certificate_last_date ? $this->fitness_certificate_last_date->diffInDays(now(), false) : null,
             ];
         }
 
@@ -174,7 +187,7 @@ class Vehicle extends Model
                 'type' => 'insurance',
                 'name' => 'Insurance',
                 'date' => $this->insurance_last_date,
-                'days_left' => $this->insurance_last_date ? $this->insurance_last_date->diffInDays(now(), false) : null
+                'days_left' => $this->insurance_last_date ? $this->insurance_last_date->diffInDays(now(), false) : null,
             ];
         }
 
@@ -192,16 +205,16 @@ class Vehicle extends Model
                     ->whereNotNull('tax_token_last_date')
                     ->whereRaw('DATEDIFF(tax_token_last_date, NOW()) <= alert_days_before');
             })
-            ->orWhere(function ($subQ) {
-                $subQ->where('fitness_alert_enabled', true)
-                    ->whereNotNull('fitness_certificate_last_date')
-                    ->whereRaw('DATEDIFF(fitness_certificate_last_date, NOW()) <= alert_days_before');
-            })
-            ->orWhere(function ($subQ) {
-                $subQ->where('insurance_alert_enabled', true)
-                    ->whereNotNull('insurance_last_date')
-                    ->whereRaw('DATEDIFF(insurance_last_date, NOW()) <= alert_days_before');
-            });
+                ->orWhere(function ($subQ) {
+                    $subQ->where('fitness_alert_enabled', true)
+                        ->whereNotNull('fitness_certificate_last_date')
+                        ->whereRaw('DATEDIFF(fitness_certificate_last_date, NOW()) <= alert_days_before');
+                })
+                ->orWhere(function ($subQ) {
+                    $subQ->where('insurance_alert_enabled', true)
+                        ->whereNotNull('insurance_last_date')
+                        ->whereRaw('DATEDIFF(insurance_last_date, NOW()) <= alert_days_before');
+                });
         });
     }
 }

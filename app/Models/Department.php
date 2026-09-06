@@ -3,11 +3,25 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Spatie\Activitylog\LogOptions;
+use Spatie\Activitylog\Traits\LogsActivity;
 
 class Department extends Model
 {
+    use LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logAll()
+            ->logExcept(['updated_at'])
+            ->logOnlyDirty()
+            ->dontSubmitEmptyLogs()
+            ->useLogName('departments');
+    }
+
     protected $fillable = [
         'name',
         'code',
@@ -18,6 +32,7 @@ class Department extends Model
         'email',
         'is_active',
         'budget_allocation',
+        'attendance_mode',
     ];
 
     protected $casts = [
@@ -62,7 +77,7 @@ class Department extends Model
      */
     public function getTotalBudgetAttribute()
     {
-        if (!$this->budget_allocation) {
+        if (! $this->budget_allocation) {
             return 0;
         }
 

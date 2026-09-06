@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
-use App\Models\Department;
-use App\Models\Vendor;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
-use Illuminate\Http\Request;
+use App\Models\Department;
+use App\Models\User;
+use App\Models\Vendor;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
@@ -58,44 +58,44 @@ class UserController extends Controller implements HasMiddleware
             'license_expiry_date',
             'total_trips_completed',
             'average_rating',
-            ])
+        ])
             ->with(['department:id,name', 'roles:id,name']);
 
         // Apply search
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('employee_id', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhereHas('department', function ($subQ) use ($search) {
-                      $subQ->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhereHas('department', function ($subQ) use ($search) {
+                        $subQ->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Apply filters
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['user_type'])) {
+            if (! empty($filters['user_type'])) {
                 $query->whereIn('user_type', $filters['user_type']);
             }
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
 
-            if (!empty($filters['department_id'])) {
+            if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
             }
 
-            if (!empty($filters['blood_group'])) {
+            if (! empty($filters['blood_group'])) {
                 $query->whereIn('blood_group', $filters['blood_group']);
             }
 
-            if (!empty($filters['roles'])) {
+            if (! empty($filters['roles'])) {
                 $query->whereHas('roles', function ($q) use ($filters) {
                     $q->whereIn('name', $filters['roles']);
                 });
@@ -109,38 +109,38 @@ class UserController extends Controller implements HasMiddleware
         // Special handling for department sorting
         if ($sortColumn === 'department') {
             $query->leftJoin('departments', 'users.department_id', '=', 'departments.id')
-                  ->orderBy('departments.name', $sortDirection)
-                  ->select('users.*');
+                ->orderBy('departments.name', $sortDirection)
+                ->select('users.*');
         } else {
             $query->orderBy($sortColumn, $sortDirection);
         }
 
         // Get pagination data
         $users = $query->paginate($validated['per_page'])
-                      ->withQueryString()
-                      ->through(fn ($user) => [
-                          'id' => $user->id,
-                          'name' => $user->name,
-                          'username' => $user->username,
-                          'employee_id' => $user->employee_id,
-                          'email' => $user->email,
-                          'user_type' => $user->user_type,
-                          'status' => $user->status,
-                          'driver_status' => $user->driver_status,
-                          'department' => $user->department,
-                          'blood_group' => $user->blood_group,
-                          'phone' => $user->personal_phone ?? $user->official_phone,
-                          'roles' => $user->roles,
-                          'is_driver' => in_array($user->user_type, ['driver', 'transport_manager']),
-                          'created_at' => $user->created_at,
-                          'image' => $user->image,
-                          'photo' => $user->photo,
-                          'driving_license_no' => $user->driving_license_no,
-                          'license_class' => $user->license_class,
-                          'license_expiry_date' => $user->license_expiry_date,
-                          'total_trips_completed' => $user->total_trips_completed ?? 0,
-                          'average_rating' => $user->average_rating,
-                      ]);
+            ->withQueryString()
+            ->through(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'employee_id' => $user->employee_id,
+                'email' => $user->email,
+                'user_type' => $user->user_type,
+                'status' => $user->status,
+                'driver_status' => $user->driver_status,
+                'department' => $user->department,
+                'blood_group' => $user->blood_group,
+                'phone' => $user->personal_phone ?? $user->official_phone,
+                'roles' => $user->roles,
+                'is_driver' => in_array($user->user_type, ['driver', 'transport_manager']),
+                'created_at' => $user->created_at,
+                'image' => $user->image,
+                'photo' => $user->photo,
+                'driving_license_no' => $user->driving_license_no,
+                'license_class' => $user->license_class,
+                'license_expiry_date' => $user->license_expiry_date,
+                'total_trips_completed' => $user->total_trips_completed ?? 0,
+                'average_rating' => $user->average_rating,
+            ]);
 
         // Get filter options
         $departments = Department::active()->get(['id', 'name']);
@@ -151,9 +151,9 @@ class UserController extends Controller implements HasMiddleware
 
         // Calculate stats with a single aggregate query
         $userStats = User::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
-            'SUM(CASE WHEN user_type IN (?, ?) THEN 1 ELSE 0 END) as drivers, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
+            'SUM(CASE WHEN user_type IN (?, ?) THEN 1 ELSE 0 END) as drivers, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive',
             ['active', 'driver', 'transport_manager', 'inactive']
         )->first();
@@ -243,7 +243,7 @@ class UserController extends Controller implements HasMiddleware
         $user = User::create($validated);
 
         // Handle role assignments - roles are now required
-        if (isset($validated['roles']) && is_array($validated['roles']) && !empty($validated['roles'])) {
+        if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
             // Convert role IDs to role names/objects and assign
             $roles = Role::whereIn('id', $validated['roles'])->get();
             $user->assignRole($roles);
@@ -252,8 +252,10 @@ class UserController extends Controller implements HasMiddleware
             $this->assignRoleByUserType($user, $validated['user_type']);
         }
 
+        $this->logRoleChange($user, []);
+
         return redirect()->route('users.index')
-                        ->with('success', 'User created successfully.');
+            ->with('success', 'User created successfully.');
     }
 
     /**
@@ -267,8 +269,8 @@ class UserController extends Controller implements HasMiddleware
         if ($user->isDriver()) {
             $user->load(['driverTrips' => function ($query) {
                 $query->select('id', 'driver_id', 'status', 'actual_distance', 'driver_rating')
-                      ->latest()
-                      ->limit(10);
+                    ->latest()
+                    ->limit(10);
             }]);
 
             $user->performance_stats = [
@@ -291,7 +293,7 @@ class UserController extends Controller implements HasMiddleware
         $departments = Department::active()->get(['id', 'name']);
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
-        $userRoles = $user->roles->pluck('id')->map(function($id) {
+        $userRoles = $user->roles->pluck('id')->map(function ($id) {
             return (string) $id;
         })->toArray();
 
@@ -369,16 +371,18 @@ class UserController extends Controller implements HasMiddleware
         }
 
         // Hash password if provided
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
         }
 
+        $oldRoleNames = $user->roles->pluck('name')->all();
+
         $user->update($validated);
 
         // Handle role assignments - roles are now required
-        if (isset($validated['roles']) && is_array($validated['roles']) && !empty($validated['roles'])) {
+        if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
             // Convert role IDs to role objects and assign
             $roles = Role::whereIn('id', $validated['roles'])->get();
             $user->syncRoles($roles);
@@ -388,8 +392,10 @@ class UserController extends Controller implements HasMiddleware
             $this->assignRoleByUserType($user, $validated['user_type']);
         }
 
+        $this->logRoleChange($user, $oldRoleNames);
+
         return redirect()->route('users.index')
-                        ->with('success', 'User updated successfully.');
+            ->with('success', 'User updated successfully.');
     }
 
     /**
@@ -400,7 +406,7 @@ class UserController extends Controller implements HasMiddleware
         // Check if user has any active trips
         if ($user->isDriver() && $user->driverTrips()->whereIn('status', ['pending', 'approved', 'in_progress'])->exists()) {
             return redirect()->back()
-                           ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
+                ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
         }
 
         // Delete associated files
@@ -414,7 +420,28 @@ class UserController extends Controller implements HasMiddleware
         $user->delete();
 
         return redirect()->route('users.index')
-                        ->with('success', 'User deleted successfully.');
+            ->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Log a role-change activity entry if the user's roles actually changed.
+     */
+    private function logRoleChange(User $user, array $oldRoleNames): void
+    {
+        $newRoleNames = $user->roles()->pluck('name')->all();
+
+        sort($oldRoleNames);
+        sort($newRoleNames);
+
+        if ($oldRoleNames === $newRoleNames) {
+            return;
+        }
+
+        activity('users')
+            ->performedOn($user)
+            ->withProperties(['old' => ['roles' => $oldRoleNames], 'new' => ['roles' => $newRoleNames]])
+            ->event('role_assigned')
+            ->log("Roles updated for {$user->name}");
     }
 
     /**
