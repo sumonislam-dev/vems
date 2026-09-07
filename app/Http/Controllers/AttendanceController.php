@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\AttendanceReportExport;
+use App\Jobs\ResolveAttendanceEventLocation;
 use App\Models\AttendanceEvent;
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
 use App\Models\TripPassenger;
 use App\Models\User;
+use App\Services\LocationResolver;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttendanceController extends Controller implements HasMiddleware
 {
@@ -21,6 +27,7 @@ class AttendanceController extends Controller implements HasMiddleware
             new Middleware('permission:capture-own-attendance', only: ['index', 'checkIn', 'checkOut', 'breakStart', 'breakEnd']),
             new Middleware('permission:manage-attendance', only: ['correctEvent']),
             new Middleware('permission:view-attendance-reports', only: ['reports']),
+            new Middleware('permission:export-attendance-reports', only: ['exportReports']),
         ];
     }
 
@@ -75,7 +82,7 @@ class AttendanceController extends Controller implements HasMiddleware
         $tripEvent = $this->resolveTripFanOut($user, $validated, 'check_in');
 
         try {
-            $record->checkIn(array_merge($validated, [
+            $event = $record->checkIn(array_merge($validated, [
                 'ip_address' => $request->ip(),
                 'source' => 'self_service',
                 'actor_user_id' => $user->id,
@@ -84,6 +91,9 @@ class AttendanceController extends Controller implements HasMiddleware
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        $this->attachResolvedLocation($event);
+        $this->flagIfOutsideGeofence($record, $event);
 
         if ($tripEvent) {
             $record->update([
@@ -121,7 +131,7 @@ class AttendanceController extends Controller implements HasMiddleware
         $tripEvent = $this->resolveTripFanOut($user, $validated, 'check_out');
 
         try {
-            $record->checkOut(array_merge($validated, [
+            $event = $record->checkOut(array_merge($validated, [
                 'ip_address' => $request->ip(),
                 'source' => 'self_service',
                 'actor_user_id' => $user->id,
@@ -130,6 +140,9 @@ class AttendanceController extends Controller implements HasMiddleware
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        $this->attachResolvedLocation($event);
+        $this->flagIfOutsideGeofence($record, $event);
 
         return back()->with('success', 'Checked out successfully.');
     }
@@ -150,7 +163,7 @@ class AttendanceController extends Controller implements HasMiddleware
         }
 
         try {
-            $record->startBreak(array_merge($validated, [
+            $event = $record->startBreak(array_merge($validated, [
                 'ip_address' => $request->ip(),
                 'source' => 'self_service',
                 'actor_user_id' => $user->id,
@@ -158,6 +171,8 @@ class AttendanceController extends Controller implements HasMiddleware
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        $this->attachResolvedLocation($event);
 
         return back()->with('success', 'Break started.');
     }
@@ -178,7 +193,7 @@ class AttendanceController extends Controller implements HasMiddleware
         }
 
         try {
-            $record->endBreak(array_merge($validated, [
+            $event = $record->endBreak(array_merge($validated, [
                 'ip_address' => $request->ip(),
                 'source' => 'self_service',
                 'actor_user_id' => $user->id,
@@ -186,6 +201,8 @@ class AttendanceController extends Controller implements HasMiddleware
         } catch (\RuntimeException $e) {
             return back()->with('error', $e->getMessage());
         }
+
+        $this->attachResolvedLocation($event);
 
         return back()->with('success', 'Break ended.');
     }
@@ -195,11 +212,42 @@ class AttendanceController extends Controller implements HasMiddleware
      */
     public function reports(Request $request)
     {
+        $query = $this->reportsQuery($request);
+
+        $sortColumn = in_array($request->get('sort'), ['work_date', 'check_in_at', 'check_out_at', 'net_minutes'])
+            ? $request->get('sort')
+            : 'work_date';
+        $sortDirection = $request->get('direction', 'desc') === 'asc' ? 'asc' : 'desc';
+        $query->orderBy($sortColumn, $sortDirection);
+
+        $records = $query->paginate($request->get('per_page', 20))->withQueryString();
+
+        $stats = [
+            'total' => AttendanceRecord::count(),
+            'checked_in_today' => AttendanceRecord::whereDate('work_date', today()->toDateString())->whereIn('status', ['checked_in', 'on_break'])->count(),
+            'anomalies' => AttendanceRecord::where('has_anomaly', true)->count(),
+            'used_transport' => AttendanceRecord::where('used_transport', true)->count(),
+        ];
+
+        return Inertia::render('attendance/reports', [
+            'records' => $records,
+            'stats' => $stats,
+            'queryParams' => $request->only(['date_from', 'date_to', 'department_id', 'source', 'used_transport', 'has_anomaly', 'sort', 'direction', 'per_page']),
+        ]);
+    }
+
+    /**
+     * Same filters as reports(), shared with exportReports() so the
+     * downloaded file always matches what's on screen.
+     */
+    protected function reportsQuery(Request $request)
+    {
         $query = AttendanceRecord::with([
             'user:id,name,employee_id,department_id',
             'user.department:id,name',
-            'tripPassengerEvent.trip:id,trip_number',
-            'events' => fn ($q) => $q->where('event_type', 'check_out')->latest('event_time')->limit(1)->with('factory:id,name'),
+            'tripPassengerEvent.trip:id,trip_number,trip_type,driver_id',
+            'tripPassengerEvent.trip.driver:id,name',
+            'events' => fn ($q) => $q->where('is_valid', true)->orderBy('event_time')->with('factory:id,name,address'),
         ]);
 
         if ($request->filled('date_from')) {
@@ -226,25 +274,121 @@ class AttendanceController extends Controller implements HasMiddleware
             $query->where('has_anomaly', $request->has_anomaly === 'yes');
         }
 
-        $sortColumn = in_array($request->get('sort'), ['work_date', 'check_in_at', 'check_out_at', 'net_minutes'])
-            ? $request->get('sort')
-            : 'work_date';
-        $sortDirection = $request->get('direction', 'desc') === 'asc' ? 'asc' : 'desc';
-        $query->orderBy($sortColumn, $sortDirection);
+        return $query;
+    }
 
-        $records = $query->paginate($request->get('per_page', 20))->withQueryString();
+    public function exportReports(Request $request)
+    {
+        $query = $this->reportsQuery($request)->orderBy('work_date');
+        $format = in_array($request->get('format'), ['csv', 'excel', 'pdf']) ? $request->get('format') : 'csv';
+        $timestamp = now()->format('Ymd_His');
 
-        $stats = [
-            'total' => AttendanceRecord::count(),
-            'checked_in_today' => AttendanceRecord::whereDate('work_date', today()->toDateString())->whereIn('status', ['checked_in', 'on_break'])->count(),
-            'anomalies' => AttendanceRecord::where('has_anomaly', true)->count(),
-            'used_transport' => AttendanceRecord::where('used_transport', true)->count(),
-        ];
+        return match ($format) {
+            'excel' => Excel::download(new AttendanceReportExport(clone $query), "attendance-report-{$timestamp}.xlsx"),
+            'pdf' => $this->exportPdf(clone $query, $timestamp),
+            default => $this->exportCsv(clone $query, $timestamp),
+        };
+    }
 
-        return Inertia::render('attendance/reports', [
-            'records' => $records,
-            'stats' => $stats,
-            'queryParams' => $request->only(['date_from', 'date_to', 'department_id', 'source', 'used_transport', 'has_anomaly', 'sort', 'direction', 'per_page']),
+    private function exportCsv($query, string $timestamp): StreamedResponse
+    {
+        $fileName = "attendance-report-{$timestamp}.csv";
+
+        return response()->streamDownload(function () use ($query) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, AttendanceReportExport::headingList());
+
+            $query->chunk(200, function ($records) use ($handle) {
+                foreach ($records as $record) {
+                    fputcsv($handle, AttendanceReportExport::mapRow($record));
+                }
+            });
+
+            fclose($handle);
+        }, $fileName, [
+            'Content-Type' => 'text/csv',
+        ]);
+    }
+
+    private function exportPdf($query, string $timestamp)
+    {
+        $records = $query->get();
+
+        $pdf = Pdf::loadView('exports.attendance-report-pdf', [
+            'headings' => AttendanceReportExport::headingList(),
+            'rows' => $records->map(fn (AttendanceRecord $record) => AttendanceReportExport::mapRow($record)),
+            'exportDate' => now()->format('F j, Y g:i A'),
+            'totalRecords' => $records->count(),
+        ]);
+
+        $pdf->setPaper('A4', 'landscape')
+            ->setOptions([
+                'defaultFont' => 'Arial',
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'chroot' => public_path(),
+            ]);
+
+        return $pdf->download("attendance-report-{$timestamp}.pdf");
+    }
+
+    /**
+     * Fill in factory_id/location_name when neither was already captured —
+     * never overrides a manually chosen checkout factory. Only the free,
+     * local match runs inline; an unmatched point is resolved by Nominatim
+     * on the queue instead, so this never slows down the check-in/break
+     * action itself.
+     */
+    protected function attachResolvedLocation(?AttendanceEvent $event): void
+    {
+        if (! $event || $event->factory_id || $event->location_name) {
+            return;
+        }
+
+        if ($event->latitude === null || $event->longitude === null) {
+            return;
+        }
+
+        $match = app(LocationResolver::class)->matchKnown((float) $event->latitude, (float) $event->longitude);
+
+        if ($match['factory_id'] || $match['location_name']) {
+            $event->update([
+                'location_name' => $match['location_name'],
+                'factory_id' => $match['factory_id'],
+            ]);
+        } else {
+            ResolveAttendanceEventLocation::dispatch($event->id);
+        }
+    }
+
+    /**
+     * A check-in or check-out far from every known factory/stop gets
+     * flagged for HR review rather than blocked — GPS drift and a
+     * legitimate off-site event both look identical from distance alone.
+     * Never second-guesses a checkout where the user (or matchKnown())
+     * already resolved a factory — only an event with nothing but raw
+     * GPS behind it gets checked.
+     */
+    protected function flagIfOutsideGeofence(AttendanceRecord $record, ?AttendanceEvent $event): void
+    {
+        if (! $event || $event->factory_id || $event->latitude === null || $event->longitude === null) {
+            return;
+        }
+
+        $distance = app(LocationResolver::class)->matchKnown((float) $event->latitude, (float) $event->longitude)['distance_meters'];
+        $radius = config('attendance.geofence_radius_meters', 300);
+
+        if ($distance === null || $distance <= $radius) {
+            return;
+        }
+
+        $record->update(['has_anomaly' => true]);
+        $event->update([
+            'metadata' => array_merge($event->metadata ?? [], [
+                'geofence_flag' => true,
+                'distance_meters' => $distance,
+            ]),
         ]);
     }
 

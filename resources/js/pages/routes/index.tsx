@@ -103,10 +103,10 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
             key: 'total_distance',
             label: 'Distance',
             sortable: true,
-            render: (value: number | null) => value ? (
+            render: (value: number | string | null) => value ? (
                 <Badge variant="outline" className="flex items-center gap-1 w-fit">
                     <RouteIcon className="h-3 w-3" />
-                    {value.toFixed(2)} km
+                    {Number(value).toFixed(2)} km
                 </Badge>
             ) : (
                 <span className="text-muted-foreground text-sm">Not calculated</span>

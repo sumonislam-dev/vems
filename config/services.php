@@ -35,4 +35,12 @@ return [
         ],
     ],
 
+    'nominatim' => [
+        'base_url' => env('NOMINATIM_BASE_URL', 'https://nominatim.openstreetmap.org'),
+        // Nominatim's usage policy requires a User-Agent that identifies the
+        // application and a way to contact its operator — replace the email
+        // below with a real one before using this in production.
+        'user_agent' => env('NOMINATIM_USER_AGENT', 'VEMS-Attendance/1.0 (admin@example.com)'),
+    ],
+
 ];

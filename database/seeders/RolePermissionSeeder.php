@@ -177,6 +177,7 @@ class RolePermissionSeeder extends Seeder
             'capture-own-attendance',
             'manage-attendance',
             'view-attendance-reports',
+            'export-attendance-reports',
         ];
 
         foreach ($permissions as $permission) {

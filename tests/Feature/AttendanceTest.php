@@ -1,12 +1,23 @@
 <?php
 
+use App\Jobs\ResolveAttendanceEventLocation;
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
 use App\Models\Trip;
 use App\Models\TripPassenger;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Permission;
+
+beforeEach(function () {
+    // Attendance events carry real GPS coordinates in these tests; stub
+    // Nominatim so LocationResolver never makes a live network call here.
+    Http::fake([
+        '*nominatim.openstreetmap.org*' => Http::response(['display_name' => null], 200),
+    ]);
+});
 
 function seedAttendanceOwnPermission(): void
 {
@@ -170,6 +181,80 @@ it('captures the factory and location name on checkout', function () {
         'factory_id' => $factory->id,
         'location_name' => 'Factory ABC - Gate 2',
     ]);
+});
+
+it('auto-resolves a check-in near a known factory without touching the queue', function () {
+    Queue::fake();
+    $user = makeAttendanceUser();
+    $factory = Factory::create(['account_id' => 'ACC-GEO1', 'name' => 'Geo Factory', 'status' => 'active', 'latitude' => 23.8103, 'longitude' => 90.4125]);
+
+    $this->actingAs($user)->post('/attendance/check-in', [
+        'latitude' => 23.8103,
+        'longitude' => 90.4125,
+    ])->assertRedirect();
+
+    $record = AttendanceRecord::where('user_id', $user->id)->first();
+    $event = $record->events()->where('event_type', 'check_in')->first();
+
+    expect($record->has_anomaly)->toBeFalse()
+        ->and($event->factory_id)->toBe($factory->id);
+
+    Queue::assertNotPushed(ResolveAttendanceEventLocation::class);
+});
+
+it('flags an anomaly and queues Nominatim resolution when checking in far from every known factory/stop', function () {
+    Queue::fake();
+    $user = makeAttendanceUser();
+    Factory::create(['account_id' => 'ACC-GEO2', 'name' => 'Geo Factory Far', 'status' => 'active', 'latitude' => 23.8103, 'longitude' => 90.4125]);
+
+    $this->actingAs($user)->post('/attendance/check-in', [
+        'latitude' => 24.5000,
+        'longitude' => 91.8000,
+    ])->assertRedirect();
+
+    $record = AttendanceRecord::where('user_id', $user->id)->first();
+    $event = $record->events()->where('event_type', 'check_in')->first();
+
+    expect($record->has_anomaly)->toBeTrue()
+        ->and($event->factory_id)->toBeNull()
+        ->and($event->metadata['geofence_flag'] ?? null)->toBeTrue();
+
+    Queue::assertPushed(ResolveAttendanceEventLocation::class, 1);
+});
+
+it('flags an anomaly when checking out far from every known factory/stop with no factory chosen', function () {
+    $user = makeAttendanceUser();
+    Factory::create(['account_id' => 'ACC-GEO3', 'name' => 'Geo Factory Checkout', 'status' => 'active', 'latitude' => 23.8103, 'longitude' => 90.4125]);
+
+    $this->actingAs($user)->post('/attendance/check-in', ['idempotency_key' => 'co-geo-in'])->assertRedirect();
+    $this->actingAs($user)->post('/attendance/check-out', [
+        'idempotency_key' => 'co-geo-out',
+        'latitude' => 24.5000,
+        'longitude' => 91.8000,
+    ])->assertRedirect();
+
+    $record = AttendanceRecord::where('user_id', $user->id)->first();
+    $event = $record->events()->where('event_type', 'check_out')->first();
+
+    expect($record->has_anomaly)->toBeTrue()
+        ->and($event->metadata['geofence_flag'] ?? null)->toBeTrue();
+});
+
+it('does not flag a checkout far from every known factory/stop when the user manually picked a factory', function () {
+    $user = makeAttendanceUser();
+    $factory = Factory::create(['account_id' => 'ACC-GEO4', 'name' => 'Geo Factory Manual', 'status' => 'active', 'latitude' => 23.8103, 'longitude' => 90.4125]);
+
+    $this->actingAs($user)->post('/attendance/check-in', ['idempotency_key' => 'co-geo-in2'])->assertRedirect();
+    $this->actingAs($user)->post('/attendance/check-out', [
+        'idempotency_key' => 'co-geo-out2',
+        'latitude' => 24.5000,
+        'longitude' => 91.8000,
+        'factory_id' => $factory->id,
+    ])->assertRedirect();
+
+    $record = AttendanceRecord::where('user_id', $user->id)->first();
+
+    expect($record->has_anomaly)->toBeFalse();
 });
 
 it('fans out check-in to a pending trip pickup, creating both records linked together', function () {

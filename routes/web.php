@@ -133,6 +133,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/attendance/break-start', [AttendanceController::class, 'breakStart'])->name('attendance.break-start');
     Route::post('/attendance/break-end', [AttendanceController::class, 'breakEnd'])->name('attendance.break-end');
     Route::get('/attendance/reports', [AttendanceController::class, 'reports'])->name('attendance.reports');
+    Route::get('/attendance/reports/export', [AttendanceController::class, 'exportReports'])->name('attendance.reports.export');
     Route::post('/attendance/events/{event}/correct', [AttendanceController::class, 'correctEvent'])->name('attendance.events.correct');
 
     // Trip feedback & complaints routes

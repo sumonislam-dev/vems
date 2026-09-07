@@ -467,12 +467,12 @@ export default function ShowUser({ user }: ShowUserProps) {
                                         </div>
                                     )}
 
-                                    {typeof user.average_rating === 'number' && (
+                                    {user.average_rating !== null && user.average_rating !== undefined && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Average Rating</label>
                                             <div className="flex items-center gap-1">
                                                 <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                                                <p className="text-sm font-semibold">{user.average_rating.toFixed(1)}</p>
+                                                <p className="text-sm font-semibold">{Number(user.average_rating).toFixed(1)}</p>
                                             </div>
                                         </div>
                                     )}

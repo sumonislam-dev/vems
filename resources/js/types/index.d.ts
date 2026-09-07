@@ -78,7 +78,7 @@ export interface User {
     driver_status?: string;
     total_distance_covered?: number;
     total_trips_completed?: number;
-    average_rating?: number;
+    average_rating?: number | string;
     // Authentication and tracking
     last_login_at?: string;
     last_login_ip?: string;

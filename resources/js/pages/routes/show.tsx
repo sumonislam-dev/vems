@@ -99,7 +99,7 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                     <h3 className="font-medium">Total Distance</h3>
                                     <p className="text-muted-foreground">
                                         {route.total_distance
-                                            ? `${route.total_distance.toFixed(2)} km`
+                                            ? `${Number(route.total_distance).toFixed(2)} km`
                                             : 'Not calculated'
                                         }
                                     </p>
@@ -177,13 +177,13 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                                             {routeStop.distance_from_previous !== null && routeStop.stop_order > 1 && (
                                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                                     <RouteIcon className="h-3 w-3" />
-                                                                    From previous: {routeStop.distance_from_previous.toFixed(2)} km
+                                                                    From previous: {Number(routeStop.distance_from_previous).toFixed(2)} km
                                                                 </div>
                                                             )}
                                                             {routeStop.cumulative_distance !== null && (
                                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                                     <MapPin className="h-3 w-3" />
-                                                                    Total: {routeStop.cumulative_distance.toFixed(2)} km
+                                                                    Total: {Number(routeStop.cumulative_distance).toFixed(2)} km
                                                                 </div>
                                                             )}
                                                             {routeStop.arrival_time && (
