@@ -37,7 +37,11 @@ class UserIndexRequest extends FormRequest
             'filters.blood_group.*' => ['string'],
             'filters.roles' => ['nullable', 'array'],
             'filters.roles.*' => ['string'],
-            'format' => ['nullable', 'string', 'in:csv,xlsx,pdf'],
+            'filters.driver_status' => ['nullable', 'array'],
+            'filters.driver_status.*' => ['string'],
+            'filters.vendor_id' => ['nullable', 'array'],
+            'filters.vendor_id.*' => ['string'],
+            'format' => ['nullable', 'string', 'in:csv,excel,pdf'],
             'template_id' => ['nullable', 'integer', 'exists:export_templates,id'],
         ];
     }

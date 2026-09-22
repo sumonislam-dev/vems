@@ -42,12 +42,6 @@ const mainNavItems: NavItem[] = [
         permission: 'view-users',
     },
     {
-        title: 'Drivers',
-        href: '/drivers',
-        icon: UserCheck,
-        permission: 'view-drivers',
-    },
-    {
         title: 'User Groups',
         href: '/user-groups',
         icon: UsersRound,
@@ -60,12 +54,7 @@ const mainNavItems: NavItem[] = [
     //     href: '/products',
     //     icon: Package,
     // },
-    {
-        title: 'Vendors',
-        href: '/vendors',
-        icon: Building2,
-        permission: 'view-vendors',
-    },
+
     {
         title: 'Factories',
         href: '/factories',
@@ -78,6 +67,18 @@ const mainNavItems: NavItem[] = [
         href: '/logistics',
         icon: Briefcase,
         permission: 'view-logistics',
+    },
+      {
+        title: 'Vendors',
+        href: '/vendors',
+        icon: Building2,
+        permission: 'view-vendors',
+    },
+     {
+        title: 'Drivers',
+        href: '/drivers',
+        icon: UserCheck,
+        permission: 'view-drivers',
     },
     {
         title: 'Vehicles',

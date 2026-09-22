@@ -1,5 +1,6 @@
 import type { Permission } from './permission';
 import type { Department } from './common';
+import type { Vendor } from './vehicle';
 
 export interface User {
     id: number;
@@ -21,10 +22,13 @@ export interface User {
     whatsapp_id?: string;
     // Driver-specific fields
     driving_license_no?: string;
+    driving_license_file?: string | null;
     license_class?: string;
     license_issue_date?: string;
     license_expiry_date?: string;
+    license_status?: 'not_provided' | 'expired' | 'expiring_soon' | 'valid';
     nid_number?: string;
+    nid_file?: string | null;
     passport_number?: string;
     present_address?: string;
     permanent_address?: string;
@@ -35,6 +39,8 @@ export interface User {
     joining_date?: string;
     probation_end_date?: string;
     department_id?: number;
+    vendor_id?: number | null;
+    vendor?: Vendor | null;
     driver_status?: string;
     total_distance_covered?: number;
     total_trips_completed?: number;

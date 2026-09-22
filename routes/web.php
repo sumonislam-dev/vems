@@ -63,6 +63,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('vehicles', VehicleController::class);
     Route::get('vehicles-expiring', [VehicleController::class, 'getExpiringVehicles'])->name('vehicles.expiring');
+    Route::get('vehicles-export', [VehicleController::class, 'export'])->name('vehicles.export');
+    Route::post('vehicles-bulk-status', [VehicleController::class, 'bulkUpdateStatus'])->name('vehicles.bulk-status');
+    Route::post('/vehicles/{vehicle}/assign-driver', [VehicleController::class, 'assignDriver'])->name('vehicles.assign-driver');
 
     Route::resource('vendors', VendorController::class);
     Route::get('vendors-select', [VendorController::class, 'getVendorsForSelect'])->name('vendors.select');
@@ -72,6 +75,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/api/drivers/available', [DriverController::class, 'getAvailableDrivers'])->name('drivers.available');
     });
     Route::patch('/drivers/{user}/status', [DriverController::class, 'updateDriverStatus'])->name('drivers.update-status');
+    Route::get('/drivers/{driver}/assignable-vehicles', [DriverController::class, 'assignableVehicles'])->name('drivers.assignable-vehicles');
+    Route::get('/drivers-export', [DriverController::class, 'export'])->name('drivers.export');
+    Route::post('/drivers-bulk-status', [DriverController::class, 'bulkUpdateStatus'])->name('drivers.bulk-status');
     Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
     Route::post('/users/import', [UserController::class, 'import'])->name('users.import');
 

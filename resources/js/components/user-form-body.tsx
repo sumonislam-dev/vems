@@ -32,8 +32,10 @@ export type UserForm = {
     area: string;
     blood_group: string;
     nid_number: string;
+    nid_file: File | null;
     passport_number: string;
     driving_license_no: string;
+    driving_license_file: File | null;
     license_class: string;
     license_issue_date: string;
     license_expiry_date: string;
@@ -293,6 +295,16 @@ export function UserFormBody({
                                 required={showDriverFields}
                             />
 
+                            <FormFileUpload
+                                label="License Scan"
+                                name="driving_license_file"
+                                value={data.driving_license_file}
+                                onChange={(file) => handleFieldChange('driving_license_file', file)}
+                                error={getFieldError('driving_license_file')}
+                                accept="image/*,.pdf"
+                                maxSize={2 * 1024 * 1024}
+                            />
+
                             <FormSelect
                                 label="License Class"
                                 name="license_class"
@@ -388,6 +400,16 @@ export function UserFormBody({
                                 onChange={(value) => handleFieldChange('nid_number', value)}
                                 error={getFieldError('nid_number')}
                                 placeholder="Enter National ID number"
+                            />
+
+                            <FormFileUpload
+                                label="NID Scan"
+                                name="nid_file"
+                                value={data.nid_file}
+                                onChange={(file) => handleFieldChange('nid_file', file)}
+                                error={getFieldError('nid_file')}
+                                accept="image/*,.pdf"
+                                maxSize={2 * 1024 * 1024}
                             />
 
                             <FormField
@@ -521,7 +543,7 @@ export function UserFormBody({
                             onChange={(file) => handleFieldChange('image', file)}
                             error={getFieldError('image')}
                             accept="image/*"
-                            maxSize={2}
+                            maxSize={2 * 1024 * 1024}
                             compact
                         />
 
@@ -531,7 +553,7 @@ export function UserFormBody({
                             onChange={(file) => handleFieldChange('photo', file)}
                             error={getFieldError('photo')}
                             accept="image/*"
-                            maxSize={2}
+                            maxSize={2 * 1024 * 1024}
                             compact
                         />
                     </div>

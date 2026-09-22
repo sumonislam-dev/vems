@@ -1,11 +1,17 @@
 import { PageHeader } from '@/base-components/page-header';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, Vehicle } from '@/types';
-import { Head, router } from '@inertiajs/react';
-import { ArrowLeft, Edit, Trash2 } from 'lucide-react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { AlertTriangle, ArrowLeft, Edit, ExternalLink, Trash2, UserCog } from 'lucide-react';
+import { FormEvent, useState } from 'react';
 
 type Assignment = {
     id: number
@@ -16,10 +22,20 @@ type Assignment = {
     is_current: boolean
 }
 
+type AssignableDriver = {
+    id: number
+    name: string
+    email?: string
+    official_phone?: string
+}
+
 interface ShowVehicleProps {
     vehicle: Vehicle;
     assignments?: Assignment[];
+    assignableDrivers?: AssignableDriver[];
 }
+
+const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -27,7 +43,48 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Vehicle Details', href: '#' },
 ];
 
-export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehicleProps) {
+export default function ShowVehicle({ vehicle, assignments = [], assignableDrivers = [] }: ShowVehicleProps) {
+    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
+    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
+
+    const [assignDriverOpen, setAssignDriverOpen] = useState(false);
+    const {
+        data: assignDriverData,
+        setData: setAssignDriverData,
+        post: postAssignDriver,
+        processing: assignDriverProcessing,
+        errors: assignDriverErrors,
+        reset: resetAssignDriver,
+        clearErrors: clearAssignDriverErrors,
+    } = useForm<{ driver_id: string; confirm_reassign: boolean }>({
+        driver_id: vehicle.driver_id ? String(vehicle.driver_id) : 'none',
+        confirm_reassign: false,
+    });
+
+    const openAssignDriverDialog = () => {
+        setAssignDriverData({
+            driver_id: vehicle.driver_id ? String(vehicle.driver_id) : 'none',
+            confirm_reassign: false,
+        });
+        clearAssignDriverErrors();
+        setAssignDriverOpen(true);
+    };
+
+    const closeAssignDriverDialog = () => {
+        setAssignDriverOpen(false);
+        resetAssignDriver();
+        clearAssignDriverErrors();
+    };
+
+    const submitAssignDriver = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+
+        postAssignDriver(route('vehicles.assign-driver', vehicle.id), {
+            preserveScroll: true,
+            onSuccess: () => closeAssignDriverDialog(),
+        });
+    };
+
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${vehicle.brand} ${vehicle.model}?`)) {
             router.delete(route('vehicles.destroy', vehicle.id));
@@ -39,6 +96,29 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
             <Head title={`${vehicle.brand} ${vehicle.model} - Vehicle Details`} />
 
             <div className="space-y-6">
+                {/* Expiring Documents Alert */}
+                {vehicle.expiring_documents && vehicle.expiring_documents.length > 0 && (
+                    <Card className="border-destructive bg-destructive/5">
+                        <CardContent className="p-4">
+                            <div className="flex items-start gap-2 text-destructive">
+                                <AlertTriangle className="h-5 w-5 mt-0.5" />
+                                <div>
+                                    <h4 className="font-semibold">Document{vehicle.expiring_documents.length > 1 ? 's' : ''} Expiring Soon</h4>
+                                    <ul className="text-sm space-y-0.5 mt-1">
+                                        {vehicle.expiring_documents.map((doc) => (
+                                            <li key={doc.type}>
+                                                {doc.name}: {doc.days_left !== null && doc.days_left < 0
+                                                    ? `expired ${Math.abs(doc.days_left)} day(s) ago`
+                                                    : `expires in ${doc.days_left} day(s)`} ({new Date(doc.date).toLocaleDateString()})
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 <PageHeader
                     title={`${vehicle.brand} ${vehicle.model}`}
                     description="Vehicle details and information."
@@ -54,6 +134,16 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('vehicles.edit', vehicle.id),
                         },
+                        ...(canAssignVehicles
+                            ? [
+                                {
+                                    label: 'Assign Driver',
+                                    icon: <UserCog className="mr-2 h-4 w-4" />,
+                                    onClick: openAssignDriverDialog,
+                                    variant: 'outline' as const,
+                                },
+                            ]
+                            : []),
                     ]}
                 />
 
@@ -72,6 +162,22 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Model</label>
                                     <p className="text-sm">{vehicle.model}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Vehicle Type</label>
+                                    <div className="flex items-center space-x-2">
+                                        <Badge variant="secondary" className="capitalize">
+                                            {vehicle.vehicle_type?.replace('_', ' ') || 'N/A'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Condition</label>
+                                    <div className="flex items-center space-x-2">
+                                        <Badge variant="outline" className="capitalize">
+                                            {vehicle.status?.replace('_', ' ') || 'N/A'}
+                                        </Badge>
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Color</label>
@@ -144,6 +250,16 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                     <p className="text-sm font-mono">{vehicle.tax_token_number || 'N/A'}</p>
                                 </div>
                                 <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Document</label>
+                                    <p className="text-sm">
+                                        {vehicle.tax_token_file ? (
+                                            <a href={`/storage/${vehicle.tax_token_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                                <ExternalLink className="h-3 w-3" /> View file
+                                            </a>
+                                        ) : 'N/A'}
+                                    </p>
+                                </div>
+                                <div>
                                     <label className="text-sm font-medium text-muted-foreground">Tax Token Last Date</label>
                                     <p className="text-sm">
                                         {vehicle.tax_token_last_date
@@ -176,6 +292,16 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Fitness Certificate Number</label>
                                     <p className="text-sm font-mono">{vehicle.fitness_certificate_number || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Document</label>
+                                    <p className="text-sm">
+                                        {vehicle.fitness_certificate_file ? (
+                                            <a href={`/storage/${vehicle.fitness_certificate_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                                <ExternalLink className="h-3 w-3" /> View file
+                                            </a>
+                                        ) : 'N/A'}
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Fitness Certificate Last Date</label>
@@ -217,6 +343,16 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                     <p className="text-sm font-mono">{vehicle.insurance_policy_number || 'N/A'}</p>
                                 </div>
                                 <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Document</label>
+                                    <p className="text-sm">
+                                        {vehicle.insurance_policy_file ? (
+                                            <a href={`/storage/${vehicle.insurance_policy_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                                <ExternalLink className="h-3 w-3" /> View file
+                                            </a>
+                                        ) : 'N/A'}
+                                    </p>
+                                </div>
+                                <div>
                                     <label className="text-sm font-medium text-muted-foreground">Insurance Company</label>
                                     <p className="text-sm">{vehicle.insurance_company || 'N/A'}</p>
                                 </div>
@@ -253,6 +389,16 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Registration Certificate Number</label>
                                     <p className="text-sm font-mono">{vehicle.registration_certificate_number || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Document</label>
+                                    <p className="text-sm">
+                                        {vehicle.registration_certificate_file ? (
+                                            <a href={`/storage/${vehicle.registration_certificate_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                                <ExternalLink className="h-3 w-3" /> View file
+                                            </a>
+                                        ) : 'N/A'}
+                                    </p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Owner Name</label>
@@ -549,6 +695,64 @@ export default function ShowVehicle({ vehicle, assignments = [] }: ShowVehiclePr
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={assignDriverOpen} onOpenChange={(open) => !open && closeAssignDriverDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Assign Driver</DialogTitle>
+                        <DialogDescription>Choose a driver for {vehicle.registration_number}, or unassign the current one.</DialogDescription>
+                    </DialogHeader>
+
+                    <form className="space-y-4" onSubmit={submitAssignDriver}>
+                        <div className="space-y-2">
+                            <Label htmlFor="assign_driver_id">Driver</Label>
+                            <Select
+                                value={assignDriverData.driver_id}
+                                onValueChange={(value) => setAssignDriverData('driver_id', value)}
+                            >
+                                <SelectTrigger id="assign_driver_id" className="w-full">
+                                    <SelectValue placeholder="Select a driver" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">— Unassign —</SelectItem>
+                                    {assignableDrivers.map((driver) => (
+                                        <SelectItem key={driver.id} value={String(driver.id)}>
+                                            {driver.name}
+                                            {driver.email ? ` • ${driver.email}` : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={assignDriverErrors.driver_id} />
+                        </div>
+
+                        {assignDriverErrors.confirm_reassign && (
+                            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+                                <p className="text-sm text-amber-800">{assignDriverErrors.confirm_reassign}</p>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="confirm_reassign"
+                                        checked={assignDriverData.confirm_reassign}
+                                        onCheckedChange={(checked) => setAssignDriverData('confirm_reassign', checked === true)}
+                                    />
+                                    <Label htmlFor="confirm_reassign" className="text-sm font-normal">
+                                        Confirm reassign
+                                    </Label>
+                                </div>
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeAssignDriverDialog} disabled={assignDriverProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={assignDriverProcessing}>
+                                {assignDriverProcessing ? 'Saving...' : 'Save'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AppSidebarLayout>
     );
 }

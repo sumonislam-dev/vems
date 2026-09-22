@@ -2,20 +2,25 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\DriversExport;
 use App\Models\User;
 use App\Models\Department;
+use App\Models\Vehicle;
 use App\Models\Vendor;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Role;
 
 class DriverController extends Controller implements HasMiddleware
@@ -23,10 +28,11 @@ class DriverController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-drivers', only: ['index', 'show', 'getAvailableDrivers']),
+            new Middleware('permission:view-drivers', only: ['index', 'show', 'getAvailableDrivers', 'export']),
             new Middleware('permission:create-drivers', only: ['create', 'store']),
-            new Middleware('permission:edit-drivers', only: ['edit', 'update', 'updateDriverStatus']),
+            new Middleware('permission:edit-drivers', only: ['edit', 'update', 'updateDriverStatus', 'bulkUpdateStatus']),
             new Middleware('permission:delete-drivers', only: ['destroy']),
+            new Middleware('permission:assign-vehicles', only: ['assignableVehicles']),
         ];
     }
 
@@ -58,8 +64,14 @@ class DriverController extends Controller implements HasMiddleware
                 'license_issue_date',
                 'total_trips_completed',
                 'average_rating',
+                'vendor_id',
             ])
-            ->with(['department:id,name', 'roles:id,name'])
+            ->with([
+                'department:id,name',
+                'roles:id,name',
+                'assignedVehicles:id,driver_id,registration_number,brand,model,vehicle_type',
+                'vendor:id,name,status',
+            ])
             ->whereIn('user_type', ['driver', 'transport_manager']);
 
         // Apply search
@@ -106,6 +118,10 @@ class DriverController extends Controller implements HasMiddleware
                     $q->whereIn('name', $filters['roles']);
                 });
             }
+
+            if (!empty($filters['vendor_id'])) {
+                $query->whereIn('vendor_id', $filters['vendor_id']);
+            }
         }
 
         // Apply sorting
@@ -136,11 +152,14 @@ class DriverController extends Controller implements HasMiddleware
                           'area' => $user->area,
                           'phone' => $user->personal_phone ?? $user->official_phone,
                           'roles' => $user->roles,
+                          'vehicle' => $user->assignedVehicles->first(),
+                          'vendor' => $user->vendor,
                           'is_driver' => true,
                           'created_at' => $user->created_at,
                           'driving_license_no' => $user->driving_license_no,
                           'license_class' => $user->license_class,
                           'license_expiry_date' => $user->license_expiry_date,
+                          'license_status' => $user->license_status,
                           'license_issue_date' => $user->license_issue_date,
                           'total_trips_completed' => $user->total_trips_completed ?? 0,
                           'average_rating' => $user->average_rating,
@@ -152,6 +171,7 @@ class DriverController extends Controller implements HasMiddleware
         $driverStatuses = User::distinct()->whereNotNull('driver_status')->pluck('driver_status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
         $roles = Role::pluck('name')->toArray();
+        $vendors = Vendor::active()->get(['id', 'name']);
 
         $driverStats = User::whereIn('user_type', ['driver', 'transport_manager'])
             ->selectRaw(
@@ -179,10 +199,116 @@ class DriverController extends Controller implements HasMiddleware
                 'departments' => $departments,
                 'blood_groups' => $bloodGroups,
                 'roles' => $roles,
+                'vendors' => $vendors,
             ],
             'stats' => $stats,
             'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
         ]);
+    }
+
+    /**
+     * Export the (filtered) driver list as CSV, Excel, or PDF.
+     */
+    public function export(UserIndexRequest $request)
+    {
+        $validated = $request->validated();
+
+        $query = User::with(['department:id,name', 'vendor:id,name'])
+            ->whereIn('user_type', ['driver', 'transport_manager']);
+
+        if (!empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('username', 'like', "%{$search}%")
+                  ->orWhere('employee_id', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%")
+                  ->orWhere('driving_license_no', 'like', "%{$search}%");
+            });
+        }
+
+        if (!empty($validated['filters'])) {
+            $filters = $validated['filters'];
+
+            if (!empty($filters['user_type'])) {
+                $query->whereIn('user_type', $filters['user_type']);
+            }
+
+            if (!empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
+
+            if (!empty($filters['driver_status'])) {
+                $query->whereIn('driver_status', $filters['driver_status']);
+            }
+
+            if (!empty($filters['department_id'])) {
+                $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (!empty($filters['blood_group'])) {
+                $query->whereIn('blood_group', $filters['blood_group']);
+            }
+
+            if (!empty($filters['vendor_id'])) {
+                $query->whereIn('vendor_id', $filters['vendor_id']);
+            }
+        }
+
+        $query->orderBy($validated['sort'], $validated['direction']);
+
+        $format = $validated['format'] ?? 'csv';
+        $timestamp = now()->format('Y-m-d_H-i-s');
+
+        if ($format === 'excel') {
+            return Excel::download(new DriversExport($query), "drivers_export_{$timestamp}.xlsx");
+        }
+
+        if ($format === 'pdf') {
+            $drivers = $query->get();
+
+            $pdf = Pdf::loadView('exports.drivers-pdf', [
+                'drivers' => $drivers,
+                'exportDate' => now()->format('F j, Y \a\t g:i A'),
+            ])->setPaper('A4', 'landscape');
+
+            return $pdf->download("drivers_export_{$timestamp}.pdf");
+        }
+
+        return $this->exportDriversCsv($query, $timestamp);
+    }
+
+    private function exportDriversCsv($query, string $timestamp)
+    {
+        $drivers = $query->get();
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, ['ID', 'Name', 'Username', 'Email', 'Type', 'Status', 'Driver Status', 'Department', 'Vendor', 'License No', 'License Expiry', 'Created At']);
+
+        foreach ($drivers as $driver) {
+            fputcsv($output, [
+                $driver->id,
+                $driver->name,
+                $driver->username,
+                $driver->email,
+                $driver->user_type,
+                $driver->status,
+                $driver->driver_status,
+                $driver->department->name ?? '',
+                $driver->vendor->name ?? '',
+                $driver->driving_license_no,
+                $driver->license_expiry_date?->format('Y-m-d'),
+                $driver->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        rewind($output);
+        $csvContent = stream_get_contents($output);
+        fclose($output);
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="drivers_export_' . $timestamp . '.csv"');
     }
 
     /**
@@ -259,6 +385,14 @@ class DriverController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
+        if ($request->hasFile('driving_license_file')) {
+            $validated['driving_license_file'] = $request->file('driving_license_file')->store('driver_documents', 'public');
+        }
+
+        if ($request->hasFile('nid_file')) {
+            $validated['nid_file'] = $request->file('nid_file')->store('driver_documents', 'public');
+        }
+
         // Auto-generate password if not provided
         $generatedPassword = null;
         if (empty($validated['password'])) {
@@ -305,22 +439,30 @@ class DriverController extends Controller implements HasMiddleware
             abort(404, 'Driver not found');
         }
 
-        $driver->load(['department', 'roles', 'driverTrips' => function ($query) {
-            $query->latest()->limit(10);
+        $driver->load(['department', 'roles', 'vendor.contactPersons', 'driverTrips' => function ($query) {
+            $query->latest()->limit(10)->select('id', 'trip_number', 'scheduled_date', 'trip_type', 'description', 'status', 'driver_id');
         }]);
 
+        $driver->append('license_status');
+
         $driverStats = [
-            'total_trips' => $driver->driverTrips->count(),
-            'recent_trips' => $driver->driverTrips->count(),
+            'total_trips' => $driver->driverTrips()->count(),
             'completed_trips' => $driver->driverTrips()->where('status', 'completed')->count(),
             'in_progress_trips' => $driver->driverTrips()->where('status', 'in_progress')->count(),
             'total_distance' => $driver->total_distance_covered,
             'average_rating' => $driver->average_rating,
         ];
 
+        $vehicleAssignments = $driver->vehicleAssignments()
+            ->with(['vehicle:id,registration_number,brand,model,vehicle_type', 'assigner:id,name'])
+            ->orderByDesc('started_at')
+            ->get();
+
         return Inertia::render('drivers/show', [
             'user' => $driver,
             'driverStats' => $driverStats,
+            'recentTrips' => $driver->driverTrips,
+            'vehicleAssignments' => $vehicleAssignments,
         ]);
     }
 
@@ -403,6 +545,20 @@ class DriverController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
+        if ($request->hasFile('driving_license_file')) {
+            if ($driver->driving_license_file) {
+                Storage::disk('public')->delete($driver->driving_license_file);
+            }
+            $validated['driving_license_file'] = $request->file('driving_license_file')->store('driver_documents', 'public');
+        }
+
+        if ($request->hasFile('nid_file')) {
+            if ($driver->nid_file) {
+                Storage::disk('public')->delete($driver->nid_file);
+            }
+            $validated['nid_file'] = $request->file('nid_file')->store('driver_documents', 'public');
+        }
+
         // Hash password if provided
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
@@ -453,6 +609,12 @@ class DriverController extends Controller implements HasMiddleware
         if ($driver->photo) {
             Storage::disk('public')->delete($driver->photo);
         }
+        if ($driver->driving_license_file) {
+            Storage::disk('public')->delete($driver->driving_license_file);
+        }
+        if ($driver->nid_file) {
+            Storage::disk('public')->delete($driver->nid_file);
+        }
 
         $driver->delete();
 
@@ -473,6 +635,34 @@ class DriverController extends Controller implements HasMiddleware
     }
 
     /**
+     * Active vehicles for the driver-side "Assign Vehicle" picker, each
+     * flagged with its current driver (if any) so the frontend can warn
+     * before reassigning a vehicle away from another driver.
+     */
+    public function assignableVehicles(User $driver): JsonResponse
+    {
+        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+            abort(404, 'Driver not found');
+        }
+
+        $vehicles = Vehicle::where('is_active', true)
+            ->with('driver:id,name')
+            ->select('id', 'registration_number', 'brand', 'model', 'driver_id')
+            ->orderBy('registration_number')
+            ->get()
+            ->map(fn ($vehicle) => [
+                'id' => $vehicle->id,
+                'registration_number' => $vehicle->registration_number,
+                'brand' => $vehicle->brand,
+                'model' => $vehicle->model,
+                'current_driver_id' => $vehicle->driver_id,
+                'current_driver_name' => $vehicle->driver?->name,
+            ]);
+
+        return response()->json($vehicles);
+    }
+
+    /**
      * Update driver status.
      */
     public function updateDriverStatus(Request $request, User $user): RedirectResponse
@@ -490,5 +680,23 @@ class DriverController extends Controller implements HasMiddleware
 
         return redirect()->back()
                         ->with('success', 'Driver status updated successfully.');
+    }
+
+    /**
+     * Bulk change driver_status for the selected drivers.
+     */
+    public function bulkUpdateStatus(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'driver_ids' => 'required|array|min:1|max:100',
+            'driver_ids.*' => 'integer|exists:users,id',
+            'driver_status' => 'required|in:available,on_trip,on_leave,inactive,suspended',
+        ]);
+
+        $updatedCount = User::whereIn('id', $validated['driver_ids'])
+            ->whereIn('user_type', ['driver', 'transport_manager'])
+            ->update(['driver_status' => $validated['driver_status']]);
+
+        return back()->with('success', "{$updatedCount} driver(s) updated to \"{$validated['driver_status']}\".");
     }
 }

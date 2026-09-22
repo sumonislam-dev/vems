@@ -285,6 +285,11 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <label className="text-sm font-medium text-muted-foreground">National ID</label>
                                                 </div>
                                                 <p className="text-sm font-mono">{user.nid_number}</p>
+                                                {user.nid_file && (
+                                                    <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                        View scan
+                                                    </a>
+                                                )}
                                             </div>
                                         )}
 
@@ -305,6 +310,11 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <label className="text-sm font-medium text-muted-foreground">Driving License</label>
                                                 </div>
                                                 <p className="text-sm font-mono">{user.driving_license_no}</p>
+                                                {user.driving_license_file && (
+                                                    <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                        View scan
+                                                    </a>
+                                                )}
                                             </div>
                                         )}
                                     </div>

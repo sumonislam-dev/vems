@@ -42,8 +42,10 @@ export default function CreateDriver({ departments, vendors, roles, userTypes, l
     area: '',
     blood_group: '',
     nid_number: '',
+    nid_file: null,
     passport_number: '',
     driving_license_no: '',
+    driving_license_file: null,
     license_class: '',
     license_issue_date: '',
     license_expiry_date: '',
@@ -108,7 +110,7 @@ export default function CreateDriver({ departments, vendors, roles, userTypes, l
   };
 
   const handleFieldChange = (field: keyof UserForm, value: string | File | null) => {
-    if (field === 'image' || field === 'photo') {
+    if (field === 'image' || field === 'photo' || field === 'nid_file' || field === 'driving_license_file') {
       setData(field, value as File | null);
     } else {
       setData(field, value as string);

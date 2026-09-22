@@ -2,24 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\VehiclesExport;
 use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
+use Maatwebsite\Excel\Facades\Excel;
 
 class VehicleController extends Controller implements HasMiddleware
 {
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-vehicles', only: ['index', 'show', 'getExpiringVehicles']),
+            new Middleware('permission:view-vehicles', only: ['index', 'show', 'getExpiringVehicles', 'export']),
             new Middleware('permission:create-vehicles', only: ['create', 'store']),
-            new Middleware('permission:edit-vehicles', only: ['edit', 'update']),
+            new Middleware('permission:edit-vehicles', only: ['edit', 'update', 'bulkUpdateStatus']),
             new Middleware('permission:delete-vehicles', only: ['destroy']),
+            new Middleware('permission:assign-vehicles', only: ['assignDriver']),
         ];
     }
 
@@ -51,6 +57,83 @@ class VehicleController extends Controller implements HasMiddleware
             ->select('id', 'name', 'email', 'user_type', 'official_phone')
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * Assign (or unassign, with driver_id null) a driver to a vehicle. Shared
+     * by both the vehicle-side "Assign Driver" action and the driver-side
+     * "Assign Vehicle" action, since both mutate the same driver_id column —
+     * VehicleObserver::updating() records the history either way.
+     *
+     * A driver already assigned to a different vehicle is left alone unless
+     * confirm_reassign is sent, in which case that other vehicle is
+     * unassigned in the same transaction.
+     */
+    public function assignDriver(Request $request, Vehicle $vehicle)
+    {
+        // The frontend's "— Unassign —" option sends the literal string 'none'
+        // (a Radix Select item can't have an empty-string value), matching the
+        // same sentinel the vehicle create/edit forms already use for this.
+        if ($request->input('driver_id') === 'none') {
+            $request->merge(['driver_id' => null]);
+        }
+
+        $validated = $request->validate([
+            'driver_id' => 'nullable|integer|exists:users,id',
+            'confirm_reassign' => 'nullable|boolean',
+        ]);
+
+        $driverId = $validated['driver_id'] ?? null;
+
+        if ($driverId && ! $this->assignableDrivers($vehicle->driver_id)->pluck('id')->contains($driverId)) {
+            throw ValidationException::withMessages([
+                'driver_id' => 'This driver is not eligible for assignment (inactive, unavailable, or license expired).',
+            ]);
+        }
+
+        DB::transaction(function () use ($vehicle, $driverId, $validated) {
+            $vehicle = Vehicle::whereKey($vehicle->id)->lockForUpdate()->firstOrFail();
+
+            if ($driverId) {
+                $conflict = Vehicle::where('driver_id', $driverId)
+                    ->where('id', '!=', $vehicle->id)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($conflict && ! ($validated['confirm_reassign'] ?? false)) {
+                    throw ValidationException::withMessages([
+                        'confirm_reassign' => "This driver is already assigned to {$conflict->registration_number}. Check \"confirm reassign\" to move them to this vehicle instead.",
+                    ]);
+                }
+
+                if ($conflict) {
+                    $conflict->update(['driver_id' => null]);
+                }
+            }
+
+            $vehicle->update(['driver_id' => $driverId]);
+        });
+
+        return back()->with('success', $driverId ? 'Driver assigned successfully.' : 'Driver unassigned successfully.');
+    }
+
+    /**
+     * Bulk activate or deactivate the selected vehicles.
+     */
+    public function bulkUpdateStatus(Request $request)
+    {
+        $validated = $request->validate([
+            'vehicle_ids' => 'required|array|min:1|max:100',
+            'vehicle_ids.*' => 'integer|exists:vehicles,id',
+            'is_active' => 'required|boolean',
+        ]);
+
+        $updatedCount = Vehicle::whereIn('id', $validated['vehicle_ids'])
+            ->update(['is_active' => $validated['is_active']]);
+
+        $action = $validated['is_active'] ? 'activated' : 'deactivated';
+
+        return back()->with('success', "{$updatedCount} vehicle(s) {$action}.");
     }
 
     /**
@@ -111,6 +194,10 @@ class VehicleController extends Controller implements HasMiddleware
             if (isset($filters['is_active']) && !empty($filters['is_active'])) {
                 $query->whereIn('is_active', $filters['is_active']);
             }
+
+            if (!empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
         }
 
         // Apply sorting
@@ -151,13 +238,20 @@ class VehicleController extends Controller implements HasMiddleware
                 ['label' => 'Electric', 'value' => 'electric'],
                 ['label' => 'Hybrid', 'value' => 'hybrid'],
             ],
-            'vendors' => \App\Models\Vendor::select('id', 'name')->orderBy('name')->get()->map(fn($v) => [
+            'vendors' => \App\Models\Vendor::active()->select('id', 'name')->orderBy('name')->get()->map(fn($v) => [
                 'label' => $v->name,
                 'value' => (string)$v->id,
             ]),
             'statuses' => [
                 ['label' => 'Active', 'value' => true],
                 ['label' => 'Inactive', 'value' => false],
+            ],
+            'conditions' => [
+                ['label' => 'Available', 'value' => 'available'],
+                ['label' => 'Assigned', 'value' => 'assigned'],
+                ['label' => 'In Transit', 'value' => 'in_transit'],
+                ['label' => 'Maintenance', 'value' => 'maintenance'],
+                ['label' => 'Out of Service', 'value' => 'out_of_service'],
             ],
         ];
 
@@ -176,12 +270,131 @@ class VehicleController extends Controller implements HasMiddleware
             'inactive' => (int) ($vehicleStats->inactive ?? 0),
         ];
 
+        $canAssignVehicles = auth()->user()->can('assign-vehicles');
+
         return Inertia::render('vehicles/index', [
             'vehicles' => $vehicles,
             'filterOptions' => $filterOptions,
             'stats' => $stats,
             'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
+            'assignableDrivers' => $canAssignVehicles ? $this->assignableDrivers() : [],
         ]);
+    }
+
+    /**
+     * Export the (filtered) vehicle list as CSV, Excel, or PDF.
+     */
+    public function export(VehicleIndexRequest $request)
+    {
+        $validated = $request->validated();
+
+        $query = Vehicle::with(['vendor', 'driver']);
+
+        if (!empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('brand', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%")
+                    ->orWhere('color', 'like', "%{$search}%")
+                    ->orWhere('registration_number', 'like', "%{$search}%")
+                    ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
+                        $vendorQuery->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('driver', function ($driverQuery) use ($search) {
+                        $driverQuery->where('name', 'like', "%{$search}%")
+                                   ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        if (!empty($validated['filters'])) {
+            $filters = $validated['filters'];
+
+            if (!empty($filters['brand'])) {
+                $query->whereIn('brand', $filters['brand']);
+            }
+
+            if (!empty($filters['color'])) {
+                $query->whereIn('color', $filters['color']);
+            }
+
+            if (!empty($filters['vehicle_type'])) {
+                $query->whereIn('vehicle_type', $filters['vehicle_type']);
+            }
+
+            if (!empty($filters['rental_type'])) {
+                $query->whereIn('rental_type', $filters['rental_type']);
+            }
+
+            if (!empty($filters['fuel_type'])) {
+                $query->whereIn('fuel_type', $filters['fuel_type']);
+            }
+
+            if (!empty($filters['vendor_id'])) {
+                $query->whereIn('vendor_id', $filters['vendor_id']);
+            }
+
+            if (isset($filters['is_active']) && !empty($filters['is_active'])) {
+                $query->whereIn('is_active', $filters['is_active']);
+            }
+
+            if (!empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
+        }
+
+        $query->orderBy($validated['sort'], $validated['direction']);
+
+        $format = $validated['format'] ?? 'csv';
+        $timestamp = now()->format('Y-m-d_H-i-s');
+
+        if ($format === 'excel') {
+            return Excel::download(new VehiclesExport($query), "vehicles_export_{$timestamp}.xlsx");
+        }
+
+        if ($format === 'pdf') {
+            $vehicles = $query->get();
+
+            $pdf = Pdf::loadView('exports.vehicles-pdf', [
+                'vehicles' => $vehicles,
+                'exportDate' => now()->format('F j, Y \a\t g:i A'),
+            ])->setPaper('A4', 'landscape');
+
+            return $pdf->download("vehicles_export_{$timestamp}.pdf");
+        }
+
+        return $this->exportVehiclesCsv($query, $timestamp);
+    }
+
+    private function exportVehiclesCsv($query, string $timestamp)
+    {
+        $vehicles = $query->get();
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, ['ID', 'Brand', 'Model', 'Type', 'Color', 'Registration', 'Vendor', 'Driver', 'Status', 'Created At']);
+
+        foreach ($vehicles as $vehicle) {
+            fputcsv($output, [
+                $vehicle->id,
+                $vehicle->brand,
+                $vehicle->model,
+                $vehicle->vehicle_type,
+                $vehicle->color,
+                $vehicle->registration_number,
+                $vehicle->vendor->name ?? '',
+                $vehicle->driver->name ?? '',
+                $vehicle->is_active ? 'Active' : 'Inactive',
+                $vehicle->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        rewind($output);
+        $csvContent = stream_get_contents($output);
+        fclose($output);
+
+        return response($csvContent)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', 'attachment; filename="vehicles_export_' . $timestamp . '.csv"');
     }
 
     /**
@@ -243,19 +456,24 @@ class VehicleController extends Controller implements HasMiddleware
             'vendor_id' => 'required|exists:vendors,id', // Required service provider
             'driver_id' => 'required|exists:users,id', // Required driver
             'is_active' => 'boolean',
+            'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
             'tax_token_last_date' => 'nullable|date',
             'tax_token_number' => 'nullable|string|max:255',
+            'tax_token_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Fitness Certificate
             'fitness_certificate_last_date' => 'nullable|date',
             'fitness_certificate_number' => 'nullable|string|max:255',
+            'fitness_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Insurance
             'insurance_type' => 'nullable|in:1st_party,3rd_party,comprehensive',
             'insurance_last_date' => 'nullable|date',
             'insurance_policy_number' => 'nullable|string|max:255',
+            'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'insurance_company' => 'nullable|string|max:255',
             // Registration Certificate & Owner Info
             'registration_certificate_number' => 'nullable|string|max:255',
+            'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'owner_name' => 'nullable|string|max:255',
             'owner_address' => 'nullable|string',
             'owner_phone' => 'nullable|string|max:20',
@@ -272,6 +490,12 @@ class VehicleController extends Controller implements HasMiddleware
             'insurance_alert_enabled' => 'sometimes|boolean',
             'alert_days_before' => 'nullable|numeric|min:1|max:365',
         ]);
+
+        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $validated[$field] = $request->file($field)->store('vehicle_documents', 'public');
+            }
+        }
 
         \Log::info('Validated data:', $validated);
 
@@ -310,17 +534,19 @@ class VehicleController extends Controller implements HasMiddleware
         $vehicle->load([
             'vendor.contactPersons',
             $canViewDriverDetails ? 'driver' : 'driver:id,name,status,employee_id,user_type',
-            'driverAssignments.driver:id,name,email',
-            'driverAssignments.assigner:id,name',
         ]);
 
         $assignments = $vehicle->driverAssignments()
+            ->with(['driver:id,name,email', 'assigner:id,name'])
             ->orderByDesc('started_at')
             ->get();
+
+        $canAssignVehicles = auth()->user()->can('assign-vehicles');
 
         return Inertia::render('vehicles/show', [
             'vehicle' => $vehicle,
             'assignments' => $assignments,
+            'assignableDrivers' => $canAssignVehicles ? $this->assignableDrivers($vehicle->driver_id) : [],
         ]);
     }
 
@@ -372,22 +598,29 @@ class VehicleController extends Controller implements HasMiddleware
             'parking_latitude' => 'nullable|numeric|between:-90,90',
             'parking_longitude' => 'nullable|numeric|between:-180,180',
             'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
-            'vendor_id' => 'required|exists:vendors,id', // Required service provider
-            'driver_id' => 'required|exists:users,id', // Required driver
+            // A vehicle can become vendor/driver-less via the "Assign Driver"
+            // unassign flow, so editing it afterward must not force one back.
+            'vendor_id' => 'nullable|exists:vendors,id',
+            'driver_id' => 'nullable|exists:users,id',
             'is_active' => 'boolean',
+            'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
             'tax_token_last_date' => 'nullable|date',
             'tax_token_number' => 'nullable|string|max:255',
+            'tax_token_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Fitness Certificate
             'fitness_certificate_last_date' => 'nullable|date',
             'fitness_certificate_number' => 'nullable|string|max:255',
+            'fitness_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Insurance
             'insurance_type' => 'nullable|in:1st_party,3rd_party,comprehensive',
             'insurance_last_date' => 'nullable|date',
             'insurance_policy_number' => 'nullable|string|max:255',
+            'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'insurance_company' => 'nullable|string|max:255',
             // Registration Certificate & Owner Info
             'registration_certificate_number' => 'nullable|string|max:255',
+            'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'owner_name' => 'nullable|string|max:255',
             'owner_address' => 'nullable|string',
             'owner_phone' => 'nullable|string|max:20',
@@ -404,6 +637,15 @@ class VehicleController extends Controller implements HasMiddleware
             'insurance_alert_enabled' => 'boolean',
             'alert_days_before' => 'nullable|integer|min:1|max:365',
         ]);
+
+        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
+            if ($request->hasFile($field)) {
+                if ($vehicle->$field) {
+                    Storage::disk('public')->delete($vehicle->$field);
+                }
+                $validated[$field] = $request->file($field)->store('vehicle_documents', 'public');
+            }
+        }
 
         DB::transaction(function () use ($vehicle, $validated) {
             // Lock the vehicle so a concurrent update can't race
@@ -423,6 +665,12 @@ class VehicleController extends Controller implements HasMiddleware
      */
     public function destroy(Vehicle $vehicle)
     {
+        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
+            if ($vehicle->$field) {
+                Storage::disk('public')->delete($vehicle->$field);
+            }
+        }
+
         $vehicle->delete();
 
         return redirect()

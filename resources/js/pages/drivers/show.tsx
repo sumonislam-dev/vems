@@ -1,10 +1,16 @@
 import { PageHeader } from '@/base-components/page-header';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, User } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import axios from 'axios';
 import {
     ArrowLeft,
     Edit,
@@ -25,10 +31,51 @@ import {
     FileText,
     Star
 } from 'lucide-react';
+import { FormEvent, useState } from 'react';
+
+type VehicleAssignment = {
+    id: number;
+    vehicle?: { id: number; registration_number: string; brand: string; model: string; vehicle_type: string } | null;
+    assigner?: { id: number; name: string } | null;
+    started_at: string;
+    ended_at: string | null;
+    is_current: boolean;
+};
+
+type DriverStats = {
+    total_trips: number;
+    completed_trips: number;
+    in_progress_trips: number;
+    total_distance: number | null;
+    average_rating: number | string | null;
+};
+
+type RecentTrip = {
+    id: number;
+    trip_number: string;
+    scheduled_date: string;
+    trip_type: string;
+    description: string | null;
+    status: string;
+};
 
 interface ShowUserProps {
     user: User;
+    vehicleAssignments?: VehicleAssignment[];
+    driverStats?: DriverStats;
+    recentTrips?: RecentTrip[];
 }
+
+type AssignableVehicle = {
+    id: number;
+    registration_number: string;
+    brand: string;
+    model: string;
+    current_driver_id: number | null;
+    current_driver_name: string | null;
+};
+
+const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -36,7 +83,60 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'User Details', href: '#' },
 ];
 
-export default function ShowUser({ user }: ShowUserProps) {
+export default function ShowUser({ user, vehicleAssignments = [], driverStats, recentTrips = [] }: ShowUserProps) {
+    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
+    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
+
+    const [assignVehicleOpen, setAssignVehicleOpen] = useState(false);
+    const [assignableVehicles, setAssignableVehicles] = useState<AssignableVehicle[]>([]);
+    const [loadingVehicles, setLoadingVehicles] = useState(false);
+
+    const {
+        data: assignVehicleData,
+        setData: setAssignVehicleData,
+        post: postAssignVehicle,
+        processing: assignVehicleProcessing,
+        errors: assignVehicleErrors,
+        reset: resetAssignVehicle,
+        clearErrors: clearAssignVehicleErrors,
+    } = useForm<{ driver_id: string; vehicle_id: string; confirm_reassign: boolean }>({
+        driver_id: String(user.id),
+        vehicle_id: '',
+        confirm_reassign: false,
+    });
+
+    const openAssignVehicleDialog = async () => {
+        setAssignVehicleData({ driver_id: String(user.id), vehicle_id: '', confirm_reassign: false });
+        clearAssignVehicleErrors();
+        setAssignVehicleOpen(true);
+
+        setLoadingVehicles(true);
+        try {
+            const response = await axios.get<AssignableVehicle[]>(route('drivers.assignable-vehicles', user.id));
+            setAssignableVehicles(response.data);
+        } catch {
+            // Non-critical: the select will just show no options if this fails.
+        } finally {
+            setLoadingVehicles(false);
+        }
+    };
+
+    const closeAssignVehicleDialog = () => {
+        setAssignVehicleOpen(false);
+        resetAssignVehicle();
+        clearAssignVehicleErrors();
+    };
+
+    const submitAssignVehicle = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+        if (!assignVehicleData.vehicle_id) return;
+
+        postAssignVehicle(route('vehicles.assign-driver', assignVehicleData.vehicle_id), {
+            preserveScroll: true,
+            onSuccess: () => closeAssignVehicleDialog(),
+        });
+    };
+
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('drivers.destroy', user.id));
@@ -104,6 +204,16 @@ export default function ShowUser({ user }: ShowUserProps) {
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('users.edit', user.id),
                         },
+                        ...(canAssignVehicles
+                            ? [
+                                {
+                                    label: 'Assign Vehicle',
+                                    icon: <Car className="mr-2 h-4 w-4" />,
+                                    onClick: openAssignVehicleDialog,
+                                    variant: 'outline' as const,
+                                },
+                            ]
+                            : []),
                     ]}
                 />
 
@@ -285,6 +395,11 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <label className="text-sm font-medium text-muted-foreground">National ID</label>
                                                 </div>
                                                 <p className="text-sm font-mono">{user.nid_number}</p>
+                                                {user.nid_file && (
+                                                    <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                        View scan
+                                                    </a>
+                                                )}
                                             </div>
                                         )}
 
@@ -305,6 +420,11 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <label className="text-sm font-medium text-muted-foreground">Driving License</label>
                                                 </div>
                                                 <p className="text-sm font-mono">{user.driving_license_no}</p>
+                                                {user.driving_license_file && (
+                                                    <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                        View scan
+                                                    </a>
+                                                )}
                                             </div>
                                         )}
                                     </div>
@@ -446,17 +566,27 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     month: 'long',
                                                     day: 'numeric',
                                                 })}
-                                                {new Date(user.license_expiry_date) < new Date() && (
+                                                {user.license_status === 'expired' && (
                                                     <Badge variant="destructive" className="ml-2 text-xs">Expired</Badge>
+                                                )}
+                                                {user.license_status === 'expiring_soon' && (
+                                                    <Badge variant="outline" className="ml-2 text-xs">Expiring Soon</Badge>
                                                 )}
                                             </p>
                                         </div>
                                     )}
 
-                                    {typeof user.total_trips_completed === 'number' && (
+                                    {typeof (driverStats?.total_trips ?? user.total_trips_completed) === 'number' && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Total Trips</label>
-                                            <p className="text-sm font-semibold">{user.total_trips_completed}</p>
+                                            <p className="text-sm font-semibold">{driverStats?.total_trips ?? user.total_trips_completed}</p>
+                                        </div>
+                                    )}
+
+                                    {driverStats && (
+                                        <div>
+                                            <label className="text-sm font-medium text-muted-foreground">Completed / In Progress</label>
+                                            <p className="text-sm font-semibold">{driverStats.completed_trips} / {driverStats.in_progress_trips}</p>
                                         </div>
                                     )}
 
@@ -563,6 +693,178 @@ export default function ShowUser({ user }: ShowUserProps) {
                     </div>
                 </div>
 
+                {/* Recent Trips */}
+                {recentTrips.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Recent Trips</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto rounded border">
+                                <table className="min-w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">Trip #</th>
+                                            <th className="px-3 py-2 text-left">Date</th>
+                                            <th className="px-3 py-2 text-left">Type</th>
+                                            <th className="px-3 py-2 text-left">Description</th>
+                                            <th className="px-3 py-2 text-left">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {recentTrips.map((trip) => (
+                                            <tr
+                                                key={trip.id}
+                                                className="border-t cursor-pointer hover:bg-gray-50"
+                                                onClick={() => router.visit(route('trips.show', trip.id))}
+                                            >
+                                                <td className="px-3 py-2 font-mono">{trip.trip_number}</td>
+                                                <td className="px-3 py-2">{new Date(trip.scheduled_date).toLocaleDateString()}</td>
+                                                <td className="px-3 py-2 capitalize">{trip.trip_type?.replace('_', ' ')}</td>
+                                                <td className="px-3 py-2 text-muted-foreground">{trip.description || '-'}</td>
+                                                <td className="px-3 py-2">
+                                                    <Badge variant={trip.status === 'completed' ? 'default' : trip.status === 'cancelled' || trip.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
+                                                        {trip.status.replace('_', ' ')}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Vendor / Service Provider Information */}
+                {user.vendor && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Vendor / Service Provider Information</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Service Provider Name</label>
+                                    <p className="text-sm font-medium">{user.vendor.name}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Status</label>
+                                    <Badge variant={user.vendor.status === 'active' ? 'default' : 'secondary'}>
+                                        {user.vendor.status === 'active' ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Phone</label>
+                                    <p className="text-sm">{user.vendor.phone || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Email</label>
+                                    <p className="text-sm">{user.vendor.email || 'N/A'}</p>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="text-sm font-medium text-muted-foreground">Address</label>
+                                    <p className="text-sm">{user.vendor.address || 'N/A'}</p>
+                                </div>
+                                {user.vendor.website && (
+                                    <div className="md:col-span-2">
+                                        <label className="text-sm font-medium text-muted-foreground">Website</label>
+                                        <p className="text-sm">
+                                            <a href={user.vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                {user.vendor.website}
+                                            </a>
+                                        </p>
+                                    </div>
+                                )}
+                                {user.vendor.description && (
+                                    <div className="md:col-span-2">
+                                        <label className="text-sm font-medium text-muted-foreground">Description</label>
+                                        <p className="text-sm">{user.vendor.description}</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Contact Persons */}
+                            {user.vendor.contact_persons && user.vendor.contact_persons.length > 0 && (
+                                <div className="mt-6">
+                                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Contact Persons</h4>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {user.vendor.contact_persons.map((contact) => (
+                                            <div key={contact.id} className="border rounded-lg p-4">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h5 className="font-medium">{contact.name}</h5>
+                                                    {contact.is_primary && (
+                                                        <Badge variant="outline" className="text-xs">Primary</Badge>
+                                                    )}
+                                                </div>
+                                                {contact.position && (
+                                                    <p className="text-sm text-muted-foreground mb-1">{contact.position}</p>
+                                                )}
+                                                {contact.phone && (
+                                                    <p className="text-sm">📞 {contact.phone}</p>
+                                                )}
+                                                {contact.email && (
+                                                    <p className="text-sm">✉️ {contact.email}</p>
+                                                )}
+                                                {contact.notes && (
+                                                    <p className="text-sm text-muted-foreground mt-2">{contact.notes}</p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
+
+                {/* Vehicle Assignment History */}
+                {vehicleAssignments.length > 0 && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Vehicle Assignment History</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="overflow-x-auto rounded border">
+                                <table className="min-w-full text-sm">
+                                    <thead className="bg-gray-50">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left">Vehicle</th>
+                                            <th className="px-3 py-2 text-left">Type</th>
+                                            <th className="px-3 py-2 text-left">Started</th>
+                                            <th className="px-3 py-2 text-left">Ended</th>
+                                            <th className="px-3 py-2 text-left">Assigned By</th>
+                                            <th className="px-3 py-2 text-left">Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {vehicleAssignments.map((a) => (
+                                            <tr key={a.id} className="border-t">
+                                                <td className="px-3 py-2">
+                                                    {a.vehicle
+                                                        ? `${a.vehicle.registration_number} - ${a.vehicle.brand} ${a.vehicle.model}`
+                                                        : '-'}
+                                                </td>
+                                                <td className="px-3 py-2 capitalize">
+                                                    {a.vehicle?.vehicle_type?.replace('_', ' ') ?? '-'}
+                                                </td>
+                                                <td className="px-3 py-2">{new Date(a.started_at).toLocaleString()}</td>
+                                                <td className="px-3 py-2">{a.ended_at ? new Date(a.ended_at).toLocaleString() : '-'}</td>
+                                                <td className="px-3 py-2">{a.assigner?.name ?? '-'}</td>
+                                                <td className="px-3 py-2">
+                                                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                        {a.is_current ? 'Current' : 'Past'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
+
                 {/* Actions */}
                 <Card>
                     <CardContent className="p-4">
@@ -594,6 +896,65 @@ export default function ShowUser({ user }: ShowUserProps) {
                     </CardContent>
                 </Card>
             </div>
+
+            <Dialog open={assignVehicleOpen} onOpenChange={(open) => !open && closeAssignVehicleDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Assign Vehicle</DialogTitle>
+                        <DialogDescription>Choose a vehicle to assign to {user.name}.</DialogDescription>
+                    </DialogHeader>
+
+                    <form className="space-y-4" onSubmit={submitAssignVehicle}>
+                        <div className="space-y-2">
+                            <Label htmlFor="assign_vehicle_id">Vehicle</Label>
+                            <Select
+                                value={assignVehicleData.vehicle_id}
+                                onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}
+                            >
+                                <SelectTrigger id="assign_vehicle_id" className="w-full">
+                                    <SelectValue placeholder={loadingVehicles ? 'Loading vehicles...' : 'Select a vehicle'} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {assignableVehicles.map((vehicle) => (
+                                        <SelectItem key={vehicle.id} value={String(vehicle.id)}>
+                                            {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
+                                            {vehicle.current_driver_id && vehicle.current_driver_id !== user.id
+                                                ? ` (currently: ${vehicle.current_driver_name})`
+                                                : ''}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={assignVehicleErrors.vehicle_id ?? assignVehicleErrors.driver_id} />
+                        </div>
+
+                        {assignVehicleErrors.confirm_reassign && (
+                            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
+                                <p className="text-sm text-amber-800">{assignVehicleErrors.confirm_reassign}</p>
+                                <div className="flex items-center gap-2">
+                                    <Checkbox
+                                        id="confirm_reassign_vehicle"
+                                        checked={assignVehicleData.confirm_reassign}
+                                        onCheckedChange={(checked) => setAssignVehicleData('confirm_reassign', checked === true)}
+                                    />
+                                    <Label htmlFor="confirm_reassign_vehicle" className="text-sm font-normal">
+                                        Confirm reassign
+                                    </Label>
+                                </div>
+                            </div>
+                        )}
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeAssignVehicleDialog} disabled={assignVehicleProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" disabled={assignVehicleProcessing || !assignVehicleData.vehicle_id}>
+                                {assignVehicleProcessing ? 'Saving...' : 'Save'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AppSidebarLayout>
     );
 }

@@ -47,8 +47,10 @@ type UserForm = {
   area: string;
   blood_group: string;
   nid_number: string;
+  nid_file: File | null;
   passport_number: string;
   driving_license_no: string;
+  driving_license_file: File | null;
   license_class: string;
   license_issue_date: string;
   license_expiry_date: string;
@@ -110,7 +112,7 @@ const enhancedUserTypeOptions = [
 ];
 
 export default function EditUser({ user, vendors, userRoles, licenseClasses, bloodGroups }: EditUserProps) {
-  const { data, setData, put, processing, errors, reset } = useForm<UserForm>({
+  const { data, setData, post, transform, processing, errors, reset } = useForm<UserForm>({
     name: (user.name as string) || '',
     username: (user.username as string) || '',
     employee_id: (user.employee_id as string) || '',
@@ -130,8 +132,10 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
     area: (user.area as string) || '',
     blood_group: (user.blood_group as string) || '',
     nid_number: (user.nid_number as string) || '',
+    nid_file: null,
     passport_number: (user.passport_number as string) || '',
     driving_license_no: (user.driving_license_no as string) || '',
+    driving_license_file: null,
     license_class: (user.license_class as string) || '',
     license_issue_date: toDateInputValue(user.license_issue_date),
     license_expiry_date: toDateInputValue(user.license_expiry_date),
@@ -175,7 +179,11 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
   // Form submission
   const submit: FormEventHandler = (e) => {
     e.preventDefault();
-    put(route('drivers.update', user.id as number));
+    // PHP does not parse multipart/form-data bodies on PUT requests, so a
+    // real PUT with file uploads silently arrives with an empty body.
+    // Spoofing the method via POST + _method is the standard workaround.
+    transform((formData) => ({ ...formData, _method: 'put' }));
+    post(route('drivers.update', user.id as number));
   };
 
   // Calculate form completion (for existing user, assume basic fields are filled)
@@ -327,6 +335,23 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                       error={errors.nid_number}
                       placeholder="Enter National ID number"
                     />
+
+                    <div className="space-y-1">
+                      <FormFileUpload
+                        label="NID Scan"
+                        name="nid_file"
+                        value={data.nid_file}
+                        onChange={(file) => handleFieldChange('nid_file', file)}
+                        error={errors.nid_file}
+                        accept="image/*,.pdf"
+                        maxSize={2 * 1024 * 1024}
+                      />
+                      {(user.nid_file as string | null) && (
+                        <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                          View current file
+                        </a>
+                      )}
+                    </div>
 
                     <FormField
                       label="Passport Number"
@@ -499,6 +524,23 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                       required={showDriverFields}
                     />
 
+                    <div className="space-y-1">
+                      <FormFileUpload
+                        label="License Scan"
+                        name="driving_license_file"
+                        value={data.driving_license_file}
+                        onChange={(file) => handleFieldChange('driving_license_file', file)}
+                        error={errors.driving_license_file}
+                        accept="image/*,.pdf"
+                        maxSize={2 * 1024 * 1024}
+                      />
+                      {(user.driving_license_file as string | null) && (
+                        <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                          View current file
+                        </a>
+                      )}
+                    </div>
+
                     <FormSelect
                       label="License Class"
                       name="license_class"
@@ -558,7 +600,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                     onChange={(file) => handleFieldChange('image', file)}
                     error={errors.image}
                     accept="image/*"
-                    maxSize={2} // 2MB
+                    maxSize={2 * 1024 * 1024}
                   />
 
                   <FormFileUpload
@@ -567,7 +609,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                     onChange={(file) => handleFieldChange('photo', file)}
                     error={errors.photo}
                     accept="image/*"
-                    maxSize={2} // 2MB
+                    maxSize={2 * 1024 * 1024}
                   />
                 </div>
 

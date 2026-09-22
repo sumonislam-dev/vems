@@ -41,7 +41,9 @@ class VehicleIndexRequest extends FormRequest
             'filters.vendor_id.*' => ['string'],
             'filters.is_active' => ['nullable', 'array'],
             'filters.is_active.*' => ['nullable'],
-            'format' => ['nullable', 'string', 'in:csv,xlsx,pdf'],
+            'filters.status' => ['nullable', 'array'],
+            'filters.status.*' => ['string'],
+            'format' => ['nullable', 'string', 'in:csv,excel,pdf'],
             'template_id' => ['nullable', 'integer', 'exists:export_templates,id'],
         ];
     }

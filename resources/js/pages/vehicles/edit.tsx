@@ -1,4 +1,4 @@
-import { BaseForm, FormField, FormSelect } from '@/base-components/base-form';
+import { BaseForm, FormField, FormFileUpload, FormSelect } from '@/base-components/base-form';
 import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/searchable-select';
@@ -26,6 +26,7 @@ type VehicleForm = {
     vendor_id: string;
     driver_id: string;
     is_active: boolean;
+    status: string;
     // Parking Location
     parking_address: string;
     parking_latitude: string;
@@ -33,16 +34,20 @@ type VehicleForm = {
     // Tax Token
     tax_token_last_date: string;
     tax_token_number: string;
+    tax_token_file: File | null;
     // Fitness Certificate
     fitness_certificate_last_date: string;
     fitness_certificate_number: string;
+    fitness_certificate_file: File | null;
     // Insurance
     insurance_type: string;
     insurance_last_date: string;
     insurance_policy_number: string;
+    insurance_policy_file: File | null;
     insurance_company: string;
     // Registration Certificate & Owner Info
     registration_certificate_number: string;
+    registration_certificate_file: File | null;
     owner_name: string;
     owner_address: string;
     owner_phone: string;
@@ -71,7 +76,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
         ? vehicle.vendor.name
         : (vehicle.vendor || '');
 
-    const { data, setData, put, processing, errors } = useForm<VehicleForm>({
+    const { data, setData, post, transform, processing, errors } = useForm<VehicleForm>({
         brand: vehicle.brand || '',
         model: vehicle.model || '',
         color: vehicle.color || '',
@@ -83,6 +88,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
         vendor_id: vehicle.vendor_id?.toString() || 'none',
         driver_id: vehicle.driver_id?.toString() || 'none',
         is_active: vehicle.is_active ?? true,
+        status: vehicle.status || 'available',
         // Parking Location
         parking_address: vehicle.parking_address || '',
         parking_latitude: vehicle.parking_latitude?.toString() || '',
@@ -90,16 +96,20 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
         // Tax Token
         tax_token_last_date: vehicle.tax_token_last_date || '',
         tax_token_number: vehicle.tax_token_number || '',
+        tax_token_file: null,
         // Fitness Certificate
         fitness_certificate_last_date: vehicle.fitness_certificate_last_date || '',
         fitness_certificate_number: vehicle.fitness_certificate_number || '',
+        fitness_certificate_file: null,
         // Insurance
         insurance_type: vehicle.insurance_type || 'none',
         insurance_last_date: vehicle.insurance_last_date || '',
         insurance_policy_number: vehicle.insurance_policy_number || '',
+        insurance_policy_file: null,
         insurance_company: vehicle.insurance_company || '',
         // Registration Certificate & Owner Info
         registration_certificate_number: vehicle.registration_certificate_number || '',
+        registration_certificate_file: null,
         owner_name: vehicle.owner_name || '',
         owner_address: vehicle.owner_address || '',
         owner_phone: vehicle.owner_phone || '',
@@ -119,12 +129,24 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
-        put(route('vehicles.update', vehicle.id));
+        // PHP does not parse multipart/form-data bodies on PUT requests, so a
+        // real PUT with file uploads silently arrives with an empty body.
+        // Spoofing the method via POST + _method is the standard workaround.
+        transform((formData) => ({ ...formData, _method: 'put' }));
+        post(route('vehicles.update', vehicle.id));
     };
 
     const statusOptions = [
         { label: 'Active', value: true },
         { label: 'Inactive', value: false },
+    ];
+
+    const operationalStatusOptions = [
+        { label: 'Available', value: 'available' },
+        { label: 'Assigned', value: 'assigned' },
+        { label: 'In Transit', value: 'in_transit' },
+        { label: 'Maintenance', value: 'maintenance' },
+        { label: 'Out of Service', value: 'out_of_service' },
     ];
 
     const driverOptions = [
@@ -367,7 +389,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                     />
 
                                     <FormSelect
-                                        label="Status"
+                                        label="Active Status"
                                         name="is_active"
                                         value={data.is_active.toString()}
                                         onChange={(value) => setData('is_active', value === 'true')}
@@ -377,6 +399,15 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         }))}
                                         error={errors.is_active || undefined}
                                         required
+                                    />
+
+                                    <FormSelect
+                                        label="Operational Status"
+                                        name="status"
+                                        value={data.status}
+                                        onChange={(value) => setData('status', value)}
+                                        options={operationalStatusOptions}
+                                        error={errors.status || undefined}
                                     />
 
                                     <FormField
@@ -412,6 +443,23 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         helpText="Select the expiry date of the tax token"
                                         placeholder="Select tax token expiry date"
                                     />
+
+                                    <div className="space-y-1">
+                                        <FormFileUpload
+                                            label="Tax Token File"
+                                            name="tax_token_file"
+                                            value={data.tax_token_file}
+                                            onChange={(file) => setData('tax_token_file', file)}
+                                            error={errors.tax_token_file}
+                                            accept="image/*,.pdf"
+                                            maxSize={2 * 1024 * 1024}
+                                        />
+                                        {vehicle.tax_token_file && (
+                                            <a href={`/storage/${vehicle.tax_token_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                View current file
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -437,6 +485,23 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         helpText="Select the expiry date of the fitness certificate"
                                         placeholder="Select fitness certificate expiry date"
                                     />
+
+                                    <div className="space-y-1">
+                                        <FormFileUpload
+                                            label="Fitness Certificate File"
+                                            name="fitness_certificate_file"
+                                            value={data.fitness_certificate_file}
+                                            onChange={(file) => setData('fitness_certificate_file', file)}
+                                            error={errors.fitness_certificate_file}
+                                            accept="image/*,.pdf"
+                                            maxSize={2 * 1024 * 1024}
+                                        />
+                                        {vehicle.fitness_certificate_file && (
+                                            <a href={`/storage/${vehicle.fitness_certificate_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                View current file
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -480,6 +545,23 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         error={errors.insurance_company || undefined}
                                         placeholder="Insurance company name"
                                     />
+
+                                    <div className="space-y-1">
+                                        <FormFileUpload
+                                            label="Insurance Policy File"
+                                            name="insurance_policy_file"
+                                            value={data.insurance_policy_file}
+                                            onChange={(file) => setData('insurance_policy_file', file)}
+                                            error={errors.insurance_policy_file}
+                                            accept="image/*,.pdf"
+                                            maxSize={2 * 1024 * 1024}
+                                        />
+                                        {vehicle.insurance_policy_file && (
+                                            <a href={`/storage/${vehicle.insurance_policy_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                View current file
+                                            </a>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -495,6 +577,23 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         error={errors.registration_certificate_number || undefined}
                                         placeholder="Certificate number"
                                     />
+
+                                    <div className="space-y-1">
+                                        <FormFileUpload
+                                            label="Registration Certificate File"
+                                            name="registration_certificate_file"
+                                            value={data.registration_certificate_file}
+                                            onChange={(file) => setData('registration_certificate_file', file)}
+                                            error={errors.registration_certificate_file}
+                                            accept="image/*,.pdf"
+                                            maxSize={2 * 1024 * 1024}
+                                        />
+                                        {vehicle.registration_certificate_file && (
+                                            <a href={`/storage/${vehicle.registration_certificate_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                View current file
+                                            </a>
+                                        )}
+                                    </div>
 
                                     <FormField
                                         label="Owner Name"

@@ -21,6 +21,13 @@ class Vehicle extends Model
             ->useLogName('vehicles');
     }
 
+    protected $appends = ['expiring_documents'];
+
+    public function getExpiringDocumentsAttribute(): array
+    {
+        return $this->getExpiringDocuments();
+    }
+
     protected $fillable = [
         'brand',
         'model',
@@ -36,16 +43,20 @@ class Vehicle extends Model
         // Tax Token
         'tax_token_last_date',
         'tax_token_number',
+        'tax_token_file',
         // Fitness Certificate
         'fitness_certificate_last_date',
         'fitness_certificate_number',
+        'fitness_certificate_file',
         // Insurance
         'insurance_type',
         'insurance_last_date',
         'insurance_policy_number',
+        'insurance_policy_file',
         'insurance_company',
         // Registration Certificate & Owner Info
         'registration_certificate_number',
+        'registration_certificate_file',
         'owner_name',
         'owner_address',
         'owner_phone',
@@ -130,7 +141,7 @@ class Vehicle extends Model
             return false;
         }
 
-        return $this->tax_token_last_date->diffInDays(now(), false) <= $this->alert_days_before;
+        return now()->diffInDays($this->tax_token_last_date, false) <= $this->alert_days_before;
     }
 
     /**
@@ -142,7 +153,7 @@ class Vehicle extends Model
             return false;
         }
 
-        return $this->fitness_certificate_last_date->diffInDays(now(), false) <= $this->alert_days_before;
+        return now()->diffInDays($this->fitness_certificate_last_date, false) <= $this->alert_days_before;
     }
 
     /**
@@ -154,7 +165,7 @@ class Vehicle extends Model
             return false;
         }
 
-        return $this->insurance_last_date->diffInDays(now(), false) <= $this->alert_days_before;
+        return now()->diffInDays($this->insurance_last_date, false) <= $this->alert_days_before;
     }
 
     /**
@@ -169,7 +180,7 @@ class Vehicle extends Model
                 'type' => 'tax_token',
                 'name' => 'Tax Token',
                 'date' => $this->tax_token_last_date,
-                'days_left' => $this->tax_token_last_date ? $this->tax_token_last_date->diffInDays(now(), false) : null,
+                'days_left' => $this->tax_token_last_date ? (int) now()->diffInDays($this->tax_token_last_date, false) : null,
             ];
         }
 
@@ -178,7 +189,7 @@ class Vehicle extends Model
                 'type' => 'fitness',
                 'name' => 'Fitness Certificate',
                 'date' => $this->fitness_certificate_last_date,
-                'days_left' => $this->fitness_certificate_last_date ? $this->fitness_certificate_last_date->diffInDays(now(), false) : null,
+                'days_left' => $this->fitness_certificate_last_date ? (int) now()->diffInDays($this->fitness_certificate_last_date, false) : null,
             ];
         }
 
@@ -187,7 +198,7 @@ class Vehicle extends Model
                 'type' => 'insurance',
                 'name' => 'Insurance',
                 'date' => $this->insurance_last_date,
-                'days_left' => $this->insurance_last_date ? $this->insurance_last_date->diffInDays(now(), false) : null,
+                'days_left' => $this->insurance_last_date ? (int) now()->diffInDays($this->insurance_last_date, false) : null,
             ];
         }
 
