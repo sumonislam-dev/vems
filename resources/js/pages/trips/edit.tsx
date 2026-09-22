@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem } from '@/types';
+import { BreadcrumbItem, Logistics, Trip } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus, Minus, X, UserPlus, Calendar, AlertCircle, MapPin, Building2, Users, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -26,8 +26,83 @@ interface DeptHeadcount {
     count: number;
 }
 
-export default function EditTrip({ trip, vehicles, routes, departments, employees, factories, logistics }: any) {
-    const [selectedRoute, setSelectedRoute] = useState<any>(null);
+interface SelectOption {
+    value: number;
+    label: string;
+}
+
+interface VehicleOption extends SelectOption {
+    driver: string;
+}
+
+interface RouteStopOption {
+    id: number;
+    name: string;
+    order: number;
+}
+
+interface RouteOption extends SelectOption {
+    stops: RouteStopOption[];
+}
+
+interface EmployeeOption extends SelectOption {
+    employee_id?: string | number | null;
+    department?: string | null;
+}
+
+interface TripFactory {
+    id: number;
+    name: string;
+}
+
+interface TripDepartmentWithHeadcount {
+    id: number;
+    name: string;
+    pivot?: {
+        count?: number;
+    };
+}
+
+type TripEditData = Trip & {
+    factories?: TripFactory[];
+    departments?: TripDepartmentWithHeadcount[];
+    logistics?: Logistics[];
+};
+
+interface EditTripProps {
+    trip: TripEditData;
+    vehicles: VehicleOption[];
+    routes: RouteOption[];
+    departments: SelectOption[];
+    employees: EmployeeOption[];
+    factories: SelectOption[];
+    logistics: SelectOption[];
+}
+
+interface TripEditForm {
+    vehicle_route_id: string;
+    vehicle_id: string;
+    department_id: string;
+    trip_type: string;
+    team_number: string;
+    remarks: string;
+    description: string;
+    priority: string;
+    scheduled_date: string;
+    scheduled_start_time: string;
+    scheduled_end_time: string;
+    start_location: string;
+    end_location: string;
+    is_return: boolean;
+    notes: string;
+    passengers: Passenger[];
+    factory_ids: (string | number)[];
+    logistics_ids: (string | number)[];
+    department_slots: DeptHeadcount[];
+}
+
+export default function EditTrip({ trip, vehicles, routes, departments, employees, factories, logistics }: EditTripProps) {
+    const [selectedRoute, setSelectedRoute] = useState<RouteOption | null>(null);
     const [passengers, setPassengers] = useState<Passenger[]>([]);
     const [selectedFactoryIds, setSelectedFactoryIds] = useState<(string | number)[]>([]);
     const [selectedLogisticsIds, setSelectedLogisticsIds] = useState<(string | number)[]>([]);
@@ -40,9 +115,9 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
         { title: 'Edit', href: '#' },
     ];
 
-    const { data, setData, put, processing, errors } = useForm({
+    const { data, setData, put, processing, errors } = useForm<TripEditForm>({
         vehicle_route_id: trip.vehicle_route_id?.toString() || '',
-        vehicle_id: trip.vehicle_id.toString(),
+        vehicle_id: trip.vehicle_id?.toString() || '',
         department_id: trip.department_id?.toString() || '',
         trip_type: trip.trip_type || '',
         team_number: trip.team_number || '',
@@ -65,7 +140,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
     useEffect(() => {
         // Initialize existing passengers
         if (trip.passengers && trip.passengers.length > 0) {
-            const existingPassengers = trip.passengers.map((p: any) => ({
+            const existingPassengers = trip.passengers.map((p) => ({
                 user_id: p.user_id.toString(),
                 pickup_stop_id: p.pickup_stop_id?.toString() || '',
                 dropoff_stop_id: p.dropoff_stop_id?.toString() || '',
@@ -76,27 +151,27 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
 
         // Initialize selected route
         if (trip.vehicle_route_id) {
-            const route = routes?.find((r: any) => r.value === trip.vehicle_route_id);
-            setSelectedRoute(route);
+            const route = routes?.find((r) => r.value === trip.vehicle_route_id);
+            setSelectedRoute(route ?? null);
         }
 
         // Initialize factories
         if (trip.factories && trip.factories.length > 0) {
-            const ids = trip.factories.map((f: any) => f.id.toString());
+            const ids = trip.factories.map((f) => f.id.toString());
             setSelectedFactoryIds(ids);
             setData('factory_ids', ids);
         }
 
         // Initialize logistics
         if (trip.logistics && trip.logistics.length > 0) {
-            const ids = trip.logistics.map((l: any) => l.id.toString());
+            const ids = trip.logistics.map((l) => l.id.toString());
             setSelectedLogisticsIds(ids);
             setData('logistics_ids', ids);
         }
 
         // Initialize department slots
         if (trip.departments && trip.departments.length > 0) {
-            const slots = trip.departments.map((d: any) => ({
+            const slots = trip.departments.map((d: TripDepartmentWithHeadcount) => ({
                 department_id: d.id.toString(),
                 count: d.pivot?.count || 1,
             }));
@@ -104,7 +179,8 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
         }
     }, []);
 
-    const selectedVehicle = vehicles?.find((v: any) => v.value === data.vehicle_id);
+    const selectedVehicle = vehicles?.find((v) => v.value.toString() === data.vehicle_id);
+    const formError = (errors as Record<string, string | undefined>).error;
 
     // Sync factories with form data
     React.useEffect(() => {
@@ -158,8 +234,8 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
 
     const handleRouteChange = (value: string) => {
         setData('vehicle_route_id', value);
-        const route = routes?.find((r: any) => r.value === value);
-        setSelectedRoute(route);
+        const route = routes?.find((r) => r.value.toString() === value);
+        setSelectedRoute(route ?? null);
     };
 
     // Check if trip can be edited
@@ -220,7 +296,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                         name="vehicle_id"
                                         value={data.vehicle_id}
                                         onChange={(value) => setData('vehicle_id', value)}
-                                        options={vehicles?.map((v: any) => ({ label: v.label, value: v.value })) || []}
+                                        options={vehicles?.map((v) => ({ label: v.label, value: v.value.toString() })) || []}
                                         placeholder="Search vehicle..."
                                         required
                                         error={errors.vehicle_id}
@@ -238,7 +314,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                     name="vehicle_route_id"
                                     value={data.vehicle_route_id}
                                     onChange={handleRouteChange}
-                                    options={routes?.map((r: any) => ({ label: r.label, value: r.value })) || []}
+                                    options={routes?.map((r) => ({ label: r.label, value: r.value.toString() })) || []}
                                     placeholder="Search route..."
                                     error={errors.vehicle_route_id}
                                 />
@@ -286,7 +362,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                     name="department_id"
                                     value={data.department_id}
                                     onChange={(value) => setData('department_id', value)}
-                                    options={departments?.map((d: any) => ({ label: d.label, value: d.value })) || []}
+                                    options={departments?.map((d) => ({ label: d.label, value: d.value.toString() })) || []}
                                     placeholder="Select department..."
                                     error={errors.department_id}
                                 />
@@ -387,7 +463,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <MultiSelect
-                                    options={factories?.map((f: any) => ({ label: f.label, value: f.value })) || []}
+                                    options={factories?.map((f) => ({ label: f.label, value: f.value.toString() })) || []}
                                     value={selectedFactoryIds}
                                     onChange={setSelectedFactoryIds}
                                     placeholder="Select factories..."
@@ -401,7 +477,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5">
                                         {selectedFactoryIds.map((id) => {
-                                            const factory = factories?.find((f: any) => f.value.toString() === id.toString());
+                                            const factory = factories?.find((f) => f.value.toString() === id.toString());
                                             return (
                                                 <div key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full border bg-muted/30 text-xs">
                                                     <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
@@ -442,7 +518,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                         className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
                                     >
                                         <option value="">Select department...</option>
-                                        {departments?.map((d: any) => (
+                                        {departments?.map((d) => (
                                             <option key={d.value} value={d.value.toString()}>{d.label}</option>
                                         ))}
                                     </select>
@@ -494,7 +570,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                 ) : (
                                     <div className="flex flex-wrap gap-2">
                                         {data.department_slots.map((d) => {
-                                            const dept = departments?.find((dep: any) => dep.value.toString() === d.department_id);
+                                            const dept = departments?.find((dep) => dep.value.toString() === d.department_id);
                                             return (
                                                 <div key={d.department_id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-muted/30">
                                                     <Users className="h-3 w-3 text-muted-foreground" />
@@ -530,7 +606,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                             </CardHeader>
                             <CardContent className="space-y-2">
                                 <MultiSelect
-                                    options={logistics?.map((l: any) => ({ label: l.label, value: l.value })) || []}
+                                    options={logistics?.map((l) => ({ label: l.label, value: l.value.toString() })) || []}
                                     value={selectedLogisticsIds}
                                     onChange={setSelectedLogisticsIds}
                                     placeholder="Select logistics..."
@@ -544,7 +620,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                 ) : (
                                     <div className="flex flex-wrap gap-1.5">
                                         {selectedLogisticsIds.map((id) => {
-                                            const log = logistics?.find((l: any) => l.value.toString() === id.toString());
+                                            const log = logistics?.find((l) => l.value.toString() === id.toString());
                                             return (
                                                 <div key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full border bg-muted/30 text-xs">
                                                     <span className="font-medium truncate max-w-[140px]">{log?.label ?? id}</span>
@@ -650,9 +726,9 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                                     name={`passenger-${index}`}
                                                     value={passenger.user_id}
                                                     onChange={(value) => updatePassenger(index, 'user_id', value)}
-                                                    options={employees?.map((emp: any) => ({
+                                                    options={employees?.map((emp) => ({
                                                         label: `${emp.label}${emp.department ? ` (${emp.department})` : ''}`,
-                                                        value: emp.value
+                                                        value: emp.value.toString()
                                                     })) || []}
                                                     placeholder="Search employee..."
                                                     required
@@ -670,7 +746,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                                                     <SelectValue placeholder="Select stop" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {selectedRoute.stops?.map((stop: any) => (
+                                                                    {selectedRoute.stops?.map((stop) => (
                                                                         <SelectItem key={stop.id} value={stop.id.toString()}>
                                                                             {stop.order}. {stop.name}
                                                                         </SelectItem>
@@ -689,7 +765,7 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                                                                     <SelectValue placeholder="Select stop" />
                                                                 </SelectTrigger>
                                                                 <SelectContent>
-                                                                    {selectedRoute.stops?.map((stop: any) => (
+                                                                    {selectedRoute.stops?.map((stop) => (
                                                                         <SelectItem key={stop.id} value={stop.id.toString()}>
                                                                             {stop.order}. {stop.name}
                                                                         </SelectItem>
@@ -735,10 +811,10 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                     </Card>
 
                     {/* Error Display */}
-                    {errors.error && (
+                    {formError && (
                         <Alert variant="destructive">
                             <AlertCircle className="h-4 w-4" />
-                            <AlertDescription>{errors.error}</AlertDescription>
+                            <AlertDescription>{formError}</AlertDescription>
                         </Alert>
                     )}
 

@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class TripController extends Controller implements HasMiddleware
@@ -27,6 +28,54 @@ class TripController extends Controller implements HasMiddleware
             new Middleware('permission:edit-trips', only: ['edit', 'update', 'reassignVehicle']),
             new Middleware('permission:delete-trips', only: ['destroy']),
         ];
+    }
+
+    /**
+     * Refuse to book a vehicle onto two overlapping trips the same day.
+     * "Overlap" = same vehicle, same date, not cancelled/rejected, and the
+     * scheduled time windows intersect. $excludeTripId lets an update ignore
+     * the trip's own existing row.
+     *
+     * @throws ValidationException
+     */
+    private function assertVehicleAvailable(int $vehicleId, string $date, string $startTime, string $endTime, ?int $excludeTripId = null): void
+    {
+        $conflict = Trip::where('vehicle_id', $vehicleId)
+            ->where('scheduled_date', $date)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->when($excludeTripId, fn ($q) => $q->where('id', '!=', $excludeTripId))
+            ->where('scheduled_start_time', '<', $endTime)
+            ->where('scheduled_end_time', '>', $startTime)
+            ->exists();
+
+        if ($conflict) {
+            throw ValidationException::withMessages([
+                'vehicle_id' => "This vehicle is already booked on an overlapping trip on {$date}.",
+            ]);
+        }
+    }
+
+    /**
+     * Refuse to seat more named passengers than the vehicle has capacity for.
+     * Vehicles with no capacity on file are left unchecked. Department
+     * headcount slots aren't counted here — their relationship to named
+     * passengers isn't well-defined enough to validate safely.
+     *
+     * @throws ValidationException
+     */
+    private function assertVehicleCapacity(int $vehicleId, int $passengerCount): void
+    {
+        if ($passengerCount === 0) {
+            return;
+        }
+
+        $capacity = Vehicle::whereKey($vehicleId)->value('capacity');
+
+        if ($capacity !== null && $passengerCount > $capacity) {
+            throw ValidationException::withMessages([
+                'passengers' => "This vehicle seats {$capacity}, but {$passengerCount} passengers were selected.",
+            ]);
+        }
     }
 
     /**
@@ -318,6 +367,14 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
+        $this->assertVehicleAvailable(
+            $validated['vehicle_id'],
+            $validated['scheduled_date'],
+            $validated['scheduled_start_time'],
+            $validated['scheduled_end_time']
+        );
+        $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+
         DB::beginTransaction();
         try {
             // Create trip
@@ -401,15 +458,25 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
+        $start = \Carbon\Carbon::parse($validated['recurring_start_date']);
+        $end   = \Carbon\Carbon::parse($validated['recurring_end_date']);
+        $dates = [];
+        for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
+            $dates[] = $d->toDateString();
+        }
+
+        $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+        foreach ($dates as $date) {
+            $this->assertVehicleAvailable(
+                $validated['vehicle_id'],
+                $date,
+                $validated['scheduled_start_time'],
+                $validated['scheduled_end_time']
+            );
+        }
+
         DB::beginTransaction();
         try {
-            $start = \Carbon\Carbon::parse($validated['recurring_start_date']);
-            $end   = \Carbon\Carbon::parse($validated['recurring_end_date']);
-            $dates = [];
-            for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
-                $dates[] = $d->toDateString();
-            }
-
             // Create recurring group
             $group = \App\Models\TripRecurringGroup::create([
                 'group_name'  => $validated['group_name'] ?? null,
@@ -484,7 +551,7 @@ class TripController extends Controller implements HasMiddleware
             'vehicleRoute.routeStops.stop',
             'requester',
             'approver',
-            'cancelledBy',
+            'cancelledByUser',
             'department',
             'passengers.user',
             'passengers.pickupStop',
@@ -492,7 +559,7 @@ class TripController extends Controller implements HasMiddleware
             'passengers.passengerEvents.actor',
             'passengers.passengerEvents.stop',
             'vehicleAssignments.vehicle',
-            'vehicleAssignments.assignedBy',
+            'vehicleAssignments.assignedByUser',
             'logistics',
             'factories',
             'departments',
@@ -500,12 +567,12 @@ class TripController extends Controller implements HasMiddleware
         ]);
 
         $vehicleAssignments = $trip->vehicleAssignments()
-            ->with(['vehicle', 'assignedBy'])
+            ->with(['vehicle', 'assignedByUser'])
             ->orderByDesc('assigned_at')
             ->get();
 
         $routeAssignments = $trip->routeAssignments()
-            ->with(['vehicleRoute', 'assignedBy'])
+            ->with(['vehicleRoute', 'assignedByUser'])
             ->orderByDesc('assigned_at')
             ->get();
 
@@ -652,6 +719,18 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
+        $this->assertVehicleAvailable(
+            $validated['vehicle_id'],
+            $validated['scheduled_date'],
+            $validated['scheduled_start_time'],
+            $validated['scheduled_end_time'],
+            $trip->id
+        );
+        $passengerCount = array_key_exists('passengers', $validated)
+            ? count($validated['passengers'] ?? [])
+            : $trip->passengers()->count();
+        $this->assertVehicleCapacity($validated['vehicle_id'], $passengerCount);
+
         DB::beginTransaction();
         try {
             $tripData = collect($validated)
@@ -712,6 +791,12 @@ class TripController extends Controller implements HasMiddleware
 
         $trip->delete();
 
+        // Keep the recurring group's count in sync with its surviving trips —
+        // it was set once at creation and otherwise never updated.
+        if ($trip->recurring_group_id) {
+            \App\Models\TripRecurringGroup::whereKey($trip->recurring_group_id)->decrement('total_trips');
+        }
+
         return redirect()
             ->route('trips.index')
             ->with('success', 'Trip deleted successfully.');
@@ -733,19 +818,30 @@ class TripController extends Controller implements HasMiddleware
             'notes' => 'nullable|string|max:500',
         ]);
 
-        // Update trip vehicle
-        $trip->update([
-            'vehicle_id' => $validated['vehicle_id'],
-        ]);
+        $this->assertVehicleAvailable(
+            $validated['vehicle_id'],
+            $trip->scheduled_date->toDateString(),
+            $trip->scheduled_start_time,
+            $trip->scheduled_end_time,
+            $trip->id
+        );
+        $this->assertVehicleCapacity($validated['vehicle_id'], $trip->passengers()->count());
 
-        // Update the assignment reason and notes
-        $currentAssignment = $trip->currentVehicleAssignment;
-        if ($currentAssignment) {
-            $currentAssignment->update([
-                'reason' => $validated['reason'],
-                'notes' => $validated['notes'] ?? null,
+        DB::transaction(function () use ($trip, $validated) {
+            // Lock the trip so a concurrent reassignment can't race the
+            // close-old/create-new "current" assignment rows below.
+            $trip = Trip::whereKey($trip->id)->lockForUpdate()->firstOrFail();
+
+            // Read by TripObserver::updating() so the new assignment row is
+            // created with the real reason/notes in one write, instead of a
+            // second, separate (and racy) patch afterwards.
+            $trip->pendingVehicleReassignReason = $validated['reason'];
+            $trip->pendingVehicleReassignNotes = $validated['notes'] ?? null;
+
+            $trip->update([
+                'vehicle_id' => $validated['vehicle_id'],
             ]);
-        }
+        });
 
         return back()->with('success', 'Vehicle reassigned successfully!');
     }

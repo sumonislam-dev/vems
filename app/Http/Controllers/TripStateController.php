@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Trip;
+use App\Models\TripRecurringGroup;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class TripStateController extends Controller implements HasMiddleware
@@ -14,7 +16,7 @@ class TripStateController extends Controller implements HasMiddleware
     {
         return [
             new Middleware('permission:approve-trips', only: ['approve', 'reject']),
-            new Middleware('permission:edit-trips', only: ['cancel']),
+            new Middleware('permission:edit-trips', only: ['cancel', 'cancelSeries']),
         ];
     }
 
@@ -152,5 +154,36 @@ class TripStateController extends Controller implements HasMiddleware
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to cancel trip.');
         }
+    }
+
+    /**
+     * Cancel every trip in a recurring series that's still cancellable.
+     * Trips already in_progress/completed/cancelled/rejected are left alone
+     * (Trip::cancel() just returns false for those — no error, just skipped).
+     */
+    public function cancelSeries(Request $request, TripRecurringGroup $group)
+    {
+        $validated = $request->validate([
+            'cancellation_reason' => 'required|in:passenger_no_show,vehicle_breakdown,driver_unavailable,route_blocked,weather_conditions,emergency,other',
+            'cancellation_notes' => 'nullable|string',
+        ]);
+
+        $cancelledCount = 0;
+
+        DB::transaction(function () use ($group, $validated, &$cancelledCount) {
+            $trips = $group->trips()->lockForUpdate()->get();
+
+            foreach ($trips as $trip) {
+                if ($trip->cancel($validated['cancellation_reason'], $validated['cancellation_notes'] ?? null)) {
+                    $cancelledCount++;
+                }
+            }
+        });
+
+        if ($cancelledCount === 0) {
+            return back()->with('error', 'No trips in this series could be cancelled (already in progress, completed, rejected, or cancelled).');
+        }
+
+        return back()->with('success', "{$cancelledCount} trip(s) in the series cancelled.");
     }
 }

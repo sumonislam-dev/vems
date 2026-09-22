@@ -3,6 +3,7 @@ import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { ColumnFilter, DataTableColumn } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Edit, Eye, Plus, Trash2, MapPin, Route as RouteIcon } from 'lucide-react';
 
@@ -64,7 +65,7 @@ interface RoutesPageProps {
 
 export default function RoutesIndex({ routes, stats, queryParams }: RoutesPageProps) {
     // Define table columns
-    const columns = [
+    const columns: DataTableColumn<VehicleRoute>[] = [
         {
             key: 'id',
             label: 'ID',
@@ -185,7 +186,7 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
     ];
 
     // Define available filters
-    const availableFilters: unknown[] = [];
+    const availableFilters: ColumnFilter[] = [];
 
     // Stats cards for the header
     const statsCards = [

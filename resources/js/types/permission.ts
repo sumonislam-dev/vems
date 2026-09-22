@@ -1,4 +1,4 @@
-import type { Role } from './user';
+import type { Role, User } from './user';
 
 export interface Permission {
     id: number;
@@ -7,6 +7,7 @@ export interface Permission {
     created_at: string;
     updated_at: string;
     roles?: Role[];
+    users?: User[];
     users_count?: number;
     roles_count?: number;
 }

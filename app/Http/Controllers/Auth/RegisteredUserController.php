@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -38,6 +39,7 @@ class RegisteredUserController extends Controller
 
         $user = User::create([
             'name' => $request->name,
+            'username' => $this->generateUsername($request->name, $request->email),
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
@@ -47,5 +49,24 @@ class RegisteredUserController extends Controller
         Auth::login($user);
 
         return redirect()->intended(route('dashboard', absolute: false));
+    }
+
+    /**
+     * Self-registration collects no username, but the column is required and
+     * unique, so derive one from the email (falling back to the name).
+     */
+    private function generateUsername(string $name, string $email): string
+    {
+        $base = Str::slug(Str::before($email, '@'), '.') ?: Str::slug($name, '.');
+        $base = $base ?: 'user';
+
+        $username = $base;
+        $suffix = 1;
+
+        while (User::where('username', $username)->exists()) {
+            $username = $base.'.'.$suffix++;
+        }
+
+        return $username;
     }
 }

@@ -119,6 +119,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/trips/{trip}/complete', [TripStateController::class, 'complete'])->name('trips.complete');
     Route::post('/trips/{trip}/cancel', [TripStateController::class, 'cancel'])->name('trips.cancel');
     Route::post('/trips/{trip}/reassign-vehicle', [TripController::class, 'reassignVehicle'])->name('trips.reassign-vehicle');
+    Route::post('/trip-recurring-groups/{group}/cancel', [TripStateController::class, 'cancelSeries'])->name('trip-recurring-groups.cancel');
 
     // Trip passenger routes
     Route::post('/trips/{trip}/passengers/{tripPassenger}/check-in', [TripPassengerController::class, 'checkIn'])->name('trips.passengers.check-in');

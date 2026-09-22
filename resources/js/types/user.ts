@@ -17,6 +17,7 @@ export interface User {
     avatar?: string;
     status: string;
     address?: string;
+    area?: string;
     whatsapp_id?: string;
     // Driver-specific fields
     driving_license_no?: string;

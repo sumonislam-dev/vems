@@ -240,12 +240,15 @@ class UserController extends Controller implements HasMiddleware
         // Hash password
         $validated['password'] = Hash::make($validated['password']);
 
+        // Accounts provisioned by an admin are trusted without an email-click loop.
+        $validated['email_verified_at'] = now();
+
         $user = User::create($validated);
 
         // Handle role assignments - roles are now required
         if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
             // Convert role IDs to role names/objects and assign
-            $roles = Role::whereIn('id', $validated['roles'])->get();
+            $roles = $this->assignableRoles($validated['roles']);
             $user->assignRole($roles);
         } else {
             // This shouldn't happen due to validation, but fallback to automatic role assignment
@@ -381,18 +384,24 @@ class UserController extends Controller implements HasMiddleware
 
         $user->update($validated);
 
-        // Handle role assignments - roles are now required
-        if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
-            // Convert role IDs to role objects and assign
-            $roles = Role::whereIn('id', $validated['roles'])->get();
-            $user->syncRoles($roles);
-        } else {
-            // This shouldn't happen due to validation, but fallback to automatic role assignment
-            $user->syncRoles([]); // Remove all roles
-            $this->assignRoleByUserType($user, $validated['user_type']);
-        }
+        // A plain user editing their own profile (see UpdateUserRequest's
+        // self-edit branch) never has 'roles'/'user_type' in $validated at
+        // all — leave roles untouched rather than falling into the "no
+        // roles submitted" branch below and wiping them.
+        if ($request->isPrivilegedEditor()) {
+            // Handle role assignments - roles are now required
+            if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
+                // Convert role IDs to role objects and assign
+                $roles = $this->assignableRoles($validated['roles'], $user);
+                $user->syncRoles($roles);
+            } else {
+                // This shouldn't happen due to validation, but fallback to automatic role assignment
+                $user->syncRoles([]); // Remove all roles
+                $this->assignRoleByUserType($user, $validated['user_type']);
+            }
 
-        $this->logRoleChange($user, $oldRoleNames);
+            $this->logRoleChange($user, $oldRoleNames);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User updated successfully.');
@@ -409,6 +418,19 @@ class UserController extends Controller implements HasMiddleware
                 ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
         }
 
+        // trips.requested_by and trip_recurring_groups.created_by now restrict
+        // deletion (a hard delete previously cascaded and silently wiped that
+        // trip history). Surface a clear message instead of a raw DB error.
+        if ($user->requestedTrips()->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete user: they have requested trips on record. Deactivate the account instead.');
+        }
+
+        if (\App\Models\TripRecurringGroup::where('created_by', $user->id)->exists()) {
+            return redirect()->back()
+                ->with('error', 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.');
+        }
+
         // Delete associated files
         if ($user->image) {
             Storage::disk('public')->delete($user->image);
@@ -421,6 +443,33 @@ class UserController extends Controller implements HasMiddleware
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Resolve role IDs to Role models, refusing to let anyone below
+     * super-admin grant (or accidentally strip) the super-admin role.
+     *
+     * @param  array<int, int|string>  $roleIds
+     */
+    private function assignableRoles(array $roleIds, ?User $targetUser = null): \Illuminate\Support\Collection
+    {
+        $roles = Role::whereIn('id', $roleIds)->get();
+
+        if (auth()->user()?->hasRole('super-admin')) {
+            return $roles;
+        }
+
+        $roles = $roles->reject(fn ($role) => $role->name === 'super-admin')->values();
+
+        // A non-super-admin editing another super-admin shouldn't silently strip that role.
+        if ($targetUser?->hasRole('super-admin')) {
+            $superAdminRole = Role::where('name', 'super-admin')->first();
+            if ($superAdminRole) {
+                $roles->push($superAdminRole);
+            }
+        }
+
+        return $roles;
     }
 
     /**

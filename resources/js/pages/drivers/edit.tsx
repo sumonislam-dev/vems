@@ -2,7 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { FormEventHandler } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Users, CheckCircle, Car } from 'lucide-react';
+import { ArrowLeft, Save, Users, CheckCircle, Car, User, Shield } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/base-components/page-header';
 import {
@@ -109,7 +109,7 @@ const enhancedUserTypeOptions = [
   }
 ];
 
-export default function EditUser({ user, departments, vendors, roles, userRoles, userTypes, licenseClasses, bloodGroups }: EditUserProps) {
+export default function EditUser({ user, vendors, userRoles, licenseClasses, bloodGroups }: EditUserProps) {
   const { data, setData, put, processing, errors, reset } = useForm<UserForm>({
     name: (user.name as string) || '',
     username: (user.username as string) || '',
@@ -147,12 +147,6 @@ export default function EditUser({ user, departments, vendors, roles, userRoles,
   // Show driver fields if user type is driver
   const showDriverFields = true;
 
-  // Convert departments to options format
-  const departmentOptions = departments.map(dept => ({
-    label: dept.name,
-    value: dept.id.toString()
-  }));
-
   const vendorOptions = vendors.map(vendor => ({
     label: vendor.name,
     value: vendor.id.toString()
@@ -176,11 +170,6 @@ export default function EditUser({ user, departments, vendors, roles, userRoles,
   // Handle field changes
   const handleFieldChange = (field: keyof UserForm, value: string | File | null) => {
     setData(field, value);
-  };
-
-  // Handle user type change
-  const handleUserTypeChange = (value: string) => {
-    setData('user_type', value);
   };
 
   // Form submission

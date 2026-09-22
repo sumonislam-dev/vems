@@ -3,7 +3,6 @@ import { ArrowUpDown, ArrowUp, ArrowDown, Search, Filter, X, ChevronsRight, Chev
 import { cn } from "@/lib/utils"
 import { DataTableColumn, ColumnFilter } from "@/types"
 import { useServerSideTable } from "@/hooks/use-server-side-table"
-import { useIsMobile } from "@/hooks/use-mobile"
 import {
   Table,
   TableBody,
@@ -32,7 +31,7 @@ import {
 import { ExportButton } from "@/base-components/base-export-button"
 import { MultiSelect } from "./base-multi-select"
 
-interface ServerSideDataTableProps<T = any> {
+interface ServerSideDataTableProps<T = unknown> {
   data: {
     data: T[]
     current_page: number
@@ -47,10 +46,10 @@ interface ServerSideDataTableProps<T = any> {
     search?: string
     sort?: string
     direction?: 'asc' | 'desc'
-    filters?: Record<string, any>
+    filters?: Record<string, unknown>
     per_page?: number
   }
-  filterOptions?: Record<string, any>
+  filterOptions?: Record<string, unknown>
   searchable?: boolean
   searchPlaceholder?: string
   filterable?: boolean
@@ -81,7 +80,6 @@ export function ServerSideDataTable<T>({
   className,
   onRowClick,
 }: ServerSideDataTableProps<T>) {
-  const isMobile = useIsMobile()
   const [searchInput, setSearchInput] = React.useState(queryParams.search || '')
 
   const {
@@ -142,13 +140,19 @@ export function ServerSideDataTable<T>({
   // Generate filter options from provided data
   const getFilterOptionsForColumn = (filter: ColumnFilter) => {
     if (filter.options && filter.options.length > 0) {
-      return filter.options
+      // FilterOption.value allows boolean (e.g. is_active filters); MultiSelect
+      // only accepts string | number, and boolean values are stringified anyway
+      // once they reach the URL query string, so coerce them here.
+      return filter.options.map((option) => ({
+        label: option.label,
+        value: typeof option.value === 'boolean' ? String(option.value) : option.value,
+      }))
     }
 
     // Use server-provided filter options
     const serverOptions = filterOptions[filter.key] || filterOptions[`${filter.key}s`]
     if (serverOptions && Array.isArray(serverOptions)) {
-      return serverOptions.map((option: any) => ({
+      return serverOptions.map((option: string | number) => ({
         label: String(option),
         value: option
       }))

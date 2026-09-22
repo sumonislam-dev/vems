@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Vendor;
-use App\Models\VendorContactPerson;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class VendorController extends Controller implements HasMiddleware
@@ -209,7 +209,10 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
             'contact_persons' => $minContactsRule,
-            'contact_persons.*.id' => 'nullable|exists:vendor_contact_persons,id',
+            'contact_persons.*.id' => [
+                'nullable',
+                Rule::exists('vendor_contact_persons', 'id')->where('vendor_id', $vendor->id),
+            ],
             'contact_persons.*.name' => 'required|string|max:255',
             'contact_persons.*.position' => 'nullable|string|max:255',
             'contact_persons.*.phone' => 'nullable|string|max:20',
@@ -280,13 +283,13 @@ class VendorController extends Controller implements HasMiddleware
 
             // Delete removed contact persons
             $toDelete = array_diff($existingIds, $submittedIds);
-            VendorContactPerson::whereIn('id', $toDelete)->delete();
+            $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
 
             // Update or create contact persons
             foreach ($validated['contact_persons'] as $contactData) {
                 if (isset($contactData['id'])) {
-                    // Update existing
-                    VendorContactPerson::where('id', $contactData['id'])
+                    // Update existing (scoped to this vendor)
+                    $vendor->contactPersons()->where('id', $contactData['id'])
                         ->update(\Arr::except($contactData, ['id']));
                 } else {
                     // Create new

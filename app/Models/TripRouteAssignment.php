@@ -42,8 +42,12 @@ class TripRouteAssignment extends Model
 
     /**
      * Get the user who assigned this route.
+     *
+     * Named assignedByUser (not assignedBy) so the eager-loaded relation
+     * doesn't serialize to the same JSON key as the raw assigned_by FK
+     * column and silently overwrite it.
      */
-    public function assignedBy(): BelongsTo
+    public function assignedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }

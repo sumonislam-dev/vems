@@ -2,9 +2,14 @@
 
 use App\Models\Product;
 use App\Models\User;
+use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
+    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    Permission::firstOrCreate(['name' => 'create-products', 'guard_name' => 'web']);
+
     $this->user = User::factory()->create();
+    $this->user->givePermissionTo('create-products');
 });
 
 describe('Product Creation', function () {
@@ -193,12 +198,12 @@ describe('Product Categories', function () {
         $response = $this->actingAs($this->user)
             ->get(route('products.create'));
 
-        $response->assertInertia(fn ($page) => 
+        $response->assertInertia(fn ($page) =>
             $page->has('categories')
-                ->where('categories', fn ($categories) => 
-                    in_array('Electronics', $categories) &&
-                    in_array('Books', $categories) &&
-                    count($categories) === 10
+                ->where('categories', fn ($categories) =>
+                    $categories->contains('Electronics') &&
+                    $categories->contains('Books') &&
+                    $categories->count() === 10
                 )
         );
     });

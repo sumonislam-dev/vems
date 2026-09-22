@@ -8,7 +8,7 @@ import { PageHeader } from '@/base-components/page-header';
 import { EnhancedStopSelect } from '@/components/ui/enhanced-stop-select';
 import { ReorderButtons } from '@/components/ui/reorder-buttons';
 import { DistanceDisplay, RouteDistanceSummary } from '@/components/ui/distance-display';
-import { calculateRouteDistance, calculateStopDistances } from '@/lib/distance-calculator';
+import { calculateStopDistances } from '@/lib/distance-calculator';
 import MapStopPicker from '@/components/MapStopPicker';
 import {
   BaseForm,

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,7 +12,7 @@ use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, HasRoles, LogsActivity, Notifiable;
@@ -49,6 +49,7 @@ class User extends Authenticatable
         'license_class',
         'license_issue_date',
         'license_expiry_date',
+        'email_verified_at',
         'user_type',
         'department_id',
         'vendor_id',
@@ -138,7 +139,7 @@ class User extends Authenticatable
 
     public function assignedVehicles(): HasMany
     {
-        return $this->hasMany(Vehicle::class, 'assigned_driver_id');
+        return $this->hasMany(Vehicle::class, 'driver_id');
     }
 
     public function vehicleAssignments(): HasMany

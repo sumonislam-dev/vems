@@ -11,7 +11,7 @@ import {
 
 interface ExportButtonProps {
   exportUrl: string
-  queryParams?: Record<string, any>
+  queryParams?: Record<string, unknown>
   className?: string
   variant?: "default" | "outline" | "ghost"
   size?: "default" | "sm" | "lg"

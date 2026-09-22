@@ -26,13 +26,13 @@ class DashboardController extends Controller
                 'active_vehicles' => Vehicle::where('is_active', true)->count(),
                 'total_vendors' => Vendor::count(),
             ],
-            'recent_vehicles' => Vehicle::with(['driver', 'vendor'])
+            'recent_vehicles' => Vehicle::with(['driver:id,name', 'vendor:id,name'])
                 ->latest()
                 ->take(5)
                 ->get(),
             'recent_users' => User::latest()
                 ->take(5)
-                ->get(),
+                ->get(['id', 'name', 'username', 'user_type', 'status', 'image', 'photo', 'created_at']),
 
             // Module Statistics (Dummy Data)
             'moduleStats' => [

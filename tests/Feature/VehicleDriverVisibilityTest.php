@@ -20,6 +20,7 @@ function seedVehicleVisibilityPermissions(): void
 function makeVehicleVisibilityUser(string $username): User
 {
     return User::create([
+        'email_verified_at' => now(),
         'name' => 'Vehicle Visibility User ' . $username,
         'username' => $username,
         'email' => $username . '@example.com',

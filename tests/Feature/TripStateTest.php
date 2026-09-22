@@ -18,9 +18,20 @@ function seedTripStatePermissions(): void
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
+function makeStateVehicle(array $overrides = []): Vehicle
+{
+    return Vehicle::create(array_merge([
+        'brand' => 'Toyota',
+        'model' => 'Hiace',
+        'registration_number' => 'VEH-' . uniqid(),
+        'is_active' => true,
+    ], $overrides));
+}
+
 function makeTripStateUser(string $username): User
 {
     return User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Manager ' . $username,
         'username' => $username,
         'email' => $username . '@example.com',
@@ -266,6 +277,34 @@ it('lets the driver assigned to the trip vehicle start and complete the trip wit
     $this->actingAs($driver)->post("/trips/{$trip->id}/complete", ['odometer_end' => 540])->assertRedirect();
     $trip->refresh();
     expect($trip->status)->toBe('completed')->and($trip->is_completed)->toBeTrue();
+});
+
+it('records the real reason/notes on a reassigned vehicle in one write (regression)', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('reassigner-1');
+    $manager->givePermissionTo('edit-trips');
+
+    $oldVehicle = makeStateVehicle();
+    $newVehicle = makeStateVehicle();
+    $trip = makeStateTrip(['status' => 'assigned', 'vehicle_id' => $oldVehicle->id]);
+
+    $response = $this->actingAs($manager)->post("/trips/{$trip->id}/reassign-vehicle", [
+        'vehicle_id' => $newVehicle->id,
+        'reason' => 'breakdown',
+        'notes' => 'Old vehicle broke down on the highway.',
+    ]);
+    $response->assertRedirect();
+
+    $trip->refresh();
+    expect($trip->vehicle_id)->toBe($newVehicle->id);
+
+    $current = $trip->vehicleAssignments()->where('is_current', true)->first();
+    expect($current)->not->toBeNull()
+        ->and($current->vehicle_id)->toBe($newVehicle->id)
+        ->and($current->reason)->toBe('breakdown')
+        ->and($current->notes)->toBe('Old vehicle broke down on the highway.');
+
+    expect($trip->vehicleAssignments()->where('is_current', true)->count())->toBe(1);
 });
 
 it('refuses start/complete to a driver not assigned to the trip vehicle', function () {

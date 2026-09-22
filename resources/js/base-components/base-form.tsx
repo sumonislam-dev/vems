@@ -6,17 +6,18 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
 import InputError from "@/components/input-error"
-import { Upload, X, Calendar, ChevronDown, Check } from "lucide-react"
+import { Upload, X, ChevronDown, Check } from "lucide-react"
 
 /**
  * Reusable Form Components for Laravel + Inertia.js applications
  *
  * Features:
  * - Integrates with Inertia's useForm hook
- * - Built-in validation and error handling
  * - Consistent styling and accessibility
  * - TypeScript support
- * - Client-side validation support
+ * - Renders an `error` string passed in from Inertia's errors or from
+ *   `useFormValidation` (see hooks/use-form-validation.ts) — these
+ *   components are presentational only and don't validate themselves
  *
  * @example
  * const { data, setData, post, processing, errors } = useForm({
@@ -59,42 +60,6 @@ import { Upload, X, Calendar, ChevronDown, Check } from "lucide-react"
  *   </FormActions>
  * </BaseForm>
  */
-
-// Validation function type
-export type ValidationRule = (value: unknown) => string | undefined
-
-// Common validation rules
-export const validationRules = {
-  required: (message = "This field is required"): ValidationRule =>
-    (value) => (!value || value.toString().trim() === "") ? message : undefined,
-
-  email: (message = "Please enter a valid email address"): ValidationRule =>
-    (value) => {
-      if (!value) return undefined
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      return !emailRegex.test(String(value)) ? message : undefined
-    },
-
-  minLength: (min: number, message?: string): ValidationRule =>
-    (value) => {
-      if (!value) return undefined
-      const msg = message || `Must be at least ${min} characters`
-      return String(value).length < min ? msg : undefined
-    },
-
-  maxLength: (max: number, message?: string): ValidationRule =>
-    (value) => {
-      if (!value) return undefined
-      const msg = message || `Must be no more than ${max} characters`
-      return String(value).length > max ? msg : undefined
-    },
-
-  pattern: (regex: RegExp, message = "Invalid format"): ValidationRule =>
-    (value) => {
-      if (!value) return undefined
-      return !regex.test(String(value)) ? message : undefined
-    }
-}
 
 // Base Form Container
 interface BaseFormProps extends React.FormHTMLAttributes<HTMLFormElement> {
@@ -144,7 +109,6 @@ interface FormFieldProps {
   autoComplete?: string
   autoFocus?: boolean
   description?: string
-  validation?: ValidationRule[]
   className?: string
   multiline?: boolean
   rows?: number
@@ -163,25 +127,15 @@ export function FormField({
   autoComplete,
   autoFocus = false,
   description,
-  validation = [],
   className,
   multiline = false,
   rows = 4
 }: FormFieldProps) {
-  const [clientError, setClientError] = React.useState<string>()
-
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const newValue = e.target.value
-    onChange(newValue)
-
-    // Run client-side validation
-    if (validation.length > 0) {
-      const error = validation.find(rule => rule(newValue))
-      setClientError(error?.(newValue))
-    }
+    onChange(e.target.value)
   }
 
-  const displayError = error || clientError
+  const displayError = error
 
   return (
     <div className={cn("space-y-2", className)}>

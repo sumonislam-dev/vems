@@ -35,7 +35,8 @@ class UserFactory extends Factory
             'user_type' => $userType,
             'blood_group' => fake()->randomElement(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
             'status' => fake()->randomElement(['active', 'inactive', 'suspended']),
-            'address' => fake()->optional()->address(),
+            'present_address' => fake()->optional()->address(),
+            'permanent_address' => fake()->optional()->address(),
             'whatsapp_id' => fake()->optional()->phoneNumber(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
@@ -49,7 +50,7 @@ class UserFactory extends Factory
             $data['present_address'] = fake()->address();
             $data['permanent_address'] = fake()->address();
             $data['emergency_contact_name'] = fake()->name();
-            $data['emergency_contact_phone'] = fake()->phoneNumber();
+            $data['emergency_phone'] = fake()->phoneNumber();
             $data['emergency_contact_relation'] = fake()->randomElement(['Father', 'Mother', 'Spouse', 'Brother', 'Sister', 'Friend']);
         }
 

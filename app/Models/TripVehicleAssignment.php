@@ -37,7 +37,12 @@ class TripVehicleAssignment extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
-    public function assignedBy(): BelongsTo
+    /**
+     * Named assignedByUser (not assignedBy) so the eager-loaded relation
+     * doesn't serialize to the same JSON key as the raw assigned_by FK
+     * column and silently overwrite it.
+     */
+    public function assignedByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }

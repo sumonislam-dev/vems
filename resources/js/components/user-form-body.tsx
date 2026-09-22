@@ -122,7 +122,7 @@ export function UserFormBody({
     onSubmit,
     onReset,
 }: UserFormBodyProps) {
-    const handleSubmit = (_e: React.FormEvent<HTMLFormElement>) => {
+    const handleSubmit = () => {
         onSubmit();
     };
 

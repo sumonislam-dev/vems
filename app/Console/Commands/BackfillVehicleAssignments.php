@@ -46,11 +46,19 @@ class BackfillVehicleAssignments extends Command
 
         $count = 0;
         if ($this->option('force')) {
-            $this->warn('FORCE mode: Recreating current assignment for ALL vehicles with driver_id.');
+            $this->warn('FORCE mode: Correcting the current assignment for vehicles whose driver_id disagrees with it (idempotent — already-correct vehicles are left untouched).');
             Vehicle::whereNotNull('driver_id')
                 ->with('driverAssignments')
                 ->chunk(200, function ($vehicles) use (&$count) {
                     foreach ($vehicles as $v) {
+                        $current = $v->driverAssignments()->where('is_current', true)->first();
+
+                        // Already correct — skip, so reruns don't inflate history
+                        // or reset started_at for vehicles that haven't changed.
+                        if ($current && $current->driver_id == $v->driver_id) {
+                            continue;
+                        }
+
                         // Close all current assignments for this vehicle
                         $now = now();
                         $v->driverAssignments()->where('is_current', true)->update([

@@ -50,7 +50,7 @@ interface ProductsPageProps {
         search?: string;
         sort?: string;
         direction?: 'asc' | 'desc';
-        filters?: Record<string, any>;
+        filters?: Record<string, unknown>;
         per_page?: number;
     };
     exportTemplates: ExportTemplate[];
@@ -197,10 +197,6 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
             })),
         },
     ];
-
-    const handleRowClick = (product: Product) => {
-        alert(`Clicked on product: ${product.name} - $${product.price}`);
-    };
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>

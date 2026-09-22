@@ -31,6 +31,7 @@ class ProductStoreRequest extends FormRequest
             'description' => [
                 'required',
                 'string',
+                'min:10',
                 'max:1000'
             ],
             'price' => [
@@ -87,8 +88,10 @@ class ProductStoreRequest extends FormRequest
         // Clean up the price field
         if ($this->has('price')) {
             $price = $this->input('price');
-            // Remove any currency symbols or commas
-            $cleanPrice = preg_replace('/[^\d.]/', '', $price);
+            // Remove currency symbols/commas, but keep a leading '-' so a
+            // negative price still fails the min:0 rule instead of being
+            // silently sanitized into a valid positive one.
+            $cleanPrice = preg_replace('/[^\d.\-]/', '', $price);
             $this->merge(['price' => $cleanPrice]);
         }
 

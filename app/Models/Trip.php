@@ -9,11 +9,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\DB;
 use App\Models\Department;
 
 class Trip extends Model
 {
     use HasFactory, SoftDeletes;
+
+    /**
+     * Real (non-Eloquent-attribute) transient properties: set by a caller right
+     * before update(['vehicle_id' => ...]) so TripObserver::updating() can record
+     * the true reassignment reason/notes atomically instead of patching the
+     * assignment row in a second, separate write.
+     */
+    public ?string $pendingVehicleReassignReason = null;
+
+    public ?string $pendingVehicleReassignNotes = null;
 
     protected $fillable = [
         'trip_number',
@@ -36,6 +47,11 @@ class Trip extends Model
         'end_location',
         'is_return',
         'is_completed',
+        'is_recurring',
+        'recurring_group_id',
+        'recurring_start_date',
+        'recurring_end_date',
+        'original_trip_id',
         // start_time/end_time are back-filled automatically by TripObserver the moment
         // status flips to in_progress/is_completed becomes true (see TripObserver::updating()).
         // actual_start_time/actual_end_time are the same moment recorded explicitly by
@@ -73,6 +89,7 @@ class Trip extends Model
             'trip_documents' => 'array',
             'is_return' => 'boolean',
             'is_completed' => 'boolean',
+            'is_recurring' => 'boolean',
             'scheduled_date' => 'date:Y-m-d',
             'scheduled_start_time' => 'string',
             'scheduled_end_time' => 'string',
@@ -162,7 +179,12 @@ class Trip extends Model
     {
         return $this->hasMany(TripStop::class)->destinations()->ordered();
     }
-    public function cancelledBy(): BelongsTo
+    /**
+     * Named cancelledByUser (not cancelledBy) so the eager-loaded relation
+     * doesn't serialize to the same JSON key as the raw cancelled_by FK
+     * column and silently overwrite it.
+     */
+    public function cancelledByUser(): BelongsTo
     {
         return $this->belongsTo(User::class, 'cancelled_by');
     }
@@ -395,34 +417,40 @@ class Trip extends Model
 
     public function assignRoute(int $vehicleRouteId, ?string $reason = null, ?string $notes = null): void
     {
-        // Mark current route as unassigned
-        $this->routeAssignments()->current()->update([
-            'is_current' => false,
-            'unassigned_at' => now(),
-        ]);
+        DB::transaction(function () use ($vehicleRouteId, $reason, $notes) {
+            // Lock this trip's row so a concurrent assignRoute() call for the same
+            // trip waits instead of racing to close/create "current" assignment rows.
+            static::whereKey($this->id)->lockForUpdate()->firstOrFail();
 
-        // Create new route assignment
-        $assignment = $this->routeAssignments()->create([
-            'vehicle_route_id' => $vehicleRouteId,
-            'assigned_by' => auth()->id(),
-            'assigned_at' => now(),
-            'is_current' => true,
-            'reason' => $reason,
-            'notes' => $notes,
-        ]);
+            // Mark current route as unassigned
+            $this->routeAssignments()->current()->update([
+                'is_current' => false,
+                'unassigned_at' => now(),
+            ]);
 
-        // Log the route change
-        TripAuditLog::create([
-            'trip_id' => $this->id,
-            'user_id' => auth()->id(),
-            'action' => 'route_changed',
-            'new_values' => [
+            // Create new route assignment
+            $this->routeAssignments()->create([
                 'vehicle_route_id' => $vehicleRouteId,
+                'assigned_by' => auth()->id(),
+                'assigned_at' => now(),
+                'is_current' => true,
                 'reason' => $reason,
                 'notes' => $notes,
-            ],
-            'reason' => $reason,
-        ]);
+            ]);
+
+            // Log the route change
+            TripAuditLog::create([
+                'trip_id' => $this->id,
+                'user_id' => auth()->id(),
+                'action' => 'route_changed',
+                'new_values' => [
+                    'vehicle_route_id' => $vehicleRouteId,
+                    'reason' => $reason,
+                    'notes' => $notes,
+                ],
+                'reason' => $reason,
+            ]);
+        });
     }
 
     /**
@@ -734,7 +762,7 @@ class Trip extends Model
             if (!empty($auditableChanges)) {
                 TripAuditLog::create([
                     'trip_id' => $trip->id,
-                    'user_id' => auth()->id() ?? 1, // Fallback for system operations
+                    'user_id' => auth()->id(), // null for console/queue/system operations
                     'action' => 'updated',
                     'old_values' => array_intersect_key($trip->getOriginal(), $auditableChanges),
                     'new_values' => $auditableChanges,

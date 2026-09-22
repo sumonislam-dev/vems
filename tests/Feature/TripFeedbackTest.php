@@ -25,6 +25,7 @@ function seedFeedbackPermissions(): void
 function makeFeedbackUser(string $username): User
 {
     return User::create([
+        'email_verified_at' => now(),
         'name' => 'Feedback User ' . $username,
         'username' => $username,
         'email' => $username . '@example.com',

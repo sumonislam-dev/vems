@@ -65,6 +65,7 @@ it('unassigns a user from a role that gets removed by reseeding, without error',
     Role::firstOrCreate(['name' => 'transport-officer', 'guard_name' => 'web']);
 
     $user = User::create([
+        'email_verified_at' => now(),
         'name' => 'Legacy Role User',
         'username' => 'legacy-role-user',
         'email' => 'legacy-role-user@example.com',
@@ -82,6 +83,7 @@ it('unassigns a user from a role that gets removed by reseeding, without error',
 
 it('setup:permissions delegates to the seeder and assigns super-admin to the first user', function () {
     $user = User::create([
+        'email_verified_at' => now(),
         'name' => 'First User',
         'username' => 'first-user',
         'email' => 'first-user@example.com',

@@ -64,7 +64,8 @@ class TripObserver
                     'assigned_at'  => $now,
                     'is_current'   => true,
                     'assigned_by'  => auth()->id(),
-                    'reason'       => 'replacement',
+                    'reason'       => $trip->pendingVehicleReassignReason ?? 'replacement',
+                    'notes'        => $trip->pendingVehicleReassignNotes,
                 ]);
             }
         }

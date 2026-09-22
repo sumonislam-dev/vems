@@ -6,9 +6,10 @@ interface ServerSideTableParams {
     search?: string;
     sort?: string;
     direction?: SortDirection;
-    filters?: Record<string, any>;
+    filters?: Record<string, unknown>;
     per_page?: number;
     page?: number;
+    [key: string]: unknown;
 }
 
 interface UseServerSideTableOptions {
@@ -153,7 +154,7 @@ export function useServerSideTable(
 
     // Get current filter values for a key
     const getFilterValues = useCallback((key: string): (string | number)[] => {
-        return currentParams.filters?.[key] || [];
+        return (currentParams.filters?.[key] as (string | number)[] | undefined) || [];
     }, [currentParams.filters]);
 
     // Check if any filters are active

@@ -2,16 +2,12 @@ import { type SharedData } from '@/types';
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
     Car,
-    Users,
     FileText,
     Shield,
     BarChart3,
-    Clock,
     CheckCircle,
     ArrowRight,
-    Truck,
     UserCheck,
-    Calendar,
     AlertTriangle
 } from 'lucide-react';
 

@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { usePage } from '@inertiajs/react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SharedData } from '@/types';
@@ -78,10 +77,6 @@ export default function FlashMessages() {
     setMessages(prev => prev.filter(msg => msg.id !== id));
   };
 
-  if (messages.length === 0) {
-    return null;
-  }
-
   const getIcon = (type: FlashMessage['type']) => {
     switch (type) {
       case 'success':
@@ -92,19 +87,6 @@ export default function FlashMessages() {
         return <AlertTriangle className="h-4 w-4" />;
       case 'info':
         return <Info className="h-4 w-4" />;
-    }
-  };
-
-  const getVariant = (type: FlashMessage['type']) => {
-    switch (type) {
-      case 'success':
-        return 'default';
-      case 'error':
-        return 'destructive';
-      case 'warning':
-        return 'default';
-      case 'info':
-        return 'default';
     }
   };
 
@@ -123,46 +105,48 @@ export default function FlashMessages() {
 
   return (
     <>
-
-
       {/* Laravel Flash Messages */}
-      <div className="fixed top-4 right-4 z-50 space-y-3 max-w-sm">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={cn(
-              'relative rounded-lg border p-4 shadow-lg backdrop-blur-sm',
-              'animate-in slide-in-from-right-full duration-300',
-              'transition-all hover:shadow-xl',
-              getColorClasses(message.type)
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">
-                {getIcon(message.type)}
+      {messages.length > 0 && (
+        <div className="fixed top-4 right-4 z-50 space-y-3 max-w-sm">
+          {messages.map((message) => (
+            <div
+              key={message.id}
+              className={cn(
+                'relative rounded-lg border p-4 shadow-lg backdrop-blur-sm',
+                'animate-in slide-in-from-right-full duration-300',
+                'transition-all hover:shadow-xl',
+                getColorClasses(message.type)
+              )}
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  {getIcon(message.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium leading-5">
+                    {message.message}
+                  </p>
+                </div>
+                <button
+                  onClick={() => dismissMessage(message.id)}
+                  className={cn(
+                    'flex-shrink-0 ml-2 p-1 rounded-md transition-colors',
+                    'hover:bg-foreground/10',
+                    'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent'
+                  )}
+                  aria-label="Dismiss notification"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium leading-5">
-                  {message.message}
-                </p>
-              </div>
-              <button
-                onClick={() => dismissMessage(message.id)}
-                className={cn(
-                  'flex-shrink-0 ml-2 p-1 rounded-md transition-colors',
-                  'hover:bg-foreground/10',
-                  'focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent'
-                )}
-                aria-label="Dismiss notification"
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      {/* React Hot Toast Container - Simplified for debugging */}
+      {/* Always mounted — toast.*() calls (from useFlashMessage() below, or
+          anywhere else in the app) need a live Toaster to render into,
+          regardless of whether a Laravel session flash message is active. */}
       <Toaster
         position="top-right"
         reverseOrder={false}

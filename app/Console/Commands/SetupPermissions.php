@@ -28,7 +28,7 @@ class SetupPermissions extends Command
      * This delegates to RolePermissionSeeder — the same seeder DatabaseSeeder
      * runs and that AppServiceProvider's Gate::before(hasRole('super-admin'))
      * depends on — rather than defining a second, disagreeing role/permission
-     * set (see PROJECT_IMPROVEMENTS.md 1.5).
+     * set (see docs/PROJECT_IMPROVEMENTS.md 1.5).
      */
     public function handle()
     {

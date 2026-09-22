@@ -58,10 +58,6 @@ export function MultiSelect({
     onChange(newValue)
   }
 
-  const handleRemove = (optionValue: string | number) => {
-    onChange(value.filter(v => v !== optionValue))
-  }
-
   const handleClear = () => {
     onChange([])
   }

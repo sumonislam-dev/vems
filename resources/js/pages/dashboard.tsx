@@ -211,7 +211,7 @@ export default function Dashboard() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
             <div className="p-6 space-y-6">
-                {/* Attendance status — single always-visible widget, see ATTENDANCE_SYSTEM_PLAN.md §11.1 */}
+                {/* Attendance status — single always-visible widget, see docs/ATTENDANCE_SYSTEM_PLAN.md §11.1 */}
                 {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} factories={factories} />}
 
                 {/* Header */}

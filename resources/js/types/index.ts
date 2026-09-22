@@ -4,7 +4,7 @@ export type { User, Role } from './user';
 export type { Permission } from './permission';
 export type { VendorContactPerson, Vendor, Vehicle } from './vehicle';
 export type {
-    Product, Department, Factory, Stop, VehicleRoute, RouteStop,
+    Product, Department, Factory, Stop, VehicleRoute, RouteStop, Logistics,
     ActionButton, SortDirection, SortConfig, FilterOption, ColumnFilter,
     DataTableColumn, PaginationInfo, DataTableProps, PaginatedData,
 } from './common';

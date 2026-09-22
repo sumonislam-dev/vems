@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { TripPassenger, TripPassengerEvent } from '@/types';
 import { Users } from 'lucide-react';
+import type { JSX } from 'react';
 
 type AttendanceMode = 'check_in' | 'check_out' | 'no_show' | 'correct';
 

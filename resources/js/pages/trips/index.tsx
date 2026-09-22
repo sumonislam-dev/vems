@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, DataTableColumn, Trip } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Calendar, Car, CheckCircle, Clock, Edit, Eye, FileText, MapPin, Plus, Trash2, TrendingUp, User, XCircle } from 'lucide-react';
+import { Calendar, Car, CheckCircle, Clock, Edit, Eye, FileText, MapPin, Plus, TrendingUp, User } from 'lucide-react';
 import { useMemo } from 'react';
 
 interface PaginatedTrips {

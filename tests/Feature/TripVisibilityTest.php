@@ -22,6 +22,7 @@ function seedTripVisibilityPermissions(): void
 function makeVisibilityUser(string $username): User
 {
     return User::create([
+        'email_verified_at' => now(),
         'name' => 'Visibility User ' . $username,
         'username' => $username,
         'email' => $username . '@example.com',

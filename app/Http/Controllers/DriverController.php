@@ -280,6 +280,9 @@ class DriverController extends Controller implements HasMiddleware
             $validated['department_id'] = $defaultDepartment?->id;
         }
 
+        // Accounts provisioned by an admin are trusted without an email-click loop.
+        $validated['email_verified_at'] = now();
+
         $user = User::create($validated);
 
         // Driver module is fixed to Driver role
@@ -430,6 +433,17 @@ class DriverController extends Controller implements HasMiddleware
         // Check if driver has active trips
         if ($driver->driverTrips()->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])->exists()) {
             return redirect()->back()->withErrors(['error' => 'Cannot delete driver with active trips.']);
+        }
+
+        // trips.requested_by and trip_recurring_groups.created_by now restrict
+        // deletion (a hard delete previously cascaded and silently wiped that
+        // trip history). Surface a clear message instead of a raw DB error.
+        if ($driver->requestedTrips()->exists()) {
+            return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they have requested trips on record. Deactivate the account instead.']);
+        }
+
+        if (\App\Models\TripRecurringGroup::where('created_by', $driver->id)->exists()) {
+            return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they created recurring trip groups on record. Deactivate the account instead.']);
         }
 
         // Delete images

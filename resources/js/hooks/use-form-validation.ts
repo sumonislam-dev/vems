@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 /**
  * Custom hook for form validation that works with Inertia.js forms
@@ -33,20 +33,15 @@ import { useState, useCallback } from 'react';
  * };
  */
 
-export type ValidationRule<T = any> = (value: T) => string | undefined;
-export type ValidationRules<T = Record<string, any>> = {
+export type ValidationRule<T = unknown> = (value: T) => string | undefined;
+export type ValidationRules<T = Record<string, unknown>> = {
   [K in keyof T]?: ValidationRule<T[K]>[];
 };
-export type ValidationErrors<T = Record<string, any>> = {
+export type ValidationErrors<T = Record<string, unknown>> = {
   [K in keyof T]?: string;
 };
 
-interface UseFormValidationOptions<T = Record<string, any>> {
-  rules: ValidationRules<T>;
-  validateOnChange?: boolean;
-}
-
-interface UseFormValidationReturn<T = Record<string, any>> {
+interface UseFormValidationReturn<T = Record<string, unknown>> {
   errors: ValidationErrors<T>;
   validate: (data: T) => ValidationErrors<T>;
   validateField: (field: keyof T, value: T[keyof T]) => string | undefined;
@@ -57,11 +52,9 @@ interface UseFormValidationReturn<T = Record<string, any>> {
   setErrors: (errors: ValidationErrors<T>) => void;
 }
 
-export function useFormValidation<T = Record<string, any>>(
-  rules: ValidationRules<T>,
-  options: { validateOnChange?: boolean } = {}
+export function useFormValidation<T = Record<string, unknown>>(
+  rules: ValidationRules<T>
 ): UseFormValidationReturn<T> {
-  const { validateOnChange = false } = options;
   const [errors, setErrorsState] = useState<ValidationErrors<T>>({});
 
   const validateField = useCallback((field: keyof T, value: T[keyof T]): string | undefined => {
@@ -202,11 +195,11 @@ export const commonValidationRules = {
       }
     },
 
-  phone: (message = "Please enter a valid phone number"): ValidationRule<string> => 
+  phone: (message = "Please enter a valid phone number"): ValidationRule<string> =>
     (value) => {
       if (!value) return undefined;
-      const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
-      return !phoneRegex.test(value.replace(/[\s\-\(\)]/g, '')) ? message : undefined;
+      const phoneRegex = /^[+]?[1-9][\d]{0,15}$/;
+      return !phoneRegex.test(value.replace(/[\s\-()]/g, '')) ? message : undefined;
     },
 
   confirmPassword: (originalPassword: string, message = "Passwords do not match"): ValidationRule<string> => 
@@ -224,7 +217,7 @@ export const commonValidationRules = {
 };
 
 // Hook for real-time validation as user types
-export function useRealtimeValidation<T = Record<string, any>>(
+export function useRealtimeValidation<T extends Record<string, unknown>>(
   rules: ValidationRules<T>,
   data: T,
   debounceMs = 300
@@ -245,7 +238,7 @@ export function useRealtimeValidation<T = Record<string, any>>(
   );
 
   // Validate fields when data changes
-  React.useEffect(() => {
+  useEffect(() => {
     Object.keys(data).forEach(field => {
       const fieldKey = field as keyof T;
       debouncedValidate(fieldKey, data[fieldKey]);
@@ -256,6 +249,7 @@ export function useRealtimeValidation<T = Record<string, any>>(
 }
 
 // Simple debounce utility
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number

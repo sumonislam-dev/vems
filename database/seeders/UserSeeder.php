@@ -14,6 +14,17 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        // These are hardcoded demo/test accounts with a well-known password.
+        // Never let them land on a shared or production database.
+        if (app()->isProduction()) {
+            $this->command?->warn(
+                'Skipping UserSeeder demo accounts in production. '.
+                'Create the initial admin manually (e.g. via `php artisan setup:permissions`) with a strong, unique password.'
+            );
+
+            return;
+        }
+
         // Create Admin User
         $admin = User::updateOrCreate(
             ['email' => 'admin@vems.com'],
@@ -33,6 +44,7 @@ class UserSeeder extends Seeder
                 'joining_date' => '2020-01-01',
                 'status' => 'active',
                 'blood_group' => 'O+',
+                'email_verified_at' => now(),
                 'password' => Hash::make('password'),
             ],
         );
@@ -134,6 +146,7 @@ class UserSeeder extends Seeder
                     'joining_date' => $userData['joining_date'],
                     'status' => $userData['status'],
                     'blood_group' => $userData['blood_group'],
+                    'email_verified_at' => now(),
                     'password' => $userData['password'],
                 ]
             );
@@ -168,6 +181,7 @@ class UserSeeder extends Seeder
             'total_trips_completed' => 200,
             'average_rating' => 4.8,
             'status' => 'active',
+            'email_verified_at' => now(),
             'password' => Hash::make('password'),
         ]);
 
@@ -222,6 +236,7 @@ class UserSeeder extends Seeder
                     'total_trips_completed' => rand(150, 300),
                     'average_rating' => round(rand(40, 50) / 10, 1),
                     'status' => 'active',
+                    'email_verified_at' => now(),
                     'password' => Hash::make('password'),
                 ]
             );
@@ -278,6 +293,7 @@ class UserSeeder extends Seeder
                     'total_trips_completed' => rand(80, 150),
                     'average_rating' => round(rand(35, 45) / 10, 1),
                     'status' => 'active',
+                    'email_verified_at' => now(),
                     'password' => Hash::make('password'),
                 ]
             );
@@ -342,6 +358,7 @@ class UserSeeder extends Seeder
                     'joining_date' => '2023-' . str_pad(rand(1, 12), 2, '0', STR_PAD_LEFT) . '-' . str_pad(rand(1, 28), 2, '0', STR_PAD_LEFT),
                     'blood_group' => ['A+', 'B+', 'AB+', 'O+', 'A-', 'B-', 'AB-', 'O-'][rand(0, 7)],
                     'status' => 'active',
+                    'email_verified_at' => now(),
                     'password' => Hash::make('password'),
                 ]
             );

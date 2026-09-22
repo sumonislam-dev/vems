@@ -1,11 +1,11 @@
-import { ServerSideDataTable, DataTableColumn } from '@/base-components/base-data-table';
+import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem, PaginatedData, Vendor } from '@/types';
-import { Head, Link, router } from '@inertiajs/react';
+import { BreadcrumbItem, DataTableColumn, PaginatedData, Vendor } from '@/types';
+import { Head, router } from '@inertiajs/react';
 import { Building2, Edit, Eye, Plus, Trash2, Users } from 'lucide-react';
 
 interface VendorsPageProps {
@@ -19,7 +19,7 @@ interface VendorsPageProps {
     queryParams: {
         search?: string;
         sort?: string;
-        direction?: string;
+        direction?: 'asc' | 'desc';
         status?: string;
         per_page?: number;
     };
@@ -203,11 +203,11 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
                     columns={columns}
                     searchPlaceholder="Search vendors..."
                     queryParams={queryParams}
-                    routeName="vendors.index"
                     filters={[
                         {
                             key: 'status',
                             label: 'Status',
+                            type: 'select',
                             options: [
                                 { label: 'Active', value: 'active' },
                                 { label: 'Inactive', value: 'inactive' },

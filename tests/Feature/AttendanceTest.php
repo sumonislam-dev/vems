@@ -33,6 +33,7 @@ function makeAttendanceUser(string $suffix = '1'): User
     seedAttendanceOwnPermission();
 
     $user = User::create([
+        'email_verified_at' => now(),
         'name' => "Attendance User {$suffix}",
         'username' => "attendance-user-{$suffix}",
         'email' => "attendance-user-{$suffix}@example.com",
@@ -49,6 +50,7 @@ function makeAttendanceUser(string $suffix = '1'): User
 function makeInProgressTrip(string $suffix = '1'): Trip
 {
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => "Trip Requester {$suffix}",
         'username' => "trip-requester-att-{$suffix}",
         'email' => "trip-requester-att-{$suffix}@example.com",
@@ -325,6 +327,7 @@ it('denies attendance actions for a user without capture-own-attendance permissi
     seedAttendanceOwnPermission();
 
     $user = User::create([
+        'email_verified_at' => now(),
         'name' => 'No Permission User',
         'username' => 'no-permission-attendance',
         'email' => 'no-permission-attendance@example.com',

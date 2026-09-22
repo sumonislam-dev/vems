@@ -35,6 +35,22 @@ class UpdateUserRequest extends FormRequest
     }
 
     /**
+     * True for super-admin/admin/edit-users; false only on the self-edit
+     * path allowed by authorize() above. rules() uses this to keep a plain
+     * user editing their own profile confined to non-privileged fields —
+     * roles/status/user_type/vendor/department/driver stats stay untouched
+     * even if submitted (see UserController::update()'s matching guard).
+     */
+    public function isPrivilegedEditor(): bool
+    {
+        $currentUser = auth()->user();
+
+        return $currentUser->hasRole('super-admin')
+            || $currentUser->user_type === 'admin'
+            || $currentUser->can('edit-users');
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -42,6 +58,22 @@ class UpdateUserRequest extends FormRequest
         // Check for both 'user' and 'driver' route parameters
         $user = $this->route('user') ?? $this->route('driver');
         $userId = $user->id;
+
+        if (! $this->isPrivilegedEditor()) {
+            return [
+                'name' => ['required', 'string', 'max:255'],
+                'personal_phone' => ['required', 'string', 'max:20'],
+                'whatsapp_id' => ['required', 'string', 'max:50'],
+                'emergency_contact_name' => ['nullable', 'string', 'max:255'],
+                'emergency_contact_relation' => ['nullable', 'string', 'max:100'],
+                'emergency_phone' => ['nullable', 'string', 'max:20'],
+                'present_address' => ['nullable', 'string'],
+                'permanent_address' => ['nullable', 'string'],
+                'image' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+                'photo' => ['nullable', 'image', 'mimes:jpeg,png,jpg,gif', 'max:2048'],
+                'password' => ['nullable', 'string', 'min:8', 'confirmed'],
+            ];
+        }
 
         return [
             // Basic Information

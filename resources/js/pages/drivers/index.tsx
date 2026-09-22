@@ -47,8 +47,8 @@ interface UsersPageProps {
         blood_groups?: string[];
     };
     stats: {
-        total: number;
-        active: number;
+        total?: number;
+        active?: number;
         available?: number;
         on_trip?: number;
         drivers?: number;

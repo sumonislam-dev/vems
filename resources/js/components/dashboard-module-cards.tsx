@@ -8,11 +8,9 @@ import {
     MapPin,
     Package,
     Route,
-    Settings,
     Shield,
     TrendingUp,
     Truck,
-    UserCheck,
     Users,
 } from 'lucide-react';
 

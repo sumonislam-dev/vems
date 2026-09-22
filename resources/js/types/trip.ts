@@ -175,7 +175,9 @@ export interface TripVehicleAssignment {
     vehicle_id: number;
     assigned_by: number;
     assigned_at: string;
+    unassigned_at?: string;
     is_current: boolean;
+    reason?: string;
     notes?: string;
     created_at: string;
     updated_at: string;
@@ -189,7 +191,9 @@ export interface TripRouteAssignment {
     vehicle_route_id: number;
     assigned_by: number;
     assigned_at: string;
+    unassigned_at?: string;
     is_current: boolean;
+    reason?: string;
     notes?: string;
     created_at: string;
     updated_at: string;

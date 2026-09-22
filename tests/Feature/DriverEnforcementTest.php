@@ -16,6 +16,7 @@ function createAuthorizedUser(array $permissionNames = ['create-users', 'create-
         ->all();
 
     $authUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Test Admin User',
         'username' => 'test_admin_user',
         'email' => 'test.admin.user@example.com',

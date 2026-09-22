@@ -37,6 +37,7 @@ function assignVehicleWithDriver(User $driver): Vehicle
 
 it('records passenger attendance events while updating the trip passenger snapshot', function () {
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester',
         'username' => 'trip-requester',
         'email' => 'requester@example.com',
@@ -46,6 +47,7 @@ it('records passenger attendance events while updating the trip passenger snapsh
     ]);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger',
         'username' => 'trip-passenger',
         'email' => 'passenger@example.com',
@@ -117,6 +119,7 @@ it('captures passenger check-in through the trip attendance endpoint', function 
     seedAttendancePermissions();
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester',
         'username' => 'trip-requester-web',
         'email' => 'requester-web@example.com',
@@ -130,6 +133,7 @@ it('captures passenger check-in through the trip attendance endpoint', function 
     $vehicle = assignVehicleWithDriver($requester);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Web',
         'username' => 'trip-passenger-web',
         'email' => 'passenger-web@example.com',
@@ -186,6 +190,7 @@ it('voids the original event and supersedes it when an attendance correction is 
     seedAttendancePermissions();
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Corrector',
         'username' => 'trip-corrector',
         'email' => 'corrector@example.com',
@@ -199,6 +204,7 @@ it('voids the original event and supersedes it when an attendance correction is 
     $vehicle = assignVehicleWithDriver($requester);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Corrected',
         'username' => 'trip-passenger-corrected',
         'email' => 'passenger-corrected@example.com',
@@ -262,6 +268,7 @@ it('denies access to check-in endpoint for users without capture-passenger-atten
 
     // Create users
     $unauthorized = User::create([
+        'email_verified_at' => now(),
         'name' => 'Unauthorized User',
         'username' => 'unauthorized-1',
         'email' => 'unauthorized1@example.com',
@@ -271,6 +278,7 @@ it('denies access to check-in endpoint for users without capture-passenger-atten
     ]);
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester',
         'username' => 'trip-requester-auth-1',
         'email' => 'requester-auth-1@example.com',
@@ -280,6 +288,7 @@ it('denies access to check-in endpoint for users without capture-passenger-atten
     ]);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Auth',
         'username' => 'trip-passenger-auth-1',
         'email' => 'passenger-auth-1@example.com',
@@ -320,6 +329,7 @@ it('allows access to check-in endpoint for users with capture-passenger-attendan
 
     // Create users and assign permission
     $authorized = User::create([
+        'email_verified_at' => now(),
         'name' => 'Authorized User',
         'username' => 'authorized-1',
         'email' => 'authorized1@example.com',
@@ -332,6 +342,7 @@ it('allows access to check-in endpoint for users with capture-passenger-attendan
     $vehicle = assignVehicleWithDriver($authorized);
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester Auth Allowed',
         'username' => 'trip-requester-auth-allowed',
         'email' => 'requester-auth-allowed@example.com',
@@ -341,6 +352,7 @@ it('allows access to check-in endpoint for users with capture-passenger-attendan
     ]);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Auth Allowed',
         'username' => 'trip-passenger-auth-allowed',
         'email' => 'passenger-auth-allowed@example.com',
@@ -385,6 +397,7 @@ it('denies access to correct-event endpoint for users without correct-passenger-
 
     // Create users
     $unauthorized = User::create([
+        'email_verified_at' => now(),
         'name' => 'Unauthorized Corrector',
         'username' => 'unauthorized-corrector',
         'email' => 'unauthorized-corrector@example.com',
@@ -394,6 +407,7 @@ it('denies access to correct-event endpoint for users without correct-passenger-
     ]);
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester Correct',
         'username' => 'trip-requester-correct',
         'email' => 'requester-correct@example.com',
@@ -403,6 +417,7 @@ it('denies access to correct-event endpoint for users without correct-passenger-
     ]);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Correct',
         'username' => 'trip-passenger-correct',
         'email' => 'passenger-correct@example.com',
@@ -448,6 +463,7 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
 
     // Create users and assign permission
     $authorized = User::create([
+        'email_verified_at' => now(),
         'name' => 'Authorized Corrector',
         'username' => 'authorized-corrector',
         'email' => 'authorized-corrector@example.com',
@@ -460,6 +476,7 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
     $vehicle = assignVehicleWithDriver($authorized);
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Requester Correct Auth',
         'username' => 'trip-requester-correct-auth',
         'email' => 'requester-correct-auth@example.com',
@@ -469,6 +486,7 @@ it('allows access to correct-event endpoint for users with correct-passenger-att
     ]);
 
     $passengerUser = User::create([
+        'email_verified_at' => now(),
         'name' => 'Trip Passenger Correct Auth',
         'username' => 'trip-passenger-correct-auth',
         'email' => 'passenger-correct-auth@example.com',
@@ -517,6 +535,7 @@ it('denies check-in on a trip whose vehicle is assigned to a different driver', 
     seedAttendancePermissions();
 
     $otherDriversTrip = assignVehicleWithDriver(User::create([
+        'email_verified_at' => now(),
         'name' => 'Other Driver',
         'username' => 'other-driver-attendance',
         'email' => 'other-driver-attendance@example.com',
@@ -526,6 +545,7 @@ it('denies check-in on a trip whose vehicle is assigned to a different driver', 
     ]));
 
     $unrelatedDriver = User::create([
+        'email_verified_at' => now(),
         'name' => 'Unrelated Driver',
         'username' => 'unrelated-driver-attendance',
         'email' => 'unrelated-driver-attendance@example.com',
@@ -536,6 +556,7 @@ it('denies check-in on a trip whose vehicle is assigned to a different driver', 
     $unrelatedDriver->givePermissionTo('capture-passenger-attendance');
 
     $requester = User::create([
+        'email_verified_at' => now(),
         'name' => 'Requester Attendance Ownership',
         'username' => 'requester-attendance-ownership',
         'email' => 'requester-attendance-ownership@example.com',

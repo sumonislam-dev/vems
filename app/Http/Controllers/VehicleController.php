@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\VehicleIndexRequest;
+use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 class VehicleController extends Controller implements HasMiddleware
@@ -19,6 +21,36 @@ class VehicleController extends Controller implements HasMiddleware
             new Middleware('permission:edit-vehicles', only: ['edit', 'update']),
             new Middleware('permission:delete-vehicles', only: ['destroy']),
         ];
+    }
+
+    /**
+     * Drivers eligible for a vehicle assignment dropdown — mirrors
+     * User::canDrive() (active, available, license not expired) at the
+     * query level. $includeDriverId keeps a vehicle's already-assigned
+     * driver in the list even if they no longer qualify (e.g. their
+     * license expired since assignment), so editing doesn't silently
+     * drop the current selection.
+     */
+    private function assignableDrivers(?int $includeDriverId = null)
+    {
+        return User::where('user_type', 'driver')
+            ->where(function ($query) use ($includeDriverId) {
+                $query->where(function ($eligible) {
+                    $eligible->where('status', 'active')
+                        ->where('driver_status', 'available')
+                        ->where(function ($license) {
+                            $license->whereNull('license_expiry_date')
+                                ->orWhere('license_expiry_date', '>', now());
+                        });
+                });
+
+                if ($includeDriverId) {
+                    $query->orWhere('id', $includeDriverId);
+                }
+            })
+            ->select('id', 'name', 'email', 'user_type', 'official_phone')
+            ->orderBy('name')
+            ->get();
     }
 
     /**
@@ -38,7 +70,6 @@ class VehicleController extends Controller implements HasMiddleware
                     ->orWhere('model', 'like', "%{$search}%")
                     ->orWhere('color', 'like', "%{$search}%")
                     ->orWhere('registration_number', 'like', "%{$search}%")
-                    ->orWhere('vendor', 'like', "%{$search}%")
                     ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
                         $vendorQuery->where('name', 'like', "%{$search}%");
                     })
@@ -169,11 +200,7 @@ class VehicleController extends Controller implements HasMiddleware
         }
 
         try {
-            $drivers = \App\Models\User::where('status', 'active')
-                ->where('user_type', 'driver')
-                ->select('id', 'name', 'email', 'user_type', 'official_phone')
-                ->orderBy('name')
-                ->get();
+            $drivers = $this->assignableDrivers();
         } catch (\Exception $e) {
             // If there's an issue with users, provide empty array
             $drivers = collect([]);
@@ -309,11 +336,7 @@ class VehicleController extends Controller implements HasMiddleware
             ->orderBy('name')
             ->get();
 
-        $drivers = \App\Models\User::where('status', 'active')
-            ->where('user_type', 'driver')
-            ->select('id', 'name', 'email', 'user_type', 'official_phone')
-            ->orderBy('name')
-            ->get();
+        $drivers = $this->assignableDrivers($vehicle->driver_id);
 
         return Inertia::render('vehicles/edit', [
             'vehicle' => $vehicle,
@@ -382,7 +405,13 @@ class VehicleController extends Controller implements HasMiddleware
             'alert_days_before' => 'nullable|integer|min:1|max:365',
         ]);
 
-        $vehicle->update($validated);
+        DB::transaction(function () use ($vehicle, $validated) {
+            // Lock the vehicle so a concurrent update can't race
+            // VehicleObserver::updating()'s close-old/create-new driver
+            // assignment rows below.
+            $vehicle = Vehicle::whereKey($vehicle->id)->lockForUpdate()->firstOrFail();
+            $vehicle->update($validated);
+        });
 
         return redirect()
             ->route('vehicles.index')

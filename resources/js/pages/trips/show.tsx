@@ -72,7 +72,7 @@ type TripDetails = Trip & {
     factories?: TripFactory[];
     departments?: TripDepartmentWithHeadcount[];
     feedbackEntries?: TripFeedback[];
-    cancelledBy?: UserType;
+    cancelled_by_user?: UserType;
 };
 
 const getStatusBadge = (status: Trip['status']) => {
@@ -128,22 +128,6 @@ const getPassengerStatusBadge = (status?: string) => {
     return (
         <Badge variant="outline" className={`${config[value] ?? config.pending} capitalize`}>
             {value.replace('_', ' ')}
-        </Badge>
-    );
-};
-
-const getEventBadge = (event: TripPassengerEvent) => {
-    const config: Record<TripPassengerEvent['event_type'], string> = {
-        check_in: 'border-emerald-200 bg-emerald-100 text-emerald-800 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300',
-        check_out: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300',
-        no_show: 'border-rose-200 bg-rose-100 text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/15 dark:text-rose-300',
-        manual_override: 'border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300',
-        correction: 'border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
-    };
-
-    return (
-        <Badge variant="outline" className={`${config[event.event_type]} capitalize`}>
-            {event.event_type.replace('_', ' ')}
         </Badge>
     );
 };
@@ -671,7 +655,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         <Separator />
                                         <div className="space-y-1">
                                             <label className="text-xs font-medium text-gray-600">Cancelled By</label>
-                                            <p className="mt-1 text-sm font-medium">{trip.cancelledBy?.name ?? 'Unknown'}</p>
+                                            <p className="mt-1 text-sm font-medium">{trip.cancelled_by_user?.name ?? 'Unknown'}</p>
                                             {trip.cancellation_reason && (
                                                 <p className="text-sm capitalize text-gray-700">{trip.cancellation_reason.replace(/_/g, ' ')}</p>
                                             )}
@@ -783,7 +767,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                                 <td className="px-3 py-2">{a.vehicle?.registration_number ?? '-'}</td>
                                                 <td className="px-3 py-2">{new Date(a.assigned_at).toLocaleString()}</td>
                                                 <td className="px-3 py-2">{a.unassigned_at ? new Date(a.unassigned_at).toLocaleString() : '-'}</td>
-                                                <td className="px-3 py-2">{a.assignedBy?.name ?? '-'}</td>
+                                                <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
                                                 <td className="px-3 py-2 capitalize">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
                                                     <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
@@ -820,10 +804,10 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                     <tbody>
                                         {routeAssignments.map((a) => (
                                             <tr key={a.id} className="border-t">
-                                                <td className="px-3 py-2">{a.vehicleRoute?.name ?? '-'}</td>
+                                                <td className="px-3 py-2">{a.vehicle_route?.name ?? '-'}</td>
                                                 <td className="px-3 py-2">{new Date(a.assigned_at).toLocaleString()}</td>
                                                 <td className="px-3 py-2">{a.unassigned_at ? new Date(a.unassigned_at).toLocaleString() : '-'}</td>
-                                                <td className="px-3 py-2">{a.assignedBy?.name ?? '-'}</td>
+                                                <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
                                                 <td className="px-3 py-2">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
                                                     <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
