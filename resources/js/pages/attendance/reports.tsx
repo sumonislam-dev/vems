@@ -4,6 +4,14 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,10 +19,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { FormMultiSelect } from '@/base-components/base-form';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { hasPermission } from '@/lib/permissions';
+import { cn } from '@/lib/utils';
 import { BreadcrumbItem, SharedData } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, CalendarClock, Eye, Filter, Pencil, Truck, Users } from 'lucide-react';
-import { useState } from 'react';
+import { AlertTriangle, CalendarClock, Eye, Filter, Pencil, SlidersHorizontal, Truck, Users } from 'lucide-react';
+import { Fragment, ReactNode, useEffect, useMemo, useState } from 'react';
 
 interface AttendanceEventRow {
     id: number;
@@ -122,6 +131,90 @@ function toDateTimeLocal(value: string) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+// There's no dedicated "breaks" table — a break is just a break_start/break_end
+// pair of rows on attendance_events, matched up by position within the day.
+function breakEventAt(record: AttendanceReportRow, index: number, edge: 'start' | 'end') {
+    const events = record.events ?? [];
+    const list = eventsOfType(events, edge === 'start' ? 'break_start' : 'break_end');
+    return list[index];
+}
+
+const ALL_COLUMN_KEYS = [
+    'employee',
+    'date',
+    'check_in_time',
+    'check_in_location',
+    'check_out_time',
+    'check_out_location',
+    'factory_name',
+    'factory_address',
+    'work_hour',
+    'ot_hour',
+    'trip',
+    'driver_name',
+    'inspection_type',
+    'total_break_time',
+    'break1_start_time',
+    'break1_start_location',
+    'break1_end_time',
+    'break2_start_time',
+    'break2_start_location',
+    'break2_end_time',
+    'break3_start_time',
+    'break3_start_location',
+    'break3_end_time',
+    'source',
+    'anomaly',
+    'actions',
+] as const;
+
+type ColumnKey = (typeof ALL_COLUMN_KEYS)[number];
+
+// Employee and Actions stay visible at all times so the table can never be
+// collapsed into something with no way to identify a row or open its details.
+const LOCKED_COLUMNS: ColumnKey[] = ['employee', 'actions'];
+
+// Per-break breakdown columns are opt-in: real data never exceeds 3 breaks/day,
+// and the "View" details dialog already lists every break with no limit, so
+// these are a convenience for table-scanning, not the only way to see them.
+const DEFAULT_HIDDEN_COLUMNS: ColumnKey[] = [
+    'break1_start_time',
+    'break1_start_location',
+    'break1_end_time',
+    'break2_start_time',
+    'break2_start_location',
+    'break2_end_time',
+    'break3_start_time',
+    'break3_start_location',
+    'break3_end_time',
+];
+
+const DEFAULT_VISIBLE_COLUMNS: ColumnKey[] = ALL_COLUMN_KEYS.filter((key) => !DEFAULT_HIDDEN_COLUMNS.includes(key));
+
+const COLUMN_VISIBILITY_STORAGE_KEY = 'attendance-reports-visible-columns';
+
+function loadVisibleColumns(): Set<ColumnKey> {
+    if (typeof window === 'undefined') return new Set(DEFAULT_VISIBLE_COLUMNS);
+
+    try {
+        const saved = window.localStorage.getItem(COLUMN_VISIBILITY_STORAGE_KEY);
+        if (!saved) return new Set(DEFAULT_VISIBLE_COLUMNS);
+
+        const parsed: unknown = JSON.parse(saved);
+        if (!Array.isArray(parsed)) return new Set(DEFAULT_VISIBLE_COLUMNS);
+
+        const known = parsed.filter((key): key is ColumnKey => (ALL_COLUMN_KEYS as readonly string[]).includes(key));
+        LOCKED_COLUMNS.forEach((key) => {
+            if (!known.includes(key)) known.push(key);
+        });
+
+        return new Set(known);
+    } catch {
+        // Corrupt or inaccessible (private browsing, blocked storage) — fall back to the defaults.
+        return new Set(DEFAULT_VISIBLE_COLUMNS);
+    }
+}
+
 export default function AttendanceReports({ records, stats, users, queryParams }: ReportsPageProps) {
     const { auth } = usePage<SharedData>().props;
     const canManageAttendance = hasPermission(auth.permissions ?? [], 'manage-attendance');
@@ -146,6 +239,156 @@ export default function AttendanceReports({ records, stats, users, queryParams }
     const [correctingEventId, setCorrectingEventId] = useState<number | null>(null);
     const [correctionForm, setCorrectionForm] = useState({ event_time: '', void_reason: '' });
     const [submittingCorrection, setSubmittingCorrection] = useState(false);
+
+    const [visibleColumns, setVisibleColumns] = useState<Set<ColumnKey>>(loadVisibleColumns);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(COLUMN_VISIBILITY_STORAGE_KEY, JSON.stringify(Array.from(visibleColumns)));
+        } catch {
+            // localStorage unavailable — the toggle still works for this session, it just won't persist.
+        }
+    }, [visibleColumns]);
+
+    function toggleColumn(key: ColumnKey) {
+        if (LOCKED_COLUMNS.includes(key)) return;
+        setVisibleColumns((prev) => {
+            const next = new Set(prev);
+            if (next.has(key)) {
+                next.delete(key);
+            } else {
+                next.add(key);
+            }
+            return next;
+        });
+    }
+
+    const columns = useMemo<
+        Array<{ key: ColumnKey; label: string; group?: string; className?: string; render: (record: AttendanceReportRow) => ReactNode }>
+    >(
+        () => [
+            {
+                key: 'employee',
+                label: 'Employee',
+                render: (record) => (
+                    <>
+                        <p className="font-medium">{record.user?.name ?? '—'}</p>
+                        <p className="text-xs text-muted-foreground">
+                            {record.user?.employee_id} {record.user?.department?.name && `· ${record.user.department.name}`}
+                        </p>
+                    </>
+                ),
+            },
+            { key: 'date', label: 'Date', className: 'whitespace-nowrap', render: (record) => formatDate(record.work_date) },
+            { key: 'check_in_time', label: 'Check In Time', render: (record) => formatTime(record.check_in_at) },
+            {
+                key: 'check_in_location',
+                label: 'Check In Location',
+                className: 'text-xs',
+                render: (record) => formatLocation(eventsOfType(record.events ?? [], 'check_in')[0]),
+            },
+            { key: 'check_out_time', label: 'Check Out Time', render: (record) => formatTime(record.check_out_at) },
+            {
+                key: 'check_out_location',
+                label: 'Check Out Location',
+                className: 'text-xs',
+                render: (record) => {
+                    const checkOutEvents = eventsOfType(record.events ?? [], 'check_out');
+                    return formatLocation(checkOutEvents[checkOutEvents.length - 1]);
+                },
+            },
+            {
+                key: 'factory_name',
+                label: 'Factory Name',
+                className: 'text-xs',
+                render: (record) => {
+                    const checkOutEvents = eventsOfType(record.events ?? [], 'check_out');
+                    return checkOutEvents[checkOutEvents.length - 1]?.factory?.name ?? '—';
+                },
+            },
+            {
+                key: 'factory_address',
+                label: 'Factory Address',
+                className: 'text-xs',
+                render: (record) => {
+                    const checkOutEvents = eventsOfType(record.events ?? [], 'check_out');
+                    return checkOutEvents[checkOutEvents.length - 1]?.factory?.address ?? '—';
+                },
+            },
+            { key: 'work_hour', label: 'Work Hour', render: (record) => formatDuration(record.net_minutes) },
+            { key: 'ot_hour', label: 'OT Hour', render: (record) => `${record.overtime_minutes}m` },
+            { key: 'trip', label: 'Trip', className: 'text-xs', render: (record) => record.trip_passenger_event?.trip?.trip_number ?? '—' },
+            {
+                key: 'driver_name',
+                label: 'Driver Name',
+                className: 'text-xs',
+                render: (record) => record.trip_passenger_event?.trip?.driver?.name ?? '—',
+            },
+            {
+                key: 'inspection_type',
+                label: 'Inspection Type',
+                className: 'text-xs',
+                render: (record) => record.trip_passenger_event?.trip?.trip_type ?? '—',
+            },
+            { key: 'total_break_time', label: 'Total Break Time', render: (record) => formatDuration(record.break_minutes) },
+            ...([0, 1, 2] as const).flatMap((i) => {
+                const n = i + 1;
+                const group = `Break ${n}`;
+                return [
+                    {
+                        key: `break${n}_start_time` as ColumnKey,
+                        label: `Break ${n} Start Time`,
+                        group,
+                        render: (record: AttendanceReportRow) => formatTime(breakEventAt(record, i, 'start')?.event_time ?? null),
+                    },
+                    {
+                        key: `break${n}_start_location` as ColumnKey,
+                        label: `Break ${n} Start Location`,
+                        group,
+                        className: 'text-xs',
+                        render: (record: AttendanceReportRow) => formatLocation(breakEventAt(record, i, 'start')),
+                    },
+                    {
+                        key: `break${n}_end_time` as ColumnKey,
+                        label: `Break ${n} End Time`,
+                        group,
+                        render: (record: AttendanceReportRow) => formatTime(breakEventAt(record, i, 'end')?.event_time ?? null),
+                    },
+                ];
+            }),
+            { key: 'source', label: 'Source', className: 'text-xs capitalize', render: (record) => record.source ?? '—' },
+            {
+                key: 'anomaly',
+                label: 'Anomaly',
+                render: (record) =>
+                    record.has_anomaly ? (
+                        <Badge variant="destructive" className="text-xs">
+                            Anomaly
+                        </Badge>
+                    ) : (
+                        <span className="text-muted-foreground">—</span>
+                    ),
+            },
+            {
+                key: 'actions',
+                label: 'Actions',
+                render: (record) => (
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        title="View attendance details"
+                        onClick={() => setReviewRecord(record)}
+                    >
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                ),
+            },
+        ],
+        [],
+    );
+
+    const visibleColumnDefs = columns.filter((column) => visibleColumns.has(column.key));
 
     function startCorrection(event: AttendanceEventRow) {
         setCorrectingEventId(event.id);
@@ -331,95 +574,78 @@ export default function AttendanceReports({ records, stats, users, queryParams }
 
                 <Card>
                     <CardHeader>
-                        <CardTitle className="text-sm font-semibold">
-                            Records
-                            <span className="ml-2 text-muted-foreground font-normal">({records.total} total)</span>
-                        </CardTitle>
+                        <div className="flex items-center justify-between">
+                            <CardTitle className="text-sm font-semibold">
+                                Records
+                                <span className="ml-2 text-muted-foreground font-normal">({records.total} total)</span>
+                            </CardTitle>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="outline" size="sm" className="gap-2">
+                                        <SlidersHorizontal className="h-4 w-4" />
+                                        Columns
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+                                    <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    {columns.map((column, index) => {
+                                        const showGroupHeader = column.group && column.group !== columns[index - 1]?.group;
+
+                                        return (
+                                            <Fragment key={column.key}>
+                                                {showGroupHeader && (
+                                                    <>
+                                                        <DropdownMenuSeparator />
+                                                        <DropdownMenuLabel className="text-xs text-muted-foreground">
+                                                            {column.group}
+                                                        </DropdownMenuLabel>
+                                                    </>
+                                                )}
+                                                <DropdownMenuCheckboxItem
+                                                    checked={visibleColumns.has(column.key)}
+                                                    disabled={LOCKED_COLUMNS.includes(column.key)}
+                                                    onSelect={(e) => e.preventDefault()}
+                                                    onCheckedChange={() => toggleColumn(column.key)}
+                                                >
+                                                    {column.label}
+                                                </DropdownMenuCheckboxItem>
+                                            </Fragment>
+                                        );
+                                    })}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/50">
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Employee</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Date</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check In Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check In Location</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check Out Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Check Out Location</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Factory Name</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Factory Address</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Work Hour</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">OT Hour</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Trip</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Driver Name</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Inspection Type</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Total Break Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Source</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Anomaly</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
+                                        {visibleColumnDefs.map((column) => (
+                                            <th key={column.key} className="px-4 py-3 text-left font-medium text-muted-foreground">
+                                                {column.label}
+                                            </th>
+                                        ))}
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {records.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={17} className="px-4 py-12 text-center text-muted-foreground">
+                                            <td colSpan={visibleColumnDefs.length} className="px-4 py-12 text-center text-muted-foreground">
                                                 No attendance records found.
                                             </td>
                                         </tr>
                                     ) : (
-                                        records.data.map((record) => {
-                                            const events = record.events ?? [];
-                                            const checkInEvent = eventsOfType(events, 'check_in')[0];
-                                            const checkOutEvents = eventsOfType(events, 'check_out');
-                                            const checkoutEvent = checkOutEvents[checkOutEvents.length - 1];
-                                            const trip = record.trip_passenger_event?.trip ?? null;
-
-                                            return (
-                                                <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
-                                                    <td className="px-4 py-3">
-                                                        <p className="font-medium">{record.user?.name ?? '—'}</p>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {record.user?.employee_id} {record.user?.department?.name && `· ${record.user.department.name}`}
-                                                        </p>
+                                        records.data.map((record) => (
+                                            <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
+                                                {visibleColumnDefs.map((column) => (
+                                                    <td key={column.key} className={cn('px-4 py-3', column.className)}>
+                                                        {column.render(record)}
                                                     </td>
-                                                    <td className="px-4 py-3 whitespace-nowrap">{formatDate(record.work_date)}</td>
-                                                    <td className="px-4 py-3">{formatTime(record.check_in_at)}</td>
-                                                    <td className="px-4 py-3 text-xs">{formatLocation(checkInEvent)}</td>
-                                                    <td className="px-4 py-3">{formatTime(record.check_out_at)}</td>
-                                                    <td className="px-4 py-3 text-xs">{formatLocation(checkoutEvent)}</td>
-                                                    <td className="px-4 py-3 text-xs">{checkoutEvent?.factory?.name ?? '—'}</td>
-                                                    <td className="px-4 py-3 text-xs">{checkoutEvent?.factory?.address ?? '—'}</td>
-                                                    <td className="px-4 py-3">{formatDuration(record.net_minutes)}</td>
-                                                    <td className="px-4 py-3">{record.overtime_minutes}m</td>
-                                                    <td className="px-4 py-3 text-xs">{trip?.trip_number ?? '—'}</td>
-                                                    <td className="px-4 py-3 text-xs">{trip?.driver?.name ?? '—'}</td>
-                                                    <td className="px-4 py-3 text-xs">{trip?.trip_type ?? '—'}</td>
-                                                    <td className="px-4 py-3">{formatDuration(record.break_minutes)}</td>
-                                                    <td className="px-4 py-3 text-xs capitalize">{record.source ?? '—'}</td>
-                                                    <td className="px-4 py-3">
-                                                        {record.has_anomaly ? (
-                                                            <Badge variant="destructive" className="text-xs">
-                                                                Anomaly
-                                                            </Badge>
-                                                        ) : (
-                                                            <span className="text-muted-foreground">—</span>
-                                                        )}
-                                                    </td>
-                                                    <td className="px-4 py-3">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="h-8 w-8 p-0"
-                                                            title="View attendance details"
-                                                            onClick={() => setReviewRecord(record)}
-                                                        >
-                                                            <Eye className="h-4 w-4" />
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })
+                                                ))}
+                                            </tr>
+                                        ))
                                     )}
                                 </tbody>
                             </table>
