@@ -67,12 +67,6 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
     // Define table columns
     const columns: DataTableColumn<VehicleRoute>[] = [
         {
-            key: 'id',
-            label: 'ID',
-            sortable: true,
-            className: 'w-16',
-        },
-        {
             key: 'name',
             label: 'Route Name',
             sortable: true,
@@ -261,6 +255,7 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                     onRowClick={(route) => {
                         window.location.href = `/routes/${route.id}`;
                     }}
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

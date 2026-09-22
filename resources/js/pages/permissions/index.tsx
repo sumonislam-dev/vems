@@ -43,12 +43,6 @@ export default function PermissionsIndex({ permissions, stats, queryParams }: Pe
     // Define table columns
     const columns: DataTableColumn<Permission>[] = [
         {
-            key: 'id',
-            label: 'ID',
-            sortable: true,
-            className: 'w-16',
-        },
-        {
             key: 'name',
             label: 'Permission Name',
             sortable: true,
@@ -202,6 +196,7 @@ export default function PermissionsIndex({ permissions, stats, queryParams }: Pe
                     exportable={false}
                     onRowClick={handleRowClick}
                     emptyMessage="No permissions found. Create your first permission to get started."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

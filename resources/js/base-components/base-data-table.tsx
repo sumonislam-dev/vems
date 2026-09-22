@@ -72,6 +72,13 @@ interface ServerSideDataTableProps<T = unknown> {
   selectedIds?: (string | number)[]
   onSelectionChange?: (ids: (string | number)[]) => void
   getRowId?: (row: T) => string | number
+  /**
+   * Prepends a non-sortable "SL" column showing each row's position across
+   * the whole result set (1, 2, 3, ... continuing across pages), computed
+   * from `data.current_page` / `data.per_page`, instead of exposing the
+   * underlying database id. Opt-in so existing tables are unaffected.
+   */
+  showSerialColumn?: boolean
 }
 
 export function ServerSideDataTable<T>({
@@ -94,6 +101,7 @@ export function ServerSideDataTable<T>({
   selectedIds = [],
   onSelectionChange,
   getRowId,
+  showSerialColumn = false,
 }: ServerSideDataTableProps<T>) {
   const [searchInput, setSearchInput] = React.useState(queryParams.search || '')
 
@@ -223,6 +231,11 @@ export function ServerSideDataTable<T>({
           <Table>
             <TableHeader>
               <TableRow>
+                {showSerialColumn && (
+                  <TableHead>
+                    <Skeleton className="h-4 w-8" />
+                  </TableHead>
+                )}
                 {columns.map((column, index) => (
                   <TableHead key={index}>
                     <Skeleton className="h-4 w-20" />
@@ -233,6 +246,11 @@ export function ServerSideDataTable<T>({
             <TableBody>
               {Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={index}>
+                  {showSerialColumn && (
+                    <TableCell>
+                      <Skeleton className="h-4 w-8" />
+                    </TableCell>
+                  )}
                   {columns.map((_, colIndex) => (
                     <TableCell key={colIndex}>
                       <Skeleton className="h-4 w-full" />
@@ -425,6 +443,9 @@ export function ServerSideDataTable<T>({
                   />
                 </TableHead>
               )}
+              {showSerialColumn && (
+                <TableHead className="w-14">SL</TableHead>
+              )}
               {columns.map((column) => (
                 <TableHead
                   key={String(column.key)}
@@ -445,7 +466,10 @@ export function ServerSideDataTable<T>({
           <TableBody>
             {data.data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (isSelectionEnabled ? 1 : 0)} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length + (isSelectionEnabled ? 1 : 0) + (showSerialColumn ? 1 : 0)}
+                  className="h-24 text-center"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -470,6 +494,11 @@ export function ServerSideDataTable<T>({
                           disabled={!rowSelectable}
                           aria-label="Select row"
                         />
+                      </TableCell>
+                    )}
+                    {showSerialColumn && (
+                      <TableCell className="text-sm text-muted-foreground">
+                        {(data.current_page - 1) * data.per_page + index + 1}
                       </TableCell>
                     )}
                     {columns.map((column) => (

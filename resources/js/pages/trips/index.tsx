@@ -608,6 +608,7 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
                     selectedIds={selectedIds}
                     onSelectionChange={canApproveTrips ? setSelectedIds : undefined}
                     getRowId={canApproveTrips ? getTripRowId : undefined}
+                    showSerialColumn
                 />
             </div>
 

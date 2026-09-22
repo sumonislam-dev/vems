@@ -253,6 +253,7 @@ export default function ComplaintsIndex({ items, stats, categories, canViewAll, 
                     searchPlaceholder="Search by subject or trip number..."
                     exportable={false}
                     emptyMessage="No feedback or complaints found."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

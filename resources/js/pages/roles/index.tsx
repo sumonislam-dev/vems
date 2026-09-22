@@ -42,12 +42,6 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
     // Define table columns
     const columns: DataTableColumn<Role>[] = [
         {
-            key: 'id',
-            label: 'ID',
-            sortable: true,
-            className: 'w-16',
-        },
-        {
             key: 'name',
             label: 'Role Name',
             sortable: true,
@@ -206,6 +200,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
                     exportable={false}
                     onRowClick={handleRowClick}
                     emptyMessage="No roles found. Create your first role to get started."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

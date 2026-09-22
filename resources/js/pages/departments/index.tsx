@@ -198,6 +198,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search departments..."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

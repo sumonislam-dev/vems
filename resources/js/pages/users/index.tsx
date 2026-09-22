@@ -78,16 +78,6 @@ export default function UsersIndex({
     // Define table columns
     const columns: DataTableColumn<User>[] = useMemo(() => [
         {
-            key: 'id',
-            label: 'SL',
-            className: 'w-16',
-            render: (_value, user) => {
-                const index = users.data.findIndex((row) => row.id === user.id);
-                const serial = (users.current_page - 1) * users.per_page + index + 1;
-                return <span className="text-sm text-muted-foreground">{serial}</span>;
-            },
-        },
-        {
             key: 'name',
             label: 'User',
             sortable: true,
@@ -233,7 +223,7 @@ export default function UsersIndex({
                 </div>
             ),
         },
-    ], [users.data, users.current_page, users.per_page]);
+    ], []);
 
     // Define filters
     const filters: ColumnFilter[] = useMemo(() => [
@@ -331,6 +321,7 @@ export default function UsersIndex({
                     exportable={true}
                     onRowClick={handleRowClick}
                     emptyMessage="No users found. Add your first user to get started."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

@@ -34,12 +34,6 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
     // Define table columns
     const columns: DataTableColumn<Vendor>[] = [
         {
-            key: 'id',
-            label: 'ID',
-            sortable: true,
-            className: 'w-16',
-        },
-        {
             key: 'name',
             label: 'Service Provider Name',
             sortable: true,
@@ -214,6 +208,7 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
                             ],
                         },
                     ]}
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

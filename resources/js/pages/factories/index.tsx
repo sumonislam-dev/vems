@@ -231,6 +231,7 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
                     filterOptions={filterOptions}
                     searchPlaceholder="Search factories by name, ID, city or address..."
                     emptyMessage="No factories found. Add your first factory to get started."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

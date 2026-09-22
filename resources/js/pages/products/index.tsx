@@ -66,12 +66,6 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
     // Define table columns
     const columns: DataTableColumn<Product>[] = [
         {
-            key: 'id',
-            label: 'ID',
-            sortable: true,
-            className: 'w-16',
-        },
-        {
             key: 'name',
             label: 'Product Name',
             sortable: true,
@@ -245,6 +239,7 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
                     exportUrl="/products-export"
                     // onRowClick={handleRowClick}
                     emptyMessage="No products found. Add your first product to get started."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>

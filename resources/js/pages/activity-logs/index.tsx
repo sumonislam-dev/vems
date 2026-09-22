@@ -179,6 +179,7 @@ export default function ActivityLogsIndex({ activities, filterOptions, queryPara
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search description or model..."
+                    showSerialColumn
                 />
             </div>
         </AppSidebarLayout>
