@@ -79,9 +79,13 @@ export default function UsersIndex({
     const columns: DataTableColumn<User>[] = useMemo(() => [
         {
             key: 'id',
-            label: 'ID',
-            sortable: true,
+            label: 'SL',
             className: 'w-16',
+            render: (_value, user) => {
+                const index = users.data.findIndex((row) => row.id === user.id);
+                const serial = (users.current_page - 1) * users.per_page + index + 1;
+                return <span className="text-sm text-muted-foreground">{serial}</span>;
+            },
         },
         {
             key: 'name',
@@ -106,34 +110,6 @@ export default function UsersIndex({
                     </div>
                 </div>
             ),
-        },
-        {
-            key: 'user_type',
-            label: 'Type',
-            sortable: true,
-            filterable: true,
-            render: (value) => {
-                const variants = {
-                    admin: 'destructive',
-                    transport_manager: 'default',
-                    driver: 'secondary',
-                    employee: 'outline',
-                } as const;
-
-                const icons = {
-                    admin: <Shield className="h-3 w-3" />,
-                    transport_manager: <Shield className="h-3 w-3" />,
-                    driver: <User className="h-3 w-3" />,
-                    employee: <User className="h-3 w-3" />,
-                };
-
-                return (
-                    <Badge variant={variants[value as keyof typeof variants]} className="gap-1">
-                        {icons[value as keyof typeof icons]}
-                        {value?.replace('_', ' ')}
-                    </Badge>
-                );
-            },
         },
         {
             key: 'department',
@@ -257,19 +233,10 @@ export default function UsersIndex({
                 </div>
             ),
         },
-    ], []);
+    ], [users.data, users.current_page, users.per_page]);
 
     // Define filters
     const filters: ColumnFilter[] = useMemo(() => [
-        {
-            key: 'user_type',
-            label: 'User Type',
-            type: 'multiselect',
-            options: filterOptions.user_types.map((type) => ({
-                label: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
-                value: type,
-            })),
-        },
         {
             key: 'status',
             label: 'Status',
@@ -307,7 +274,6 @@ export default function UsersIndex({
             })),
         },
     ], [
-        filterOptions.user_types,
         filterOptions.statuses,
         filterOptions.departments,
         filterOptions.roles,

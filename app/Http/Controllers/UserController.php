@@ -59,6 +59,7 @@ class UserController extends Controller implements HasMiddleware
             'total_trips_completed',
             'average_rating',
         ])
+            ->where('user_type', 'employee')
             ->with(['department:id,name', 'roles:id,name']);
 
         // Apply search

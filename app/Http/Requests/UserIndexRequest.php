@@ -54,8 +54,8 @@ class UserIndexRequest extends FormRequest
         $validated = parent::validated();
 
         // Set defaults
-        $validated['sort'] = $validated['sort'] ?? 'id';
-        $validated['direction'] = $validated['direction'] ?? 'desc';
+        $validated['sort'] = $validated['sort'] ?? 'name';
+        $validated['direction'] = $validated['direction'] ?? 'asc';
         $validated['per_page'] = $validated['per_page'] ?? 15;
 
         return $validated;
