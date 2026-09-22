@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
+use App\Models\Trip;
+use App\Models\TripFeedback;
 use App\Models\TripPassenger;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -16,8 +18,25 @@ class DashboardController extends Controller
 {
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
+        // Only roles with fleet-wide visibility (admin/super-admin, via the
+        // same `view-trips` permission Trip::visibleTo()/TripFeedback::visibleTo()
+        // gate on) get the management dashboard. Everyone else (employee,
+        // driver) gets a personal, self-service view of their own data.
+        if ($user && ! $user->can('view-trips')) {
+            return Inertia::render('dashboard', [
+                'variant' => 'employee',
+                'attendanceStatus' => $this->buildAttendanceStatus($user),
+                'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
+                'myTrips' => $this->buildMyTrips($user),
+                'myComplaints' => $this->buildMyComplaints($user),
+            ]);
+        }
+
         return Inertia::render('dashboard', [
-            'attendanceStatus' => $request->user() ? $this->buildAttendanceStatus($request->user()) : null,
+            'variant' => 'management',
+            'attendanceStatus' => $user ? $this->buildAttendanceStatus($user) : null,
             'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
             // Basic stats from existing models
             'stats' => [
@@ -319,6 +338,52 @@ class DashboardController extends Controller
             'net_minutes' => $record?->net_minutes,
             'overtime_minutes' => $record?->overtime_minutes ?? 0,
             'trip' => $trip,
+        ];
+    }
+
+    /**
+     * Employee dashboard: counts + a short upcoming list, scoped via the same
+     * Trip::visibleTo() used by TripController (requester, passenger, or driver).
+     */
+    protected function buildMyTrips(User $user): array
+    {
+        $base = Trip::visibleTo($user);
+
+        $upcoming = (clone $base)
+            ->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+            ->orderBy('scheduled_date')
+            ->take(5)
+            ->get(['id', 'trip_number', 'scheduled_date', 'schedule_type', 'status']);
+
+        return [
+            'counts' => [
+                'pending' => (clone $base)->where('status', 'pending')->count(),
+                'upcoming' => (clone $base)->whereIn('status', ['approved', 'assigned'])->count(),
+                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
+            ],
+            'upcoming' => $upcoming,
+        ];
+    }
+
+    /**
+     * Employee dashboard: counts + recent list, scoped via the same
+     * TripFeedback::visibleTo() used by TripFeedbackController.
+     */
+    protected function buildMyComplaints(User $user): array
+    {
+        $base = TripFeedback::visibleTo($user);
+
+        $recent = (clone $base)
+            ->latest()
+            ->take(3)
+            ->get(['id', 'subject', 'type', 'status', 'priority', 'created_at']);
+
+        return [
+            'counts' => [
+                'open' => (clone $base)->where('status', 'open')->count(),
+                'total' => (clone $base)->count(),
+            ],
+            'recent' => $recent,
         ];
     }
 }
