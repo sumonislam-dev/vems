@@ -12,7 +12,6 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
-use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\StopController;
 use App\Http\Controllers\TripController;
 use App\Http\Controllers\TripFeedbackController;
@@ -157,10 +156,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Activity / audit log viewer
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');
-
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 require __DIR__.'/settings.php';
