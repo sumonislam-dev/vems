@@ -56,8 +56,8 @@ class VehicleIndexRequest extends FormRequest
         $validated = parent::validated();
 
         // Set defaults
-        $validated['sort'] = $validated['sort'] ?? 'id';
-        $validated['direction'] = $validated['direction'] ?? 'desc';
+        $validated['sort'] = $validated['sort'] ?? 'brand';
+        $validated['direction'] = $validated['direction'] ?? 'asc';
         $validated['per_page'] = $validated['per_page'] ?? 15;
 
         // Convert is_active filter values to proper boolean

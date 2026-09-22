@@ -158,9 +158,13 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
     const columns: DataTableColumn<Vehicle>[] = [
         {
             key: 'id',
-            label: 'ID',
-            sortable: true,
+            label: 'SL',
             className: 'w-16',
+            render: (_value, vehicle) => {
+                const index = vehicles.data.findIndex((row) => row.id === vehicle.id);
+                const serial = (vehicles.current_page - 1) * vehicles.per_page + index + 1;
+                return <span className="text-sm text-muted-foreground">{serial}</span>;
+            },
         },
         {
             key: 'brand',
