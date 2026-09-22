@@ -366,3 +366,23 @@ it('voids and supersedes an event on correction, keeping both in the trail', fun
         ->and($record->has_anomaly)->toBeTrue()
         ->and($record->check_in_at?->format('Y-m-d H:i:s'))->toBe('2026-08-20 08:00:00');
 });
+
+it('filters the attendance reports list to a single user via user_id', function () {
+    $viewer = makeAttendanceUser('viewer');
+    $viewer->givePermissionTo('view-attendance-reports');
+
+    $userOne = makeAttendanceUser('one');
+    $userTwo = makeAttendanceUser('two');
+
+    AttendanceRecord::create(['user_id' => $userOne->id, 'work_date' => '2026-08-20', 'status' => 'checked_out']);
+    AttendanceRecord::create(['user_id' => $userTwo->id, 'work_date' => '2026-08-20', 'status' => 'checked_out']);
+
+    $response = $this->actingAs($viewer)->get('/attendance/reports?user_id='.$userOne->id);
+
+    $response->assertOk();
+    $response->assertInertia(fn ($page) => $page
+        ->component('attendance/reports')
+        ->where('records.data.0.user.id', $userOne->id)
+        ->where('records.total', 1)
+    );
+});

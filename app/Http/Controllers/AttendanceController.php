@@ -232,7 +232,8 @@ class AttendanceController extends Controller implements HasMiddleware
         return Inertia::render('attendance/reports', [
             'records' => $records,
             'stats' => $stats,
-            'queryParams' => $request->only(['date_from', 'date_to', 'department_id', 'source', 'used_transport', 'has_anomaly', 'sort', 'direction', 'per_page']),
+            'users' => User::active()->orderBy('name')->get(['id', 'name', 'employee_id']),
+            'queryParams' => $request->only(['date_from', 'date_to', 'department_id', 'user_id', 'source', 'used_transport', 'has_anomaly', 'sort', 'direction', 'per_page']),
         ]);
     }
 
@@ -260,6 +261,10 @@ class AttendanceController extends Controller implements HasMiddleware
 
         if ($request->filled('department_id')) {
             $query->whereHas('user', fn ($q) => $q->where('department_id', $request->department_id));
+        }
+
+        if ($request->filled('user_id')) {
+            $query->where('user_id', $request->user_id);
         }
 
         if ($request->filled('source')) {

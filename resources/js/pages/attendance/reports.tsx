@@ -8,12 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { FormMultiSelect } from '@/base-components/base-form';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { hasPermission } from '@/lib/permissions';
 import { BreadcrumbItem, SharedData } from '@/types';
 import { Head, router, usePage } from '@inertiajs/react';
-import { AlertTriangle, CalendarClock, Filter, Pencil, Truck, Users } from 'lucide-react';
-import { Fragment, useState } from 'react';
+import { AlertTriangle, CalendarClock, Eye, Filter, Pencil, Truck, Users } from 'lucide-react';
+import { useState } from 'react';
 
 interface AttendanceEventRow {
     id: number;
@@ -61,9 +62,11 @@ interface ReportsPageProps {
         anomalies: number;
         used_transport: number;
     };
+    users: Array<{ id: number; name: string; employee_id: string | null }>;
     queryParams: {
         date_from?: string;
         date_to?: string;
+        user_id?: string;
         source?: string;
         used_transport?: string;
         has_anomaly?: string;
@@ -119,13 +122,19 @@ function toDateTimeLocal(value: string) {
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export default function AttendanceReports({ records, stats, queryParams }: ReportsPageProps) {
+export default function AttendanceReports({ records, stats, users, queryParams }: ReportsPageProps) {
     const { auth } = usePage<SharedData>().props;
     const canManageAttendance = hasPermission(auth.permissions ?? [], 'manage-attendance');
+
+    const userOptions = users.map((u) => ({
+        value: String(u.id),
+        label: u.employee_id ? `${u.name} (${u.employee_id})` : u.name,
+    }));
 
     const [filters, setFilters] = useState({
         date_from: queryParams.date_from ?? '',
         date_to: queryParams.date_to ?? '',
+        user_id: queryParams.user_id ?? '',
         source: queryParams.source ?? '',
         used_transport: queryParams.used_transport ?? '',
         has_anomaly: queryParams.has_anomaly ?? '',
@@ -172,7 +181,7 @@ export default function AttendanceReports({ records, stats, queryParams }: Repor
     }
 
     function reset() {
-        const empty = { date_from: '', date_to: '', source: '', used_transport: '', has_anomaly: '' };
+        const empty = { date_from: '', date_to: '', user_id: '', source: '', used_transport: '', has_anomaly: '' };
         setFilters(empty);
         router.get('/attendance/reports', {}, { preserveState: false });
     }
@@ -240,7 +249,16 @@ export default function AttendanceReports({ records, stats, queryParams }: Repor
                     </CardHeader>
                     {filtersOpen && (
                         <CardContent>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                                <FormMultiSelect
+                                    label="User"
+                                    name="user_id"
+                                    placeholder="All users"
+                                    options={userOptions}
+                                    value={filters.user_id ? [filters.user_id] : []}
+                                    onChange={(values) => setFilters((f) => ({ ...f, user_id: values[0] || '' }))}
+                                    searchable
+                                />
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Date From</Label>
                                     <Input
@@ -336,23 +354,16 @@ export default function AttendanceReports({ records, stats, queryParams }: Repor
                                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">Trip</th>
                                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">Driver Name</th>
                                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">Inspection Type</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break1 Start Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break1 Start Location</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break1 End Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break2 Start Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break2 Start Location</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break2 End Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break3 Start Time</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break3 Start Location</th>
-                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Break3 End Time</th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Total Break Time</th>
                                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">Source</th>
                                         <th className="px-4 py-3 text-left font-medium text-muted-foreground">Anomaly</th>
+                                        <th className="px-4 py-3 text-left font-medium text-muted-foreground">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {records.data.length === 0 ? (
                                         <tr>
-                                            <td colSpan={24} className="px-4 py-12 text-center text-muted-foreground">
+                                            <td colSpan={17} className="px-4 py-12 text-center text-muted-foreground">
                                                 No attendance records found.
                                             </td>
                                         </tr>
@@ -362,11 +373,7 @@ export default function AttendanceReports({ records, stats, queryParams }: Repor
                                             const checkInEvent = eventsOfType(events, 'check_in')[0];
                                             const checkOutEvents = eventsOfType(events, 'check_out');
                                             const checkoutEvent = checkOutEvents[checkOutEvents.length - 1];
-                                            const breakStarts = eventsOfType(events, 'break_start');
-                                            const breakEnds = eventsOfType(events, 'break_end');
-                                            const breaks = breakStarts.map((start, i) => ({ start, end: breakEnds[i] }));
                                             const trip = record.trip_passenger_event?.trip ?? null;
-                                            const extraBreaks = breaks.length - 3;
 
                                             return (
                                                 <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
@@ -388,32 +395,27 @@ export default function AttendanceReports({ records, stats, queryParams }: Repor
                                                     <td className="px-4 py-3 text-xs">{trip?.trip_number ?? '—'}</td>
                                                     <td className="px-4 py-3 text-xs">{trip?.driver?.name ?? '—'}</td>
                                                     <td className="px-4 py-3 text-xs">{trip?.trip_type ?? '—'}</td>
-                                                    {[0, 1, 2].map((i) => (
-                                                        <Fragment key={i}>
-                                                            <td className="px-4 py-3">{formatTime(breaks[i]?.start?.event_time ?? null)}</td>
-                                                            <td className="px-4 py-3 text-xs">{formatLocation(breaks[i]?.start)}</td>
-                                                            <td className="px-4 py-3">{formatTime(breaks[i]?.end?.event_time ?? null)}</td>
-                                                        </Fragment>
-                                                    ))}
-                                                    <td className="px-4 py-3 text-xs capitalize">
-                                                        {record.source ?? '—'}
-                                                        {extraBreaks > 0 && (
-                                                            <span className="ml-2 text-muted-foreground normal-case">+{extraBreaks} more break(s)</span>
-                                                        )}
-                                                    </td>
+                                                    <td className="px-4 py-3">{formatDuration(record.break_minutes)}</td>
+                                                    <td className="px-4 py-3 text-xs capitalize">{record.source ?? '—'}</td>
                                                     <td className="px-4 py-3">
                                                         {record.has_anomaly ? (
-                                                            <div className="flex items-center gap-2">
-                                                                <Badge variant="destructive" className="text-xs">
-                                                                    Anomaly
-                                                                </Badge>
-                                                                <Button variant="outline" size="sm" className="h-6 px-2 text-xs" onClick={() => setReviewRecord(record)}>
-                                                                    Review
-                                                                </Button>
-                                                            </div>
+                                                            <Badge variant="destructive" className="text-xs">
+                                                                Anomaly
+                                                            </Badge>
                                                         ) : (
                                                             <span className="text-muted-foreground">—</span>
                                                         )}
+                                                    </td>
+                                                    <td className="px-4 py-3">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0"
+                                                            title="View attendance details"
+                                                            onClick={() => setReviewRecord(record)}
+                                                        >
+                                                            <Eye className="h-4 w-4" />
+                                                        </Button>
                                                     </td>
                                                 </tr>
                                             );
