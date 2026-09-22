@@ -111,7 +111,7 @@ class DepartmentController extends Controller implements HasMiddleware
      */
     public function create(): Response
     {
-        $users = User::active()->get(['id', 'name', 'email']);
+        $users = User::active()->employees()->get(['id', 'name', 'email']);
 
         return Inertia::render('departments/create', [
             'users' => $users,
@@ -189,7 +189,17 @@ class DepartmentController extends Controller implements HasMiddleware
      */
     public function edit(Department $department): Response
     {
-        $users = User::active()->get(['id', 'name', 'email']);
+        $users = User::active()->employees()->get(['id', 'name', 'email']);
+
+        // Keep a non-employee head (e.g. assigned before this restriction
+        // existed) selectable/visible on its own department's edit form,
+        // even though it won't appear as a candidate on other departments.
+        if ($department->head_id && ! $users->contains('id', $department->head_id)) {
+            $currentHead = User::find($department->head_id, ['id', 'name', 'email']);
+            if ($currentHead) {
+                $users->push($currentHead);
+            }
+        }
 
         return Inertia::render('departments/edit', [
             'department' => $department,

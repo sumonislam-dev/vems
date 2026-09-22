@@ -15,7 +15,7 @@ import { PageHeader } from '@/base-components/page-header';
  * Features:
  * - Comprehensive form for creating new departments
  * - Department head selection from existing users
- * - Budget allocation and contact information
+ * - Contact information
  * - Form validation with error handling
  * - Professional UI with proper spacing and feedback
  */
@@ -40,7 +40,6 @@ export default function CreateDepartment({ users }: CreateDepartmentProps) {
     phone: '',
     email: '',
     head_id: '',
-    budget_allocation: '',
     is_active: '1',
   });
 
@@ -231,7 +230,7 @@ export default function CreateDepartment({ users }: CreateDepartmentProps) {
                 <CardHeader>
                   <CardTitle>Department Management</CardTitle>
                   <CardDescription>
-                    Assign department head and set budget allocation
+                    Assign department head
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -246,26 +245,6 @@ export default function CreateDepartment({ users }: CreateDepartmentProps) {
                     searchable={true}
                     description="Choose a user to lead this department"
                   />
-
-                  <div className="space-y-2">
-                    <Label htmlFor="budget_allocation">Budget Allocation</Label>
-                    <Input
-                      id="budget_allocation"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Enter budget amount"
-                      value={data.budget_allocation}
-                      onChange={(e) => setData('budget_allocation', e.target.value)}
-                      className={errors.budget_allocation ? 'border-red-500' : ''}
-                    />
-                    {errors.budget_allocation && (
-                      <p className="text-sm text-red-600">{errors.budget_allocation}</p>
-                    )}
-                    <p className="text-sm text-gray-500">
-                      Annual budget allocation for this department
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -359,9 +338,6 @@ export default function CreateDepartment({ users }: CreateDepartmentProps) {
                   </p>
                   <p>
                     <strong>Department Head:</strong> The user responsible for managing this department.
-                  </p>
-                  <p>
-                    <strong>Budget Allocation:</strong> Optional annual budget assigned to this department.
                   </p>
                 </CardContent>
               </Card>

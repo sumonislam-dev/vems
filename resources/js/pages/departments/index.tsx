@@ -1,18 +1,12 @@
 import React from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { DataTableColumn, ColumnFilter } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { MoreHorizontal, Eye, Edit, Trash2, Plus } from 'lucide-react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { Eye, Edit, Trash2, Plus } from 'lucide-react';
 
 interface Department {
     id: number;
@@ -125,39 +119,46 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
             key: 'actions' as keyof Department,
             label: 'Actions',
             render: (_, department) => (
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 cursor-pointer p-0 transition-all hover:scale-110">
-                            <span className="sr-only">Open menu</span>
-                            <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuItem asChild>
-                            <Link href={`/departments/${department.id}`}>
-                                <Eye className="mr-2 h-4 w-4" />
-                                View
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                            <Link href={`/departments/${department.id}/edit`}>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit
-                            </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                            onClick={() => {
-                                if (confirm('Are you sure you want to delete this department?')) {
-                                    router.delete(`/departments/${department.id}`);
-                                }
-                            }}
-                            className="text-destructive"
-                        >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex items-center space-x-1">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.visit(`/departments/${department.id}`);
+                        }}
+                        title="View department"
+                        className="cursor-pointer transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600"
+                    >
+                        <Eye className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.visit(`/departments/${department.id}/edit`);
+                        }}
+                        title="Edit department"
+                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                    >
+                        <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('Are you sure you want to delete this department?')) {
+                                router.delete(`/departments/${department.id}`);
+                            }
+                        }}
+                        title="Delete department"
+                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                    >
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
             ),
         },
     ];

@@ -15,7 +15,7 @@ import { PageHeader } from '@/base-components/page-header';
  * Features:
  * - Edit existing department information
  * - Department head selection from existing users
- * - Budget allocation and contact information
+ * - Contact information
  * - Form validation with error handling
  * - Professional UI with proper spacing and feedback
  */
@@ -36,7 +36,6 @@ interface Department {
   phone?: string;
   email?: string;
   head_id?: number;
-  budget_allocation?: string;
   is_active: boolean;
   created_at?: string;
   updated_at?: string;
@@ -56,7 +55,6 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
     phone: department.phone || '',
     email: department.email || '',
     head_id: department.head_id?.toString() || '',
-    budget_allocation: department.budget_allocation || '',
     is_active: department.is_active ? '1' : '0',
   });
 
@@ -252,7 +250,7 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
                 <CardHeader>
                   <CardTitle>Department Management</CardTitle>
                   <CardDescription>
-                    Update department head and budget allocation
+                    Update department head
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
@@ -267,26 +265,6 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
                     searchable={true}
                     description="Choose a user to lead this department"
                   />
-
-                  <div className="space-y-2">
-                    <Label htmlFor="budget_allocation">Budget Allocation</Label>
-                    <Input
-                      id="budget_allocation"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      placeholder="Enter budget amount"
-                      value={data.budget_allocation}
-                      onChange={(e) => setData('budget_allocation', e.target.value)}
-                      className={errors.budget_allocation ? 'border-red-500' : ''}
-                    />
-                    {errors.budget_allocation && (
-                      <p className="text-sm text-red-600">{errors.budget_allocation}</p>
-                    )}
-                    <p className="text-sm text-gray-500">
-                      Annual budget allocation for this department
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -411,9 +389,6 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
                   </p>
                   <p>
                     <strong>Department Head:</strong> Only one user can be assigned as head.
-                  </p>
-                  <p>
-                    <strong>Budget Allocation:</strong> Optional field for budget tracking.
                   </p>
                 </CardContent>
               </Card>
