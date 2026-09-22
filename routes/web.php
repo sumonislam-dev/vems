@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
     // Trip state routes
+    Route::post('/trips/bulk-approve', [TripStateController::class, 'bulkApprove'])->name('trips.bulk-approve');
     Route::post('/trips/{trip}/approve', [TripStateController::class, 'approve'])->name('trips.approve');
     Route::post('/trips/{trip}/reject', [TripStateController::class, 'reject'])->name('trips.reject');
     Route::post('/trips/{trip}/start', [TripStateController::class, 'start'])->name('trips.start');

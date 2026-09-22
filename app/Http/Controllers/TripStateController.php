@@ -15,7 +15,7 @@ class TripStateController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:approve-trips', only: ['approve', 'reject']),
+            new Middleware('permission:approve-trips', only: ['approve', 'reject', 'bulkApprove']),
             new Middleware('permission:edit-trips', only: ['cancel', 'cancelSeries']),
         ];
     }
@@ -49,6 +49,37 @@ class TripStateController extends Controller implements HasMiddleware
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to approve trip.');
         }
+    }
+
+    /**
+     * Approve every trip_id given that is still pending. Trips already
+     * approved/rejected/etc by someone else since the page loaded are
+     * silently skipped (Trip::transitionTo() just returns false for those).
+     */
+    public function bulkApprove(Request $request)
+    {
+        $validated = $request->validate([
+            'trip_ids' => 'required|array|min:1|max:100',
+            'trip_ids.*' => 'integer|exists:trips,id',
+        ]);
+
+        $approvedCount = 0;
+
+        DB::transaction(function () use ($validated, &$approvedCount) {
+            $trips = Trip::whereIn('id', $validated['trip_ids'])->lockForUpdate()->get();
+
+            foreach ($trips as $trip) {
+                if ($trip->transitionTo('approved', ['approved_by' => auth()->id()])) {
+                    $approvedCount++;
+                }
+            }
+        });
+
+        if ($approvedCount === 0) {
+            return back()->with('error', 'No selected trips could be approved (already approved, rejected, or otherwise not pending).');
+        }
+
+        return back()->with('success', "{$approvedCount} trip(s) approved.");
     }
 
     /**
@@ -114,7 +145,7 @@ class TripStateController extends Controller implements HasMiddleware
             }
 
             $validated = $request->validate([
-                'odometer_end' => 'required|numeric|min:' . ($trip->odometer_start ?? 0),
+                'odometer_end' => 'nullable|numeric|min:' . ($trip->odometer_start ?? 0),
                 'fuel_consumed' => 'nullable|numeric|min:0|max:2000',
                 'fuel_cost' => 'nullable|numeric|min:0|max:1000000',
                 'other_costs' => 'nullable|numeric|min:0|max:1000000',

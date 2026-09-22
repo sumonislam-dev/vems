@@ -1,14 +1,39 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
-import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
+import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, DataTableColumn, Trip } from '@/types';
-import { Head, router } from '@inertiajs/react';
-import { Calendar, Car, CheckCircle, Clock, Edit, Eye, FileText, MapPin, Plus, TrendingUp, User } from 'lucide-react';
-import { useMemo } from 'react';
+import { Head, router, useForm, usePage } from '@inertiajs/react';
+import {
+    Ban,
+    Calendar,
+    Car,
+    CheckCircle,
+    CheckCircle2,
+    Clock,
+    Edit,
+    Eye,
+    FileText,
+    MapPin,
+    MoreVertical,
+    Play,
+    Plus,
+    TrendingUp,
+    User,
+    XCircle,
+} from 'lucide-react';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 interface PaginatedTrips {
     data: Trip[];
@@ -32,14 +57,10 @@ interface TripsPageProps {
     };
     queryParams: {
         search?: string;
-        status?: string;
-        schedule_type?: string;
-        trip_type?: string;
-        priority?: string;
+        filters?: Record<string, (string | number)[]>;
         date_from?: string;
         date_to?: string;
         vehicle_id?: number;
-        department_id?: number;
         sort?: string;
         direction?: 'asc' | 'desc';
         per_page?: number;
@@ -76,7 +97,156 @@ const getPriorityBadge = (priority: Trip['priority']) => {
     return <Badge variant="outline" className={className}>{label}</Badge>;
 };
 
+const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
+
+type TripActionType = 'reject' | 'start' | 'complete' | 'cancel';
+
 export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps) {
+    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[] } };
+    const permissions = pageProps.auth?.permissions ?? [];
+    const currentUserId = pageProps.auth?.user?.id;
+    const canApproveTrips = checkPermission('approve-trips', permissions);
+    const canEditTrips = checkPermission('edit-trips', permissions);
+
+    const [actionDialog, setActionDialog] = useState<{ type: TripActionType; trip: Trip } | null>(null);
+
+    const {
+        data: rejectData,
+        setData: setRejectData,
+        post: postReject,
+        processing: rejectProcessing,
+        errors: rejectErrors,
+        reset: resetReject,
+        clearErrors: clearRejectErrors,
+    } = useForm<{ rejection_reason: string }>({ rejection_reason: '' });
+
+    const {
+        data: startData,
+        setData: setStartData,
+        post: postStart,
+        processing: startProcessing,
+        errors: startErrors,
+        reset: resetStart,
+        clearErrors: clearStartErrors,
+    } = useForm<{ odometer_start: string }>({ odometer_start: '' });
+
+    const {
+        data: completeData,
+        setData: setCompleteData,
+        post: postComplete,
+        processing: completeProcessing,
+        errors: completeErrors,
+        reset: resetComplete,
+        clearErrors: clearCompleteErrors,
+    } = useForm<{ odometer_end: string; fuel_consumed: string; fuel_cost: string; other_costs: string; notes: string }>({
+        odometer_end: '',
+        fuel_consumed: '',
+        fuel_cost: '',
+        other_costs: '',
+        notes: '',
+    });
+
+    const {
+        data: cancelData,
+        setData: setCancelData,
+        post: postCancel,
+        processing: cancelProcessing,
+        errors: cancelErrors,
+        reset: resetCancel,
+        clearErrors: clearCancelErrors,
+    } = useForm<{ cancellation_reason: string; cancellation_notes: string }>({
+        cancellation_reason: '',
+        cancellation_notes: '',
+    });
+
+    const openActionDialog = useCallback(
+        (type: TripActionType, trip: Trip) => {
+            resetReject();
+            clearRejectErrors();
+            resetStart();
+            clearStartErrors();
+            resetComplete();
+            clearCompleteErrors();
+            resetCancel();
+            clearCancelErrors();
+            setActionDialog({ type, trip });
+        },
+        [resetReject, clearRejectErrors, resetStart, clearStartErrors, resetComplete, clearCompleteErrors, resetCancel, clearCancelErrors],
+    );
+
+    const closeActionDialog = useCallback(() => {
+        setActionDialog(null);
+    }, []);
+
+    const submitReject = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+        if (!actionDialog) return;
+
+        postReject(route('trips.reject', actionDialog.trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeActionDialog(),
+        });
+    };
+
+    const submitStart = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+        if (!actionDialog) return;
+
+        postStart(route('trips.start', actionDialog.trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeActionDialog(),
+        });
+    };
+
+    const submitComplete = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+        if (!actionDialog) return;
+
+        postComplete(route('trips.complete', actionDialog.trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeActionDialog(),
+        });
+    };
+
+    const submitCancel = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+        if (!actionDialog) return;
+
+        postCancel(route('trips.cancel', actionDialog.trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeActionDialog(),
+        });
+    };
+
+    const isAssignedDriver = useCallback((row: Trip) => !!currentUserId && row.driver?.id === currentUserId, [currentUserId]);
+
+    const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
+    const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
+    const [bulkApproveProcessing, setBulkApproveProcessing] = useState(false);
+
+    // Every server round trip (page/filter/sort change, or a successful bulk
+    // approve reloading this page) hands us a fresh `trips` object, so any
+    // selection from before that trip no longer applies.
+    useEffect(() => {
+        setSelectedIds([]);
+    }, [trips]);
+
+    const isTripBulkApprovable = useCallback((row: Trip) => canApproveTrips && row.status === 'pending', [canApproveTrips]);
+    const getTripRowId = useCallback((row: Trip) => row.id, []);
+
+    const submitBulkApprove = () => {
+        router.post(
+            route('trips.bulk-approve'),
+            { trip_ids: selectedIds },
+            {
+                preserveScroll: true,
+                onStart: () => setBulkApproveProcessing(true),
+                onFinish: () => setBulkApproveProcessing(false),
+                onSuccess: () => setBulkApproveOpen(false),
+            },
+        );
+    };
+
     const columns: DataTableColumn<Trip>[] = useMemo(() => [
         {
             key: 'trip_number',
@@ -192,28 +362,81 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
         {
             key: 'id',
             label: 'Actions',
-            render: (_, row) => (
-                <div className="flex items-center space-x-2">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.visit(route('trips.show', row.id))}
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600"
-                    >
-                        <Eye className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.visit(route('trips.edit', row.id))}
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                </div>
-            ),
+            render: (_, row) => {
+                const canApproveRow = row.status === 'pending' && canApproveTrips;
+                const canRejectRow = row.status === 'pending' && canApproveTrips;
+                const canStartRow = canStartTrip(row.status) && (canEditTrips || isAssignedDriver(row));
+                const canCompleteRow = canCompleteTrip(row.status) && (canEditTrips || isAssignedDriver(row));
+                const canCancelRow = canCancelTrip(row.status) && canEditTrips;
+                const hasMenuActions = canApproveRow || canRejectRow || canStartRow || canCompleteRow || canCancelRow;
+
+                return (
+                    <div className="flex items-center space-x-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.visit(route('trips.show', row.id))}
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.visit(route('trips.edit', row.id))}
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                        {hasMenuActions && (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm" className="cursor-pointer transition-all hover:scale-110">
+                                        <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    {canApproveRow && (
+                                        <DropdownMenuItem onClick={() => router.post(route('trips.approve', row.id), {}, { preserveScroll: true })}>
+                                            <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                                            Approve Trip
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canRejectRow && (
+                                        <DropdownMenuItem onClick={() => openActionDialog('reject', row)}>
+                                            <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                                            Reject Trip
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canStartRow && (
+                                        <DropdownMenuItem onClick={() => openActionDialog('start', row)}>
+                                            <Play className="mr-2 h-4 w-4 text-green-600" />
+                                            Start Trip
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canCompleteRow && (
+                                        <DropdownMenuItem onClick={() => openActionDialog('complete', row)}>
+                                            <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                                            Complete Trip
+                                        </DropdownMenuItem>
+                                    )}
+                                    {canCancelRow && (
+                                        <DropdownMenuItem
+                                            onClick={() => openActionDialog('cancel', row)}
+                                            className="text-red-600 focus:text-red-600"
+                                        >
+                                            <Ban className="mr-2 h-4 w-4" />
+                                            Cancel Trip
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        )}
+                    </div>
+                );
+            },
         },
-    ], []);
+    ], [canApproveTrips, canEditTrips, isAssignedDriver, openActionDialog]);
 
     const filters = useMemo(() => [
         {
@@ -247,10 +470,18 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
             options: [
                 { label: 'All', value: '' },
                 { label: 'Pick & Drop', value: 'pick-and-drop' },
+                { label: 'Pick-up', value: 'pick-up' },
+                { label: 'Drop-off', value: 'drop-off' },
                 { label: 'Engineer', value: 'engineer' },
                 { label: 'Training', value: 'training' },
                 { label: 'Ad-hoc', value: 'adhoc' },
                 { label: 'Reposition', value: 'reposition' },
+                { label: 'Inspection', value: 'inspection' },
+                { label: 'Complaints', value: 'complaints' },
+                { label: 'CVV', value: 'CVV' },
+                { label: 'Incident Inspection', value: 'Incident Inspection' },
+                { label: 'Officials', value: 'officials' },
+                { label: 'Assigned', value: 'Assigned' },
             ],
             type: 'select' as const,
         },
@@ -349,6 +580,21 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
                     ]}
                 />
 
+                {canApproveTrips && selectedIds.length > 0 && (
+                    <div className="flex items-center justify-between rounded-lg border bg-muted/30 p-3">
+                        <span className="text-sm font-medium">{selectedIds.length} trip(s) selected</span>
+                        <div className="flex items-center gap-2">
+                            <Button variant="outline" size="sm" onClick={() => setSelectedIds([])}>
+                                Clear selection
+                            </Button>
+                            <Button size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => setBulkApproveOpen(true)}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Approve Selected
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
                 <ServerSideDataTable
                     data={trips}
                     columns={columns}
@@ -358,8 +604,238 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
                     searchPlaceholder="Search by trip number, purpose, location..."
                     exportable={false}
                     emptyMessage="No trips found. Create your first trip to get started."
+                    selectable={canApproveTrips ? isTripBulkApprovable : undefined}
+                    selectedIds={selectedIds}
+                    onSelectionChange={canApproveTrips ? setSelectedIds : undefined}
+                    getRowId={canApproveTrips ? getTripRowId : undefined}
                 />
             </div>
+
+            <Dialog open={bulkApproveOpen} onOpenChange={(open) => !open && setBulkApproveOpen(false)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Approve {selectedIds.length} trip(s)?</DialogTitle>
+                        <DialogDescription>This approves every selected trip that is still pending.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setBulkApproveOpen(false)} disabled={bulkApproveProcessing}>
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            className="bg-green-600 hover:bg-green-700"
+                            onClick={submitBulkApprove}
+                            disabled={bulkApproveProcessing || selectedIds.length === 0}
+                        >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            {bulkApproveProcessing ? 'Approving...' : `Approve ${selectedIds.length} Trip(s)`}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={actionDialog?.type === 'reject'} onOpenChange={(open) => !open && closeActionDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Reject Trip</DialogTitle>
+                        <DialogDescription>{actionDialog?.trip.trip_number} will be marked as rejected.</DialogDescription>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={submitReject}>
+                        <div className="space-y-2">
+                            <Label htmlFor="rejection_reason">Rejection reason</Label>
+                            <Textarea
+                                id="rejection_reason"
+                                value={rejectData.rejection_reason}
+                                onChange={(event) => setRejectData('rejection_reason', event.target.value)}
+                                rows={3}
+                                required
+                            />
+                            <InputError message={rejectErrors.rejection_reason} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeActionDialog} disabled={rejectProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" variant="destructive" disabled={rejectProcessing || !rejectData.rejection_reason}>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                {rejectProcessing ? 'Rejecting...' : 'Reject Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={actionDialog?.type === 'start'} onOpenChange={(open) => !open && closeActionDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Start Trip</DialogTitle>
+                        <DialogDescription>
+                            {actionDialog?.trip.trip_number}: you can enter the current odometer reading now, or skip and add it later.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={submitStart}>
+                        <div className="space-y-2">
+                            <Label htmlFor="odometer_start">Odometer start (optional)</Label>
+                            <Input
+                                id="odometer_start"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={startData.odometer_start}
+                                onChange={(event) => setStartData('odometer_start', event.target.value)}
+                                placeholder="Leave blank if not available"
+                            />
+                            <InputError message={startErrors.odometer_start} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeActionDialog} disabled={startProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={startProcessing}>
+                                <Play className="mr-2 h-4 w-4" />
+                                {startProcessing ? 'Starting...' : 'Start Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={actionDialog?.type === 'complete'} onOpenChange={(open) => !open && closeActionDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Complete Trip</DialogTitle>
+                        <DialogDescription>
+                            {actionDialog?.trip.trip_number}: record the ending odometer reading and any costs incurred.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={submitComplete}>
+                        <div className="space-y-2">
+                            <Label htmlFor="index_odometer_end">Odometer end (optional)</Label>
+                            <Input
+                                id="index_odometer_end"
+                                type="number"
+                                min={actionDialog?.trip.odometer_start ?? 0}
+                                step="0.01"
+                                value={completeData.odometer_end}
+                                onChange={(event) => setCompleteData('odometer_end', event.target.value)}
+                                placeholder="Leave blank if not available"
+                            />
+                            <InputError message={completeErrors.odometer_end} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="index_fuel_consumed">Fuel consumed</Label>
+                                <Input
+                                    id="index_fuel_consumed"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={completeData.fuel_consumed}
+                                    onChange={(event) => setCompleteData('fuel_consumed', event.target.value)}
+                                    placeholder="Optional"
+                                />
+                                <InputError message={completeErrors.fuel_consumed} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="index_fuel_cost">Fuel cost</Label>
+                                <Input
+                                    id="index_fuel_cost"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={completeData.fuel_cost}
+                                    onChange={(event) => setCompleteData('fuel_cost', event.target.value)}
+                                    placeholder="Optional"
+                                />
+                                <InputError message={completeErrors.fuel_cost} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="index_other_costs">Other costs</Label>
+                            <Input
+                                id="index_other_costs"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={completeData.other_costs}
+                                onChange={(event) => setCompleteData('other_costs', event.target.value)}
+                                placeholder="Optional"
+                            />
+                            <InputError message={completeErrors.other_costs} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="index_complete_notes">Notes</Label>
+                            <Textarea
+                                id="index_complete_notes"
+                                value={completeData.notes}
+                                onChange={(event) => setCompleteData('notes', event.target.value)}
+                                placeholder="Optional"
+                                rows={3}
+                            />
+                            <InputError message={completeErrors.notes} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeActionDialog} disabled={completeProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={completeProcessing}>
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                {completeProcessing ? 'Completing...' : 'Complete Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={actionDialog?.type === 'cancel'} onOpenChange={(open) => !open && closeActionDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Cancel Trip</DialogTitle>
+                        <DialogDescription>{actionDialog?.trip.trip_number} will be marked as cancelled. Choose a reason.</DialogDescription>
+                    </DialogHeader>
+                    <form className="space-y-4" onSubmit={submitCancel}>
+                        <div className="space-y-2">
+                            <Label htmlFor="index_cancellation_reason">Cancellation reason</Label>
+                            <Select
+                                value={cancelData.cancellation_reason}
+                                onValueChange={(value) => setCancelData('cancellation_reason', value)}
+                            >
+                                <SelectTrigger id="index_cancellation_reason" className="w-full">
+                                    <SelectValue placeholder="Select a reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CANCELLATION_REASONS.map((reason) => (
+                                        <SelectItem key={reason.value} value={reason.value}>
+                                            {reason.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={cancelErrors.cancellation_reason} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="index_cancellation_notes">Notes</Label>
+                            <Textarea
+                                id="index_cancellation_notes"
+                                value={cancelData.cancellation_notes}
+                                onChange={(event) => setCancelData('cancellation_notes', event.target.value)}
+                                placeholder="Optional"
+                                rows={3}
+                            />
+                            <InputError message={cancelErrors.cancellation_notes} />
+                        </div>
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeActionDialog} disabled={cancelProcessing}>
+                                Keep Trip
+                            </Button>
+                            <Button type="submit" variant="destructive" disabled={cancelProcessing || !cancelData.cancellation_reason}>
+                                <Ban className="mr-2 h-4 w-4" />
+                                {cancelProcessing ? 'Cancelling...' : 'Cancel Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
         </AppSidebarLayout>
     );
 }

@@ -103,6 +103,88 @@ it('refuses to approve a trip that is not pending', function () {
     $this->assertDatabaseMissing('trip_audit_logs', ['trip_id' => $trip->id, 'action' => 'status_changed']);
 });
 
+it('bulk-approves every pending trip in the given list and records the approver on each', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('bulk-approver-1');
+    $manager->givePermissionTo('approve-trips');
+
+    $tripA = makeStateTrip();
+    $tripB = makeStateTrip();
+
+    $response = $this->actingAs($manager)->post('/trips/bulk-approve', [
+        'trip_ids' => [$tripA->id, $tripB->id],
+    ]);
+    $response->assertRedirect();
+
+    $tripA->refresh();
+    $tripB->refresh();
+    expect($tripA->status)->toBe('approved')
+        ->and($tripA->approved_by)->toBe($manager->id)
+        ->and($tripB->status)->toBe('approved')
+        ->and($tripB->approved_by)->toBe($manager->id);
+
+    $this->assertDatabaseHas('trip_audit_logs', ['trip_id' => $tripA->id, 'action' => 'status_changed']);
+    $this->assertDatabaseHas('trip_audit_logs', ['trip_id' => $tripB->id, 'action' => 'status_changed']);
+});
+
+it('skips trips that are no longer pending during a bulk approve, without failing the whole batch', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('bulk-approver-2');
+    $manager->givePermissionTo('approve-trips');
+
+    $pending = makeStateTrip();
+    $alreadyApproved = makeStateTrip(['status' => 'approved']);
+
+    $response = $this->actingAs($manager)->post('/trips/bulk-approve', [
+        'trip_ids' => [$pending->id, $alreadyApproved->id],
+    ]);
+    $response->assertRedirect();
+    $response->assertSessionHas('success', '1 trip(s) approved.');
+
+    expect($pending->refresh()->status)->toBe('approved');
+});
+
+it('refuses bulk approve when none of the given trips are pending', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('bulk-approver-3');
+    $manager->givePermissionTo('approve-trips');
+
+    $trip = makeStateTrip(['status' => 'rejected']);
+
+    $response = $this->actingAs($manager)->post('/trips/bulk-approve', [
+        'trip_ids' => [$trip->id],
+    ]);
+    $response->assertRedirect();
+    $response->assertSessionHas('error');
+
+    expect($trip->refresh()->status)->toBe('rejected');
+});
+
+it('denies bulk approve to a user without approve-trips', function () {
+    seedTripStatePermissions();
+    $user = makeTripStateUser('bulk-approver-4');
+    $trip = makeStateTrip();
+
+    $response = $this->actingAs($user)->post('/trips/bulk-approve', [
+        'trip_ids' => [$trip->id],
+    ]);
+    $response->assertForbidden();
+
+    expect($trip->refresh()->status)->toBe('pending');
+});
+
+it('rejects an empty or oversized trip_ids array for bulk approve', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('bulk-approver-5');
+    $manager->givePermissionTo('approve-trips');
+
+    $this->actingAs($manager)->post('/trips/bulk-approve', ['trip_ids' => []])
+        ->assertSessionHasErrors('trip_ids');
+
+    $this->actingAs($manager)->post('/trips/bulk-approve', ['trip_ids' => range(1, 101)])
+        ->assertSessionHasErrors('trip_ids');
+});
+
 it('starts an approved trip and records the odometer reading', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('starter-1');
@@ -176,6 +258,28 @@ it('completing a trip credits the assigned driver distance and trip count', func
     $driver->refresh();
     expect((float) $driver->total_distance_covered)->toBe(85.0)
         ->and($driver->total_trips_completed)->toBe(3);
+});
+
+it('completes a trip with no odometer_end at all, since it is optional', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('completer-4');
+    $manager->givePermissionTo('edit-trips');
+
+    $trip = makeStateTrip([
+        'status' => 'in_progress',
+        'odometer_start' => 1000,
+    ]);
+
+    $response = $this->actingAs($manager)->post("/trips/{$trip->id}/complete", [
+        'notes' => 'Odometer reading unavailable at drop-off.',
+    ]);
+    $response->assertRedirect();
+    $response->assertSessionDoesntHaveErrors();
+
+    $trip->refresh();
+    expect($trip->status)->toBe('completed')
+        ->and($trip->is_completed)->toBeTrue()
+        ->and($trip->odometer_end)->toBeNull();
 });
 
 it('rejects fuel/cost figures above the sanity bound (2.4)', function () {

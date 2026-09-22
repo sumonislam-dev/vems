@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,6 +62,16 @@ interface ServerSideDataTableProps<T = unknown> {
   emptyMessage?: string
   className?: string
   onRowClick?: (row: T) => void
+  /**
+   * Opt-in row selection (checkbox column + header "select all on this page").
+   * All three of selectable/selectedIds/onSelectionChange/getRowId must be
+   * passed together to enable it; omitting them renders the table exactly as
+   * before, so existing consumers are unaffected.
+   */
+  selectable?: (row: T) => boolean
+  selectedIds?: (string | number)[]
+  onSelectionChange?: (ids: (string | number)[]) => void
+  getRowId?: (row: T) => string | number
 }
 
 export function ServerSideDataTable<T>({
@@ -79,8 +90,42 @@ export function ServerSideDataTable<T>({
   emptyMessage = "No data available",
   className,
   onRowClick,
+  selectable,
+  selectedIds = [],
+  onSelectionChange,
+  getRowId,
 }: ServerSideDataTableProps<T>) {
   const [searchInput, setSearchInput] = React.useState(queryParams.search || '')
+
+  const isSelectionEnabled = Boolean(selectable && onSelectionChange && getRowId)
+  const selectablePageRowIds = isSelectionEnabled
+    ? data.data.filter((row) => selectable!(row)).map((row) => getRowId!(row))
+    : []
+  const allSelectableOnPageSelected =
+    selectablePageRowIds.length > 0 && selectablePageRowIds.every((id) => selectedIds.includes(id))
+  const someSelectableOnPageSelected =
+    !allSelectableOnPageSelected && selectablePageRowIds.some((id) => selectedIds.includes(id))
+
+  const toggleSelectAllOnPage = (checked: boolean) => {
+    if (!onSelectionChange) return
+
+    if (checked) {
+      const merged = new Set([...selectedIds, ...selectablePageRowIds])
+      onSelectionChange(Array.from(merged))
+    } else {
+      onSelectionChange(selectedIds.filter((id) => !selectablePageRowIds.includes(id)))
+    }
+  }
+
+  const toggleRowSelected = (rowId: string | number, checked: boolean) => {
+    if (!onSelectionChange) return
+
+    if (checked) {
+      onSelectionChange([...selectedIds, rowId])
+    } else {
+      onSelectionChange(selectedIds.filter((id) => id !== rowId))
+    }
+  }
 
   const {
     currentParams,
@@ -370,6 +415,16 @@ export function ServerSideDataTable<T>({
         <Table>
           <TableHeader>
             <TableRow>
+              {isSelectionEnabled && (
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={allSelectableOnPageSelected ? true : someSelectableOnPageSelected ? "indeterminate" : false}
+                    onCheckedChange={(checked) => toggleSelectAllOnPage(checked === true)}
+                    disabled={selectablePageRowIds.length === 0}
+                    aria-label="Select all eligible rows on this page"
+                  />
+                </TableHead>
+              )}
               {columns.map((column) => (
                 <TableHead
                   key={String(column.key)}
@@ -390,29 +445,44 @@ export function ServerSideDataTable<T>({
           <TableBody>
             {data.data.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell colSpan={columns.length + (isSelectionEnabled ? 1 : 0)} className="h-24 text-center">
                   {emptyMessage}
                 </TableCell>
               </TableRow>
             ) : (
-              data.data.map((row, index) => (
-                <TableRow
-                  key={index}
-                  className={cn(
-                    onRowClick && "cursor-pointer hover:bg-muted/50"
-                  )}
-                  onClick={() => onRowClick?.(row)}
-                >
-                  {columns.map((column) => (
-                    <TableCell
-                      key={String(column.key)}
-                      className={column.className}
-                    >
-                      {renderCellContent(column, row)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              data.data.map((row, index) => {
+                const rowId = isSelectionEnabled ? getRowId!(row) : undefined
+                const rowSelectable = isSelectionEnabled && selectable!(row)
+
+                return (
+                  <TableRow
+                    key={index}
+                    className={cn(
+                      onRowClick && "cursor-pointer hover:bg-muted/50"
+                    )}
+                    onClick={() => onRowClick?.(row)}
+                  >
+                    {isSelectionEnabled && (
+                      <TableCell onClick={(event) => event.stopPropagation()}>
+                        <Checkbox
+                          checked={rowSelectable && selectedIds.includes(rowId!)}
+                          onCheckedChange={(checked) => rowId !== undefined && toggleRowSelected(rowId, checked === true)}
+                          disabled={!rowSelectable}
+                          aria-label="Select row"
+                        />
+                      </TableCell>
+                    )}
+                    {columns.map((column) => (
+                      <TableCell
+                        key={String(column.key)}
+                        className={column.className}
+                      >
+                        {renderCellContent(column, row)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                )
+              })
             )}
           </TableBody>
         </Table>

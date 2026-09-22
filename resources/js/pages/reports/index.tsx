@@ -210,10 +210,18 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                 <SelectContent>
                                     <SelectItem value="all">All Schedule Types</SelectItem>
                                     <SelectItem value="pick-and-drop">Pick & Drop</SelectItem>
+                                    <SelectItem value="pick-up">Pick-up</SelectItem>
+                                    <SelectItem value="drop-off">Drop-off</SelectItem>
                                     <SelectItem value="engineer">Engineer</SelectItem>
                                     <SelectItem value="training">Training</SelectItem>
                                     <SelectItem value="adhoc">Adhoc</SelectItem>
                                     <SelectItem value="reposition">Reposition</SelectItem>
+                                    <SelectItem value="inspection">Inspection</SelectItem>
+                                    <SelectItem value="complaints">Complaints</SelectItem>
+                                    <SelectItem value="CVV">CVV</SelectItem>
+                                    <SelectItem value="Incident Inspection">Incident Inspection</SelectItem>
+                                    <SelectItem value="officials">Officials</SelectItem>
+                                    <SelectItem value="Assigned">Assigned</SelectItem>
                                 </SelectContent>
                             </Select>
                             <Select

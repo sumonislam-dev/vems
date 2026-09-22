@@ -32,7 +32,7 @@ class ReportController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
-            'schedule_type' => 'nullable|string|in:pick-and-drop,engineer,training,adhoc,reposition',
+            'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
             'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
             'driver_id' => 'nullable|integer|exists:users,id',
             'vehicle_id' => 'nullable|integer|exists:vehicles,id',
@@ -235,7 +235,7 @@ class ReportController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
-            'schedule_type' => 'nullable|string|in:pick-and-drop,engineer,training,adhoc,reposition',
+            'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
             'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
             'driver_id' => 'nullable|integer|exists:users,id',
             'vehicle_id' => 'nullable|integer|exists:vehicles,id',

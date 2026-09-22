@@ -15,7 +15,20 @@ export interface Trip {
     trip_type?: 'inspection' | 'pick-up' | 'drop-off' | 'training' | 'complaints' | 'CVV' | 'Incident Inspection' | 'officials' | 'Assigned';
     remarks?: string;
     description?: string;
-    schedule_type: 'pick-and-drop' | 'engineer' | 'training' | 'adhoc' | 'reposition';
+    schedule_type:
+        | 'pick-and-drop'
+        | 'pick-up'
+        | 'drop-off'
+        | 'engineer'
+        | 'training'
+        | 'adhoc'
+        | 'reposition'
+        | 'inspection'
+        | 'complaints'
+        | 'CVV'
+        | 'Incident Inspection'
+        | 'officials'
+        | 'Assigned';
     priority: 'low' | 'medium' | 'high' | 'urgent';
     scheduled_date: string;
     scheduled_start_time: string;

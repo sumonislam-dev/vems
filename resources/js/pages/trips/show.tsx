@@ -8,17 +8,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { canStartTrip } from '@/lib/trip-status';
+import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
 import { BreadcrumbItem, Trip, TripAuditLog, TripFeedback, TripPassengerEvent, TripRouteAssignment, TripVehicleAssignment, User as UserType } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
+    Ban,
     Building2,
     Calendar,
     Car,
     CheckCircle,
+    CheckCircle2,
     ClipboardList,
     Clock,
     FileText,
@@ -193,19 +196,24 @@ type ShowTripProps = {
 const formatAuditAction = (action: string) => action.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
 export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignments = [], auditLogs = [] }: ShowTripProps) {
-    const pageProps = usePage().props as unknown as { auth?: { user?: unknown; permissions?: string[]; roles?: string[] } };
+    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[]; roles?: string[] } };
     const permissions = pageProps.auth?.permissions ?? [];
+    const currentUserId = pageProps.auth?.user?.id;
     const passengers = (trip.passengers ?? []) as AttendanceTripPassenger[];
     const canManageAttendance = !['cancelled', 'rejected'].includes(trip.status);
     const canCaptureAttendance = checkPermission('capture-passenger-attendance', permissions);
     const canCorrectAttendance = checkPermission('correct-passenger-attendance', permissions);
     const canCreateComplaint = checkPermission('create-complaints', permissions);
+    const canEditTrips = checkPermission('edit-trips', permissions);
+    const isAssignedDriver = !!currentUserId && trip.vehicle?.driver_id === currentUserId;
     const [dialogState, setDialogState] = useState<{
         mode: AttendanceMode;
         passenger: AttendanceTripPassenger;
         event?: TripPassengerEvent;
     } | null>(null);
     const [startTripOpen, setStartTripOpen] = useState(false);
+    const [cancelTripOpen, setCancelTripOpen] = useState(false);
+    const [completeTripOpen, setCompleteTripOpen] = useState(false);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<AttendanceFormShape>({
         event_type: 'check_in',
         event_time: toLocalDateTimeValue(),
@@ -228,6 +236,33 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
         clearErrors: clearStartTripErrors,
     } = useForm<{ odometer_start: string }>({
         odometer_start: '',
+    });
+    const {
+        data: cancelTripData,
+        setData: setCancelTripData,
+        post: postCancelTrip,
+        processing: cancelTripProcessing,
+        errors: cancelTripErrors,
+        reset: resetCancelTrip,
+        clearErrors: clearCancelTripErrors,
+    } = useForm<{ cancellation_reason: string; cancellation_notes: string }>({
+        cancellation_reason: '',
+        cancellation_notes: '',
+    });
+    const {
+        data: completeTripData,
+        setData: setCompleteTripData,
+        post: postCompleteTrip,
+        processing: completeTripProcessing,
+        errors: completeTripErrors,
+        reset: resetCompleteTrip,
+        clearErrors: clearCompleteTripErrors,
+    } = useForm<{ odometer_end: string; fuel_consumed: string; fuel_cost: string; other_costs: string; notes: string }>({
+        odometer_end: '',
+        fuel_consumed: '',
+        fuel_cost: '',
+        other_costs: '',
+        notes: '',
     });
 
     const attendanceSummary = {
@@ -306,6 +341,46 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
         postStartTrip(route('trips.start', trip.id), {
             preserveScroll: true,
             onSuccess: () => closeStartTripDialog(),
+        });
+    };
+
+    const openCancelTripDialog = () => {
+        setCancelTripOpen(true);
+        clearCancelTripErrors();
+    };
+
+    const closeCancelTripDialog = () => {
+        setCancelTripOpen(false);
+        resetCancelTrip();
+        clearCancelTripErrors();
+    };
+
+    const submitCancelTrip = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+
+        postCancelTrip(route('trips.cancel', trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeCancelTripDialog(),
+        });
+    };
+
+    const openCompleteTripDialog = () => {
+        setCompleteTripOpen(true);
+        clearCompleteTripErrors();
+    };
+
+    const closeCompleteTripDialog = () => {
+        setCompleteTripOpen(false);
+        resetCompleteTrip();
+        clearCompleteTripErrors();
+    };
+
+    const submitCompleteTrip = (submitEvent: FormEvent<HTMLFormElement>) => {
+        submitEvent.preventDefault();
+
+        postCompleteTrip(route('trips.complete', trip.id), {
+            preserveScroll: true,
+            onSuccess: () => closeCompleteTripDialog(),
         });
     };
 
@@ -666,7 +741,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             </CardContent>
                         </Card>
 
-                        {['pending', 'approved', 'assigned'].includes(trip.status) && (
+                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">Actions</CardTitle>
@@ -702,6 +777,29 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         >
                                             <Play className="mr-2 h-4 w-4" />
                                             Start Trip
+                                        </Button>
+                                    )}
+
+                                    {canCompleteTrip(trip.status) && (canEditTrips || isAssignedDriver) && (
+                                        <Button
+                                            className="w-full bg-green-600 hover:bg-green-700"
+                                            onClick={openCompleteTripDialog}
+                                            disabled={completeTripProcessing}
+                                        >
+                                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                                            Complete Trip
+                                        </Button>
+                                    )}
+
+                                    {canCancelTrip(trip.status) && canEditTrips && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                            onClick={openCancelTripDialog}
+                                            disabled={cancelTripProcessing}
+                                        >
+                                            <Ban className="mr-2 h-4 w-4" />
+                                            Cancel Trip
                                         </Button>
                                     )}
                                 </CardContent>
@@ -885,6 +983,145 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={startTripProcessing}>
                                 <Play className="mr-2 h-4 w-4" />
                                 {startTripProcessing ? 'Starting...' : 'Start Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={completeTripOpen} onOpenChange={(open) => !open && closeCompleteTripDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Complete Trip</DialogTitle>
+                        <DialogDescription>Record the ending odometer reading and any costs incurred.</DialogDescription>
+                    </DialogHeader>
+
+                    <form className="space-y-4" onSubmit={submitCompleteTrip}>
+                        <div className="space-y-2">
+                            <Label htmlFor="odometer_end">Odometer end (optional)</Label>
+                            <Input
+                                id="odometer_end"
+                                type="number"
+                                min={trip.odometer_start ?? 0}
+                                step="0.01"
+                                value={completeTripData.odometer_end}
+                                onChange={(event) => setCompleteTripData('odometer_end', event.target.value)}
+                                placeholder="Leave blank if not available"
+                            />
+                            <InputError message={completeTripErrors.odometer_end} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="fuel_consumed">Fuel consumed</Label>
+                                <Input
+                                    id="fuel_consumed"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={completeTripData.fuel_consumed}
+                                    onChange={(event) => setCompleteTripData('fuel_consumed', event.target.value)}
+                                    placeholder="Optional"
+                                />
+                                <InputError message={completeTripErrors.fuel_consumed} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="fuel_cost">Fuel cost</Label>
+                                <Input
+                                    id="fuel_cost"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={completeTripData.fuel_cost}
+                                    onChange={(event) => setCompleteTripData('fuel_cost', event.target.value)}
+                                    placeholder="Optional"
+                                />
+                                <InputError message={completeTripErrors.fuel_cost} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="other_costs">Other costs</Label>
+                            <Input
+                                id="other_costs"
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={completeTripData.other_costs}
+                                onChange={(event) => setCompleteTripData('other_costs', event.target.value)}
+                                placeholder="Optional"
+                            />
+                            <InputError message={completeTripErrors.other_costs} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="complete_notes">Notes</Label>
+                            <Textarea
+                                id="complete_notes"
+                                value={completeTripData.notes}
+                                onChange={(event) => setCompleteTripData('notes', event.target.value)}
+                                placeholder="Optional"
+                                rows={3}
+                            />
+                            <InputError message={completeTripErrors.notes} />
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeCompleteTripDialog} disabled={completeTripProcessing}>
+                                Cancel
+                            </Button>
+                            <Button type="submit" className="bg-green-600 hover:bg-green-700" disabled={completeTripProcessing}>
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                {completeTripProcessing ? 'Completing...' : 'Complete Trip'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={cancelTripOpen} onOpenChange={(open) => !open && closeCancelTripDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Cancel Trip</DialogTitle>
+                        <DialogDescription>This will mark the trip as cancelled. Choose a reason.</DialogDescription>
+                    </DialogHeader>
+
+                    <form className="space-y-4" onSubmit={submitCancelTrip}>
+                        <div className="space-y-2">
+                            <Label htmlFor="cancellation_reason">Cancellation reason</Label>
+                            <Select
+                                value={cancelTripData.cancellation_reason}
+                                onValueChange={(value) => setCancelTripData('cancellation_reason', value)}
+                            >
+                                <SelectTrigger id="cancellation_reason" className="w-full">
+                                    <SelectValue placeholder="Select a reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {CANCELLATION_REASONS.map((reason) => (
+                                        <SelectItem key={reason.value} value={reason.value}>
+                                            {reason.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={cancelTripErrors.cancellation_reason} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="cancellation_notes">Notes</Label>
+                            <Textarea
+                                id="cancellation_notes"
+                                value={cancelTripData.cancellation_notes}
+                                onChange={(event) => setCancelTripData('cancellation_notes', event.target.value)}
+                                placeholder="Optional"
+                                rows={3}
+                            />
+                            <InputError message={cancelTripErrors.cancellation_notes} />
+                        </div>
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={closeCancelTripDialog} disabled={cancelTripProcessing}>
+                                Keep Trip
+                            </Button>
+                            <Button type="submit" variant="destructive" disabled={cancelTripProcessing || !cancelTripData.cancellation_reason}>
+                                <Ban className="mr-2 h-4 w-4" />
+                                {cancelTripProcessing ? 'Cancelling...' : 'Cancel Trip'}
                             </Button>
                         </DialogFooter>
                     </form>

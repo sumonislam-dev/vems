@@ -166,9 +166,18 @@ class TripController extends Controller implements HasMiddleware
      */
     public function index(Request $request)
     {
-        $request->validate([
+        $validated = $request->validate([
             'sort' => 'nullable|in:scheduled_date,trip_number,status,priority,created_at',
             'direction' => 'nullable|in:asc,desc',
+            'filters' => 'nullable|array',
+            'filters.status' => 'nullable|array',
+            'filters.status.*' => 'string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
+            'filters.priority' => 'nullable|array',
+            'filters.priority.*' => 'string|in:low,medium,high,urgent',
+            'filters.schedule_type' => 'nullable|array',
+            'filters.schedule_type.*' => 'string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
+            'filters.trip_type' => 'nullable|array',
+            'filters.trip_type.*' => 'string',
         ]);
 
         $query = Trip::with([
@@ -195,12 +204,24 @@ class TripController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
+        if (! empty($validated['filters'])) {
+            $filters = $validated['filters'];
 
-        if ($request->filled('schedule_type')) {
-            $query->where('schedule_type', $request->schedule_type);
+            if (! empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
+
+            if (! empty($filters['priority'])) {
+                $query->whereIn('priority', $filters['priority']);
+            }
+
+            if (! empty($filters['schedule_type'])) {
+                $query->whereIn('schedule_type', $filters['schedule_type']);
+            }
+
+            if (! empty($filters['trip_type'])) {
+                $query->whereIn('trip_type', $filters['trip_type']);
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -247,7 +268,7 @@ class TripController extends Controller implements HasMiddleware
         return Inertia::render('trips/index', [
             'trips' => $trips,
             'stats' => $stats,
-            'queryParams' => $request->only(['search', 'status', 'schedule_type', 'date_from', 'date_to', 'vehicle_id', 'sort', 'direction', 'per_page']),
+            'queryParams' => $request->only(['search', 'filters', 'date_from', 'date_to', 'vehicle_id', 'sort', 'direction', 'per_page']),
         ]);
     }
 
