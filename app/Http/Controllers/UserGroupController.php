@@ -80,6 +80,7 @@ class UserGroupController extends Controller implements HasMiddleware
     public function create(): Response
     {
         $users = User::where('status', 'active')
+            ->where('user_type', '!=', 'driver')
             ->with('department:id,name')
             ->select('id', 'name', 'email', 'user_type', 'employee_id', 'department_id')
             ->orderBy('name')
@@ -171,6 +172,7 @@ class UserGroupController extends Controller implements HasMiddleware
         $userGroup->load(['users']);
 
         $users = User::where('status', 'active')
+            ->where('user_type', '!=', 'driver')
             ->with('department:id,name')
             ->select('id', 'name', 'email', 'user_type', 'employee_id', 'department_id')
             ->orderBy('name')
@@ -282,6 +284,7 @@ class UserGroupController extends Controller implements HasMiddleware
 
         // Get users not already in the group
         $users = User::where('status', 'active')
+            ->where('user_type', '!=', 'driver')
             ->whereNotIn('id', $userGroup->users()->pluck('users.id'))
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
