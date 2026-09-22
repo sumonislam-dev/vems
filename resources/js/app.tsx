@@ -1,6 +1,6 @@
 import '../css/app.css';
 
-import { createInertiaApp, router } from '@inertiajs/react';
+import { createInertiaApp, router, type ResolvedComponent } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import toast from 'react-hot-toast';
@@ -10,7 +10,11 @@ const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
     title: (title) => title ? `${title} - ${appName}` : appName,
-    resolve: (name) => resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob('./pages/**/*.tsx')),
+    resolve: (name) =>
+        resolvePageComponent(
+            `./pages/${name}.tsx`,
+            import.meta.glob<{ default: ResolvedComponent }>('./pages/**/*.tsx'),
+        ).then((module) => module.default),
     setup({ el, App, props }) {
         const root = createRoot(el);
 
@@ -32,15 +36,15 @@ createInertiaApp({
 // modal dumping the raw response body — which would otherwise render on top
 // of (and hide) this toast. The real error is still in the server log /
 // browser Network tab for debugging.
-router.on('invalid', (event) => {
+router.on('httpException', (event) => {
     event.preventDefault();
     toast.error('Something went wrong. Please try again.');
 });
 
-router.on('exception', (event) => {
+router.on('networkError', (event) => {
     event.preventDefault();
     toast.error('Something went wrong. Please try again.');
-    console.error(event.detail.exception);
+    console.error(event.detail.error);
 });
 
 // This will set light / dark mode on load...
