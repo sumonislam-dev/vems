@@ -5,10 +5,22 @@ use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
+
+/**
+ * The management dashboard's aggregates are cached (DashboardController::
+ * buildManagementDashboard()) under one shared key. The test env's cache
+ * driver ('array', see phpunit.xml) lives for the whole process, not just
+ * one test, so a stale cache from an earlier test in this file would leak
+ * into the next one's assertions without this.
+ */
+beforeEach(function () {
+    Cache::flush();
+});
 
 function seedDashboardPermissions(): void
 {
@@ -238,6 +250,44 @@ test('the management dashboard computes real module stats, role stats, and perfo
             ->where('roleStats.drivers', 1)
             ->where('performanceMetrics.completion_rate', 50)
         );
+});
+
+test('the management dashboard aggregates are cached rather than recomputed on every request', function () {
+    seedDashboardPermissions();
+    $admin = makeDashboardUser('admin-cache-1');
+    $admin->givePermissionTo(['view-trips', 'view-complaints']);
+
+    Vehicle::create([
+        'brand' => 'Toyota',
+        'model' => 'Corolla',
+        'registration_number' => 'VEH-CACHE-'.uniqid(),
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.vehicles.total', 1));
+
+    // A second vehicle created after the first request should NOT show up
+    // yet — the aggregate is served from cache, not recomputed.
+    Vehicle::create([
+        'brand' => 'Toyota',
+        'model' => 'Hiace',
+        'registration_number' => 'VEH-CACHE-'.uniqid(),
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.vehicles.total', 1));
+
+    // Once the cache is cleared (e.g. the TTL elapsing), the real, current
+    // count is computed fresh.
+    Cache::forget('dashboard.management.aggregates');
+
+    $this->actingAs($admin)
+        ->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.vehicles.total', 2));
 });
 
 test('a driver gets the driver dashboard scoped to trips assigned via their vehicle', function () {

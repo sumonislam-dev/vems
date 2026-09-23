@@ -16,12 +16,24 @@ use App\Models\Vendor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
 
 class DashboardController extends Controller
 {
+    /**
+     * Every management-dashboard widget except attendanceStatus (per-user)
+     * and factories (cheap, already-real reference data) is fleet-wide, not
+     * user-specific — so it's cached under one shared key rather than
+     * recomputed (40+ queries) on every single admin's every page load.
+     * A short TTL, not manual invalidation on every trip/vehicle/complaint
+     * mutation, is the tradeoff: dashboard numbers can lag reality by up to
+     * this long.
+     */
+    private const MANAGEMENT_DASHBOARD_CACHE_TTL_MINUTES = 5;
+
     public function index(Request $request): Response
     {
         $user = $request->user();
@@ -66,9 +78,21 @@ class DashboardController extends Controller
 
     protected function buildManagementDashboard(?User $user): array
     {
-        return [
+        $aggregates = Cache::remember(
+            'dashboard.management.aggregates',
+            now()->addMinutes(self::MANAGEMENT_DASHBOARD_CACHE_TTL_MINUTES),
+            fn () => $this->buildManagementDashboardAggregates()
+        );
+
+        return array_merge($aggregates, [
             'attendanceStatus' => $user ? $this->buildAttendanceStatus($user) : null,
             'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
+        ]);
+    }
+
+    protected function buildManagementDashboardAggregates(): array
+    {
+        return [
             'stats' => [
                 'total_users' => User::count(),
                 'total_vehicles' => Vehicle::count(),
