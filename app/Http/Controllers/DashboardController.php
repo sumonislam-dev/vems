@@ -178,11 +178,19 @@ class DashboardController extends Controller
             ->take(5)
             ->get(['id', 'trip_number', 'scheduled_date', 'schedule_type', 'status']);
 
+        // One grouped query instead of three separate counts — same pattern
+        // TripFeedbackController::index() uses for its status breakdown.
+        $counts = (clone $base)->selectRaw(
+            "SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending, ".
+            "SUM(CASE WHEN status IN ('approved', 'assigned') THEN 1 ELSE 0 END) as upcoming, ".
+            "SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as in_progress"
+        )->first();
+
         return [
             'counts' => [
-                'pending' => (clone $base)->where('status', 'pending')->count(),
-                'upcoming' => (clone $base)->whereIn('status', ['approved', 'assigned'])->count(),
-                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
+                'pending' => (int) $counts->pending,
+                'upcoming' => (int) $counts->upcoming,
+                'in_progress' => (int) $counts->in_progress,
             ],
             'upcoming' => $upcoming,
         ];
@@ -235,10 +243,17 @@ class DashboardController extends Controller
             ->take(3)
             ->get(['id', 'subject', 'type', 'status', 'priority', 'created_at']);
 
+        // One grouped query instead of two separate counts — same pattern
+        // TripFeedbackController::index() uses for its status breakdown.
+        $counts = (clone $base)->selectRaw(
+            "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, ".
+            'COUNT(*) as total'
+        )->first();
+
         return [
             'counts' => [
-                'open' => (clone $base)->where('status', 'open')->count(),
-                'total' => (clone $base)->count(),
+                'open' => (int) $counts->open,
+                'total' => (int) $counts->total,
             ],
             'recent' => $recent,
         ];

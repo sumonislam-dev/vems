@@ -123,10 +123,20 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                 <CheckCircle2 className="w-4 h-4" />
-                                No upcoming trips.
-                            </p>
+                                {hasPermission(permissions, 'create-trips') ? (
+                                    <span>
+                                        No upcoming trips.{' '}
+                                        <Link href={route('trips.create')} className="underline">
+                                            Request a trip
+                                        </Link>
+                                        .
+                                    </span>
+                                ) : (
+                                    <span>No upcoming trips.</span>
+                                )}
+                            </div>
                         )}
                     </CardContent>
                 </Card>
