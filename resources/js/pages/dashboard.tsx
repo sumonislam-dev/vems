@@ -1,5 +1,6 @@
 import { Head, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
+import { DriverDashboard, type DriverDashboardProps } from '@/components/driver-dashboard';
 import { EmployeeDashboard, type EmployeeDashboardProps } from '@/components/employee-dashboard';
 import { ManagementDashboard, type ManagementDashboardProps } from '@/components/management-dashboard';
 import { type BreadcrumbItem } from '@/types';
@@ -13,6 +14,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 type DashboardProps =
     | ({ variant: 'employee' } & EmployeeDashboardProps & Record<string, unknown>)
+    | ({ variant: 'driver' } & DriverDashboardProps & Record<string, unknown>)
     | ({ variant: 'management' } & ManagementDashboardProps & Record<string, unknown>);
 
 export default function Dashboard() {
@@ -21,7 +23,9 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            {props.variant === 'employee' ? <EmployeeDashboard {...props} /> : <ManagementDashboard {...props} />}
+            {props.variant === 'employee' && <EmployeeDashboard {...props} />}
+            {props.variant === 'driver' && <DriverDashboard {...props} />}
+            {props.variant === 'management' && <ManagementDashboard {...props} />}
         </AppLayout>
     );
 }

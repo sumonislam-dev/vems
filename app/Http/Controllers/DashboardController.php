@@ -20,10 +20,28 @@ class DashboardController extends Controller
     {
         $user = $request->user();
 
+        // Drivers get their own variant: trips they're assigned via their
+        // vehicle (see Trip::getDriverAttribute()/scopeVisibleTo()), not the
+        // requester/passenger-oriented "my trips" list employees get.
+        if ($user && $user->hasRole('driver')) {
+            return Inertia::render('dashboard', [
+                'variant' => 'driver',
+                'attendanceStatus' => $this->buildAttendanceStatus($user),
+                'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
+                'myTrips' => $this->buildDriverTrips($user),
+                'myComplaints' => $this->buildMyComplaints($user),
+                'license' => [
+                    'status' => $user->license_status,
+                    'expiry_date' => $user->license_expiry_date?->toDateString(),
+                ],
+                'driverStatus' => $user->driver_status,
+            ]);
+        }
+
         // Only roles with fleet-wide visibility (admin/super-admin, via the
         // same `view-trips` permission Trip::visibleTo()/TripFeedback::visibleTo()
-        // gate on) get the management dashboard. Everyone else (employee,
-        // driver) gets a personal, self-service view of their own data.
+        // gate on) get the management dashboard. Everyone else (employee)
+        // gets a personal, self-service view of their own data.
         if ($user && ! $user->can('view-trips')) {
             return Inertia::render('dashboard', [
                 'variant' => 'employee',
@@ -361,6 +379,40 @@ class DashboardController extends Controller
                 'upcoming' => (clone $base)->whereIn('status', ['approved', 'assigned'])->count(),
                 'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
             ],
+            'upcoming' => $upcoming,
+        ];
+    }
+
+    /**
+     * Driver dashboard: trips assigned to this driver through their vehicle
+     * (Trip::getDriverAttribute() reads $trip->vehicle->driver_id, not
+     * trips.driver_id — see TripStateController::authorizeStartOrComplete()
+     * for the same rule), split into today's schedule vs. what's further out.
+     */
+    protected function buildDriverTrips(User $user): array
+    {
+        $base = Trip::whereHas('vehicle', fn ($q) => $q->where('driver_id', $user->id));
+
+        $today = (clone $base)
+            ->whereDate('scheduled_date', today())
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->orderBy('scheduled_start_time')
+            ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
+
+        $upcoming = (clone $base)
+            ->whereDate('scheduled_date', '>', today())
+            ->whereIn('status', ['approved', 'assigned'])
+            ->orderBy('scheduled_date')
+            ->take(5)
+            ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
+
+        return [
+            'counts' => [
+                'today' => $today->count(),
+                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
+                'completed_today' => (clone $base)->whereDate('scheduled_date', today())->where('status', 'completed')->count(),
+            ],
+            'today_trips' => $today,
             'upcoming' => $upcoming,
         ];
     }
