@@ -81,8 +81,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/drivers/{driver}/assignable-vehicles', [DriverController::class, 'assignableVehicles'])->name('drivers.assignable-vehicles');
     Route::get('/drivers-export', [DriverController::class, 'export'])->name('drivers.export');
     Route::post('/drivers-bulk-status', [DriverController::class, 'bulkUpdateStatus'])->name('drivers.bulk-status');
-    Route::get('/users/export', [UserController::class, 'export'])->name('users.export');
-    Route::post('/users/import', [UserController::class, 'import'])->name('users.import');
+    // Hyphenated (not nested under /users/) to avoid colliding with the
+    // users resource's GET /users/{user} route registered above — a nested
+    // /users/export would route-model-bind a User with id "export" and
+    // 404 before ever reaching this route (see the vehicles-export /
+    // drivers-export routes for the same pattern).
+    Route::get('/users-export', [UserController::class, 'export'])->name('users.export');
+    Route::post('/users-import', [UserController::class, 'import'])->name('users.import');
 
     // Driver management routes (filtered view of users)
     Route::resource('drivers', DriverController::class);

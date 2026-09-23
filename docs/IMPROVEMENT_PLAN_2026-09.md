@@ -133,16 +133,29 @@ controllers checked — this area is in good shape, no action needed.
 
 ## 4. Feature gaps / inconsistencies users will actually notice
 
+**Fixed 2026-09-23** — ~~"Export" on the Users page doesn't work~~. Turned
+out to be two stacked bugs, not one: `UserController::export()`/`import()`
+were stub placeholders returning a "coming soon" JSON message, **and** the
+routes (`/users/export`, `/users/import`) were registered *after*
+`Route::resource('users', ...)`, so they collided with and were shadowed by
+the resource's `GET /users/{user}` route — clicking Export would have
+404'd (Laravel trying to bind a `User` with id `"export"`) even with a
+working controller. Fixed by implementing real CSV export/import
+(`app/Imports/UsersImport.php`) and renaming the routes to the hyphenated
+`/users-export`/`/users-import` pattern already used by `vehicles-export`/
+`drivers-export`/`products-export` elsewhere in this same file, specifically
+to avoid this collision. Covered by `tests/Feature/UserExportImportTest.php`.
+
 **High**
-- **"Export" on the Users page doesn't work.** `UserController::export()`
-  and `import()` (`UserController.php:521-536`) are stub placeholders that
-  return `{"message": "Export/Import functionality coming soon"}` as JSON
-  — but the routes are live (`routes/web.php:84-85`) and presumably linked
-  from the Users UI, unlike Departments/Drivers, which have real
-  Excel-backed export. Anyone clicking Export on Users today gets a raw
-  JSON response instead of a file. Either implement it (mirroring
-  `DepartmentController`'s pattern) or remove the button until it's ready
-  — a silently-broken button is worse than a missing one.
+- **`DepartmentController` has the identical two-fold bug** — `export()`/
+  `import()` are the same "coming soon" stubs (`DepartmentController.php:
+  259-274`), *and* `/departments/export`/`/departments/import`
+  (`routes/web.php:108-109`) are registered after
+  `Route::resource('departments', ...)` (line 106), so they're shadowed by
+  `GET /departments/{department}` the same way Users' were. Not fixed here
+  (out of scope of the Users fix) — same remedy applies: implement the
+  export/import logic and move the routes to a hyphenated
+  `departments-export`/`departments-import` path.
 
 **Medium**
 - **The Permissions page is create/edit-incapable in the UI** even though
@@ -185,7 +198,7 @@ controllers checked — this area is in good shape, no action needed.
 
 1. Stand up CI (`pest`, `pint --test`, `tsc --noEmit`, `eslint`) — cheapest, highest-leverage item on this whole list.
 2. Add feature tests for `UserController` and `VehicleController` full CRUD — zero coverage today on daily-use features.
-3. Fix or hide the `users.export`/`users.import` stub — currently a broken button in production.
+3. ~~Fix or hide the `users.export`/`users.import` stub~~ — done 2026-09-23. Apply the same fix to `DepartmentController`'s identical export/import bug (§4).
 4. Decide on and implement a private, authenticated route for driver/vehicle documents instead of the public disk.
 5. Replace the generic `catch (\Exception) { ...$e->getMessage()... }` pattern in `TripController`/`VehicleController` with scoped exceptions and generic user-facing messages.
 6. Add an ownership check to `TripFeedbackController::store` (submitter must actually be tied to the trip being rated).

@@ -3,11 +3,12 @@ import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, Plus, Trash2, Shield, User, Mail } from 'lucide-react';
-import { useMemo } from 'react';
+import { Edit, Eye, Plus, Trash2, Shield, Upload, User, Mail } from 'lucide-react';
+import { useMemo, useState } from 'react';
 
 interface User {
     id: number;
@@ -73,6 +74,30 @@ export default function UsersIndex({
 }: UsersPageProps) {
     const handleRowClick = (user: User) => {
         router.visit(route('users.show', user.id));
+    };
+
+    const [importOpen, setImportOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importProcessing, setImportProcessing] = useState(false);
+
+    const submitImport = () => {
+        if (!importFile) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', importFile);
+
+        router.post(route('users.import'), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onStart: () => setImportProcessing(true),
+            onFinish: () => setImportProcessing(false),
+            onSuccess: () => {
+                setImportOpen(false);
+                setImportFile(null);
+            },
+        });
     };
 
     // Define table columns
@@ -285,6 +310,12 @@ export default function UsersIndex({
                             href: route('users.export'),
                         },
                         {
+                            label: 'Import Users',
+                            variant: 'outline',
+                            icon: <Upload className="mr-2 h-4 w-4" />,
+                            onClick: () => setImportOpen(true),
+                        },
+                        {
                             label: 'Add User',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('users.create'),
@@ -324,6 +355,41 @@ export default function UsersIndex({
                     showSerialColumn
                 />
             </div>
+
+            <Dialog open={importOpen} onOpenChange={(open) => !open && setImportOpen(false)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Import Users</DialogTitle>
+                        <DialogDescription>
+                            Upload a CSV or Excel file with columns: name, username, email, personal_phone,
+                            whatsapp_id, role, status. Only name and username are required.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div>
+                        <label htmlFor="users_import_file" className="block text-sm font-medium mb-1">
+                            File
+                        </label>
+                        <input
+                            id="users_import_file"
+                            name="file"
+                            type="file"
+                            accept=".csv,.txt,.xlsx,.xls"
+                            className="block w-full text-sm border border-input rounded-md file:mr-2 file:py-1.5 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setImportOpen(false)} disabled={importProcessing}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={submitImport} disabled={!importFile || importProcessing}>
+                            {importProcessing ? 'Importing…' : 'Import'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppSidebarLayout>
     );
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
+use App\Imports\UsersImport;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Vendor;
@@ -16,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Role;
 
 class UserController extends Controller implements HasMiddleware
@@ -516,22 +518,113 @@ class UserController extends Controller implements HasMiddleware
     }
 
     /**
-     * Export users to Excel.
+     * Export the (filtered) employee list as CSV.
      */
-    public function export(Request $request)
+    public function export(UserIndexRequest $request)
     {
-        // Implementation for Excel export
-        // This would use Laravel Excel package
-        return response()->json(['message' => 'Export functionality coming soon']);
+        $validated = $request->validated();
+
+        $query = User::with(['department:id,name'])
+            ->where('user_type', 'employee');
+
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        if (! empty($validated['filters'])) {
+            $filters = $validated['filters'];
+
+            if (! empty($filters['user_type'])) {
+                $query->whereIn('user_type', $filters['user_type']);
+            }
+
+            if (! empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
+
+            if (! empty($filters['department_id'])) {
+                $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (! empty($filters['blood_group'])) {
+                $query->whereIn('blood_group', $filters['blood_group']);
+            }
+
+            if (! empty($filters['roles'])) {
+                $query->whereHas('roles', function ($q) use ($filters) {
+                    $q->whereIn('name', $filters['roles']);
+                });
+            }
+        }
+
+        if ($validated['sort'] === 'department') {
+            $query->leftJoin('departments', 'users.department_id', '=', 'departments.id')
+                ->orderBy('departments.name', $validated['direction'])
+                ->select('users.*');
+        } else {
+            $query->orderBy($validated['sort'], $validated['direction']);
+        }
+
+        $users = $query->get();
+        $timestamp = now()->format('Y-m-d_H-i-s');
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, ['ID', 'Name', 'Username', 'Employee ID', 'Email', 'User Type', 'Status', 'Department', 'Phone', 'Created At']);
+
+        foreach ($users as $user) {
+            fputcsv($output, [
+                $user->id,
+                $user->name,
+                $user->username,
+                $user->employee_id,
+                $user->email,
+                $user->user_type,
+                $user->status,
+                $user->department->name ?? '',
+                $user->personal_phone ?? $user->official_phone,
+                $user->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', "attachment; filename=\"users_export_{$timestamp}.csv\"");
     }
 
     /**
-     * Import users from Excel.
+     * Bulk-create employee accounts from an uploaded CSV/Excel file (see
+     * UsersImport for the expected columns).
      */
-    public function import(Request $request)
+    public function import(Request $request): RedirectResponse
     {
-        // Implementation for Excel import
-        // This would use Laravel Excel package
-        return response()->json(['message' => 'Import functionality coming soon']);
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ]);
+
+        $import = new UsersImport;
+        Excel::import($import, $request->file('file'));
+
+        if ($import->failures()->isNotEmpty()) {
+            $errors = $import->failures()->take(5)->map(
+                fn ($failure) => "row {$failure->row()}: ".implode(', ', $failure->errors())
+            )->implode('; ');
+
+            return back()->with(
+                'warning',
+                "Imported {$import->imported} user(s). {$import->failures()->count()} row(s) skipped ({$errors})."
+            );
+        }
+
+        return back()->with('success', "Imported {$import->imported} user(s) successfully.");
     }
 }
