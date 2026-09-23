@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -439,8 +440,10 @@ class TripController extends Controller implements HasMiddleware
                 ->with('success', 'Trip created successfully! Awaiting approval.');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Failed to create trip.', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
+
             return back()
-                ->withErrors(['error' => 'Failed to create trip: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Something went wrong while creating the trip. Please try again.'])
                 ->withInput();
         }
     }
@@ -554,8 +557,10 @@ class TripController extends Controller implements HasMiddleware
                 ->with('success', count($dates) . ' recurring trips created successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Failed to create recurring trips.', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
+
             return back()
-                ->withErrors(['error' => 'Failed to create recurring trips: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Something went wrong while creating the recurring trips. Please try again.'])
                 ->withInput();
         }
     }
@@ -791,8 +796,10 @@ class TripController extends Controller implements HasMiddleware
                 ->with('success', 'Trip updated successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Failed to update trip.', ['error' => $e->getMessage(), 'trip_id' => $trip->id, 'user_id' => auth()->id()]);
+
             return back()
-                ->withErrors(['error' => 'Failed to update trip: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Something went wrong while updating the trip. Please try again.'])
                 ->withInput();
         }
     }

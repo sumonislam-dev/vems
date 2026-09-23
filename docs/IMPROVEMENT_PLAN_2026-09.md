@@ -92,12 +92,20 @@ CRUD → `TripController::update/destroy` → the untested controllers list.
   chart), anyone holding `create-complaints` can currently rate a driver
   on a trip they had nothing to do with.
 
-- **Raw exception messages are shown to end users.** `TripController::
-  store/storeRecurring/update` (~lines 440, 555, 792) and
-  `VehicleController::store/update` catch `\Exception` broadly and flash
-  `$e->getMessage()` straight to the UI — in production this can leak raw
-  DB error text to non-technical users. Compare against `AttendanceController`,
-  which scopes its exception handling more deliberately.
+**Fixed 2026-09-23** — ~~Raw exception messages are shown to end users~~.
+`TripController::store/storeRecurring/update` and `VehicleController::store`
+(the only one of the two with this pattern — `VehicleController::update`
+has no try/catch at all, so this didn't apply there) caught `\Exception`
+broadly and flashed `$e->getMessage()` straight to the UI, leaking raw DB
+error text (confirmed live: a duplicate-passenger submission produced
+`Failed to create trip: SQLSTATE[23000]: Integrity constraint violation...`
+verbatim in the browser). Fixed by logging the real exception via `Log::error()`
+and showing a generic "Something went wrong ... Please try again." message
+instead. Covered by `tests/Feature/TripAndVehicleErrorHandlingTest.php`,
+which triggers each catch block through a genuine app-level failure (a
+duplicate passenger hitting the real `trip_user_unique` constraint, and a
+model event listener for the one case with no natural trigger) rather than
+mocking the HTTP layer.
 
 **Low**
 - `.env.example` ships `APP_DEBUG=true` with no warning comment that it
@@ -194,8 +202,8 @@ Covered by `tests/Feature/DepartmentExportImportTest.php`.
 ## Suggested priority order for the next few weeks
 
 1. Stand up CI (`pest`, `pint --test`, `tsc --noEmit`, `eslint`) — cheapest, highest-leverage item on this whole list.
-2. Add feature tests for `UserController` and `VehicleController` full CRUD — zero coverage today on daily-use features.
-3. ~~Fix or hide the `users.export`/`users.import` stub~~ — done 2026-09-23. Apply the same fix to `DepartmentController`'s identical export/import bug (§4).
+2. ~~Add feature tests for `UserController` and `VehicleController` full CRUD~~ — done 2026-09-23.
+3. ~~Fix or hide the `users.export`/`users.import` stub~~ — done 2026-09-23, including the identical `DepartmentController` bug.
 4. Decide on and implement a private, authenticated route for driver/vehicle documents instead of the public disk.
-5. Replace the generic `catch (\Exception) { ...$e->getMessage()... }` pattern in `TripController`/`VehicleController` with scoped exceptions and generic user-facing messages.
+5. ~~Replace the generic `catch (\Exception) { ...$e->getMessage()... }` pattern in `TripController`/`VehicleController` with scoped exceptions and generic user-facing messages~~ — done 2026-09-23.
 6. Add an ownership check to `TripFeedbackController::store` (submitter must actually be tied to the trip being rated).

@@ -516,7 +516,7 @@ class VehicleController extends Controller implements HasMiddleware
             \Log::error('Error creating vehicle:', ['error' => $e->getMessage()]);
 
             return back()
-                ->withErrors(['error' => 'Failed to create vehicle: ' . $e->getMessage()])
+                ->withErrors(['error' => 'Something went wrong while creating the vehicle. Please try again.'])
                 ->withInput();
         }
     }
