@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
@@ -6,7 +6,8 @@ import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { DataTableColumn, ColumnFilter } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Eye, Edit, Trash2, Plus } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Eye, Edit, Trash2, Plus, Upload } from 'lucide-react';
 
 interface Department {
     id: number;
@@ -55,6 +56,30 @@ interface Props {
 }
 
 export default function DepartmentsIndex({ departments, filterOptions, queryParams }: Props) {
+    const [importOpen, setImportOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importProcessing, setImportProcessing] = useState(false);
+
+    const submitImport = () => {
+        if (!importFile) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', importFile);
+
+        router.post(route('departments.import'), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onStart: () => setImportProcessing(true),
+            onFinish: () => setImportProcessing(false),
+            onSuccess: () => {
+                setImportOpen(false);
+                setImportFile(null);
+            },
+        });
+    };
+
     const columns: DataTableColumn<Department>[] = [
         {
             key: 'name',
@@ -185,6 +210,17 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     description="Manage your organization's departments"
                     actions={[
                         {
+                            label: 'Export Departments',
+                            variant: 'outline',
+                            href: route('departments.export'),
+                        },
+                        {
+                            label: 'Import Departments',
+                            variant: 'outline',
+                            icon: <Upload className="mr-2 h-4 w-4" />,
+                            onClick: () => setImportOpen(true),
+                        },
+                        {
                             label: 'Add Department',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: '/departments/create',
@@ -202,6 +238,41 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     showSerialColumn
                 />
             </div>
+
+            <Dialog open={importOpen} onOpenChange={(open) => !open && setImportOpen(false)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Import Departments</DialogTitle>
+                        <DialogDescription>
+                            Upload a CSV or Excel file with columns: name, code, description, location, phone,
+                            email, is_active, attendance_mode. Only name and code are required.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div>
+                        <label htmlFor="departments_import_file" className="block text-sm font-medium mb-1">
+                            File
+                        </label>
+                        <input
+                            id="departments_import_file"
+                            name="file"
+                            type="file"
+                            accept=".csv,.txt,.xlsx,.xls"
+                            className="block w-full text-sm border border-input rounded-md file:mr-2 file:py-1.5 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setImportOpen(false)} disabled={importProcessing}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={submitImport} disabled={!importFile || importProcessing}>
+                            {importProcessing ? 'Importing…' : 'Import'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </AppSidebarLayout>
     );
 }

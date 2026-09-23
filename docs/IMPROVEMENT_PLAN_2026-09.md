@@ -146,16 +146,13 @@ working controller. Fixed by implementing real CSV export/import
 `drivers-export`/`products-export` elsewhere in this same file, specifically
 to avoid this collision. Covered by `tests/Feature/UserExportImportTest.php`.
 
-**High**
-- **`DepartmentController` has the identical two-fold bug** — `export()`/
-  `import()` are the same "coming soon" stubs (`DepartmentController.php:
-  259-274`), *and* `/departments/export`/`/departments/import`
-  (`routes/web.php:108-109`) are registered after
-  `Route::resource('departments', ...)` (line 106), so they're shadowed by
-  `GET /departments/{department}` the same way Users' were. Not fixed here
-  (out of scope of the Users fix) — same remedy applies: implement the
-  export/import logic and move the routes to a hyphenated
-  `departments-export`/`departments-import` path.
+**Fixed 2026-09-23** — ~~`DepartmentController` has the identical two-fold
+bug~~. Same diagnosis and same fix as Users: real CSV export/import
+(`app/Imports/DepartmentsImport.php`), routes renamed to
+`/departments-export`/`/departments-import`, and — since Departments had no
+export/import UI at all before this — both an "Export Departments" link
+and an "Import Departments" dialog were added to the department list page.
+Covered by `tests/Feature/DepartmentExportImportTest.php`.
 
 **Medium**
 - **The Permissions page is create/edit-incapable in the UI** even though

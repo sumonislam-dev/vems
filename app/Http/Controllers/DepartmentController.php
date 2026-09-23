@@ -7,12 +7,14 @@ use App\Models\User;
 use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
 use App\Http\Requests\DepartmentIndexRequest;
+use App\Imports\DepartmentsImport;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
 use Inertia\Response;
+use Maatwebsite\Excel\Facades\Excel;
 
 class DepartmentController extends Controller implements HasMiddleware
 {
@@ -254,22 +256,92 @@ class DepartmentController extends Controller implements HasMiddleware
     }
 
     /**
-     * Export departments to Excel.
+     * Export the (filtered) department list as CSV.
      */
-    public function export(Request $request)
+    public function export(DepartmentIndexRequest $request)
     {
-        // Implementation for Excel export
-        // This would use Laravel Excel package
-        return response()->json(['message' => 'Export functionality coming soon']);
+        $validated = $request->validated();
+
+        $query = Department::with(['head']);
+
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
+            });
+        }
+
+        if (! empty($validated['filters']) && ! empty($validated['filters']['status'])) {
+            $statuses = $validated['filters']['status'];
+            $query->where(function ($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    if ($status === 'active') {
+                        $q->orWhere('is_active', true);
+                    } elseif ($status === 'inactive') {
+                        $q->orWhere('is_active', false);
+                    }
+                }
+            });
+        }
+
+        $departments = $query->get();
+        $timestamp = now()->format('Y-m-d_H-i-s');
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, ['ID', 'Name', 'Code', 'Description', 'Location', 'Phone', 'Email', 'Status', 'Head', 'Users', 'Created At']);
+
+        foreach ($departments as $department) {
+            fputcsv($output, [
+                $department->id,
+                $department->name,
+                $department->code,
+                $department->description,
+                $department->location,
+                $department->phone,
+                $department->email,
+                $department->is_active ? 'Active' : 'Inactive',
+                $department->head->name ?? '',
+                $department->users()->count(),
+                $department->created_at->format('Y-m-d H:i:s'),
+            ]);
+        }
+
+        rewind($output);
+        $csv = stream_get_contents($output);
+        fclose($output);
+
+        return response($csv)
+            ->header('Content-Type', 'text/csv')
+            ->header('Content-Disposition', "attachment; filename=\"departments_export_{$timestamp}.csv\"");
     }
 
     /**
-     * Import departments from Excel.
+     * Bulk-create departments from an uploaded CSV/Excel file (see
+     * DepartmentsImport for the expected columns).
      */
-    public function import(Request $request)
+    public function import(Request $request): RedirectResponse
     {
-        // Implementation for Excel import
-        // This would use Laravel Excel package
-        return response()->json(['message' => 'Import functionality coming soon']);
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ]);
+
+        $import = new DepartmentsImport;
+        Excel::import($import, $request->file('file'));
+
+        if ($import->failures()->isNotEmpty()) {
+            $errors = $import->failures()->take(5)->map(
+                fn ($failure) => "row {$failure->row()}: ".implode(', ', $failure->errors())
+            )->implode('; ');
+
+            return back()->with(
+                'warning',
+                "Imported {$import->imported} department(s). {$import->failures()->count()} row(s) skipped ({$errors})."
+            );
+        }
+
+        return back()->with('success', "Imported {$import->imported} department(s) successfully.");
     }
 }

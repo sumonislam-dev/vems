@@ -105,8 +105,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Department management routes
     Route::resource('departments', DepartmentController::class);
     Route::patch('/departments/{department}/toggle-status', [DepartmentController::class, 'toggleStatus'])->name('departments.toggle-status');
-    Route::get('/departments/export', [DepartmentController::class, 'export'])->name('departments.export');
-    Route::post('/departments/import', [DepartmentController::class, 'import'])->name('departments.import');
+    // Hyphenated for the same reason as users-export/users-import above —
+    // avoids colliding with departments.show's GET /departments/{department}.
+    Route::get('/departments-export', [DepartmentController::class, 'export'])->name('departments.export');
+    Route::post('/departments-import', [DepartmentController::class, 'import'])->name('departments.import');
 
     // Route management routes
     Route::resource('routes', VehicleRouteController::class);
