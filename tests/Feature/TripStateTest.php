@@ -88,6 +88,42 @@ it('rejects a pending trip and records the rejection reason', function () {
         ->and($trip->rejection_reason)->toBe('Vehicle unavailable');
 });
 
+it('notifies the requester when their trip is approved', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('approver-notify-1');
+    $manager->givePermissionTo('approve-trips');
+
+    $trip = makeStateTrip();
+
+    $this->actingAs($manager)->post("/trips/{$trip->id}/approve")->assertRedirect();
+
+    $requester = $trip->requester;
+    expect($requester->unreadNotifications()->count())->toBe(1);
+
+    $notification = $requester->notifications()->first();
+    expect($notification->data['type'])->toBe('trip_status_updated')
+        ->and($notification->data['status'])->toBe('approved')
+        ->and($notification->data['trip_id'])->toBe($trip->id);
+});
+
+it('notifies the requester when their trip is rejected', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('rejecter-notify-1');
+    $manager->givePermissionTo('approve-trips');
+
+    $trip = makeStateTrip();
+
+    $this->actingAs($manager)->post("/trips/{$trip->id}/reject", [
+        'rejection_reason' => 'Vehicle unavailable',
+    ])->assertRedirect();
+
+    $requester = $trip->requester;
+    expect($requester->unreadNotifications()->count())->toBe(1);
+
+    $notification = $requester->notifications()->first();
+    expect($notification->data['status'])->toBe('rejected');
+});
+
 it('refuses to approve a trip that is not pending', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('approver-2');

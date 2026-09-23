@@ -125,6 +125,11 @@ it('assigns a complaint and moves it out of open status', function () {
     $feedback->refresh();
     expect($feedback->assigned_to)->toBe($handler->id)
         ->and($feedback->status)->toBe('in_review');
+
+    expect($handler->unreadNotifications()->count())->toBe(1);
+    $notification = $handler->notifications()->first();
+    expect($notification->data['type'])->toBe('complaint_assigned')
+        ->and($notification->data['complaint_id'])->toBe($feedback->id);
 });
 
 it('resolves, closes, and reopens a complaint through its status lifecycle', function () {

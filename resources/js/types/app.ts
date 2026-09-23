@@ -8,6 +8,14 @@ export interface Auth {
     roles?: string[];
 }
 
+export interface NotificationItem {
+    id: string;
+    message: string;
+    url: string | null;
+    read: boolean;
+    time: string;
+}
+
 export interface BreadcrumbItem {
     title: string;
     href: string;
@@ -32,6 +40,7 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
+    notifications: { unread_count: number; items: NotificationItem[] };
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
     flash: {

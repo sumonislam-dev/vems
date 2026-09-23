@@ -48,6 +48,16 @@ class HandleInertiaRequests extends Middleware
                 'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name')->toArray() : [],
                 'roles' => $request->user() ? $request->user()->getRoleNames()->toArray() : [],
             ],
+            'notifications' => $request->user() ? [
+                'unread_count' => $request->user()->unreadNotifications()->count(),
+                'items' => $request->user()->notifications()->latest()->take(10)->get()->map(fn ($notification) => [
+                    'id' => $notification->id,
+                    'message' => $notification->data['message'] ?? '',
+                    'url' => $notification->data['url'] ?? null,
+                    'read' => $notification->read_at !== null,
+                    'time' => $notification->created_at->diffForHumans(),
+                ]),
+            ] : ['unread_count' => 0, 'items' => []],
             'ziggy' => fn (): array => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

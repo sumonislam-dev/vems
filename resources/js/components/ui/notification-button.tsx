@@ -1,12 +1,30 @@
+import { router, usePage } from '@inertiajs/react';
+import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { Bell } from 'lucide-react';
+import type { SharedData } from '@/types';
 
-interface NotificationButtonProps {
-    count?: number;
-}
+export function NotificationButton() {
+    const { notifications } = usePage<SharedData>().props;
+    const count = notifications.unread_count;
 
-export function NotificationButton({ count = 0 }: NotificationButtonProps) {
+    const openNotification = (id: string, url: string | null) => {
+        router.post(
+            route('notifications.read', id),
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    if (url) router.visit(url);
+                },
+            },
+        );
+    };
+
+    const markAllAsRead = () => {
+        router.post(route('notifications.read-all'), {}, { preserveScroll: true });
+    };
+
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -21,29 +39,35 @@ export function NotificationButton({ count = 0 }: NotificationButtonProps) {
                 </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent className="w-80" align="end">
-                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                <div className="flex items-center justify-between px-2 py-1.5">
+                    <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
+                    {count > 0 && (
+                        <button type="button" onClick={markAllAsRead} className="text-xs text-muted-foreground hover:underline">
+                            Mark all read
+                        </button>
+                    )}
+                </div>
                 <DropdownMenuSeparator />
-                {count === 0 ? (
+                {notifications.items.length === 0 ? (
                     <DropdownMenuItem disabled>
-                        <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
+                        <div className="flex w-full flex-col items-center justify-center py-6 text-muted-foreground">
                             <Bell className="h-8 w-8 mb-2" />
-                            <p className="text-sm">No new notifications</p>
+                            <p className="text-sm">No notifications</p>
                         </div>
                     </DropdownMenuItem>
                 ) : (
-                    <>
-                        <DropdownMenuItem>
+                    notifications.items.map((item) => (
+                        <DropdownMenuItem
+                            key={item.id}
+                            className={!item.read ? 'bg-accent/50' : ''}
+                            onClick={() => openNotification(item.id, item.url)}
+                        >
                             <div className="flex flex-col space-y-1">
-                                <p className="text-sm font-medium">Sample Notification</p>
-                                <p className="text-xs text-muted-foreground">This is a sample notification message</p>
-                                <p className="text-xs text-muted-foreground">2 minutes ago</p>
+                                <p className="text-sm font-medium">{item.message}</p>
+                                <p className="text-xs text-muted-foreground">{item.time}</p>
                             </div>
                         </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-center">
-                            <span className="text-sm text-muted-foreground">View all notifications</span>
-                        </DropdownMenuItem>
-                    </>
+                    ))
                 )}
             </DropdownMenuContent>
         </DropdownMenu>

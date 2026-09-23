@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\TripFeedback;
+use App\Notifications\ComplaintAssigned;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -31,6 +32,8 @@ class TripFeedbackStateController extends Controller implements HasMiddleware
         if ($complaint->status === 'open') {
             $complaint->transitionTo('in_review');
         }
+
+        $complaint->assignee?->notify(new ComplaintAssigned($complaint));
 
         return back()->with('success', 'Complaint assigned.');
     }

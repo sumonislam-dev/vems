@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Trip;
 use App\Models\TripRecurringGroup;
+use App\Notifications\TripStatusUpdated;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -44,6 +45,7 @@ class TripStateController extends Controller implements HasMiddleware
             }
 
             $trip->transitionTo('approved', ['approved_by' => auth()->id()]);
+            $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
 
             return back()->with('success', 'Trip approved successfully!');
         } catch (\Exception $e) {
@@ -71,6 +73,7 @@ class TripStateController extends Controller implements HasMiddleware
             foreach ($trips as $trip) {
                 if ($trip->transitionTo('approved', ['approved_by' => auth()->id()])) {
                     $approvedCount++;
+                    $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
                 }
             }
         });
@@ -97,6 +100,7 @@ class TripStateController extends Controller implements HasMiddleware
             ]);
 
             $trip->transitionTo('rejected', ['rejection_reason' => $validated['rejection_reason']]);
+            $trip->requester?->notify(new TripStatusUpdated($trip, 'rejected'));
 
             return back()->with('success', 'Trip rejected.');
         } catch (ValidationException $e) {

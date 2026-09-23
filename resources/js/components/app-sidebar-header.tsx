@@ -25,7 +25,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
             {/* Right side - User actions */}
             <div className="flex items-center gap-2">
                 {/* Notifications */}
-                <NotificationButton count={3} />
+                <NotificationButton />
 
                 {/* Dark mode toggle */}
                 <AppearanceDropdown />
