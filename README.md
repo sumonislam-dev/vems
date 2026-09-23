@@ -119,6 +119,12 @@ docs/                    Planning notes and setup guides (see caveats in CLAUDE.
 See [CLAUDE.md](CLAUDE.md) for a deeper architectural walkthrough (request
 flow, auth/permissions model, the trip domain, and known gotchas).
 
+## Further documentation
+
+- [docs/USER_MANUAL.md](docs/USER_MANUAL.md) — how to use the app day-to-day (for admins, employees, and drivers).
+- [docs/GOOGLE_MAPS_SETUP.md](docs/GOOGLE_MAPS_SETUP.md) — switching the stop-picker map from OpenStreetMap to Google Maps.
+- [docs/IMPROVEMENT_PLAN_2026-09.md](docs/IMPROVEMENT_PLAN_2026-09.md) — current, code-verified list of known gaps and next priorities.
+
 ## License
 
 MIT.
