@@ -38,14 +38,14 @@ interface ChartData {
     }>;
     monthlyPerformance: Array<{
         month: string;
-        onTime: number;
+        completionRate: number;
         satisfaction: number;
         utilization: number;
     }>;
     routePerformance: Array<{
         route: string;
         trips: number;
-        onTime: number;
+        completionRate: number;
         rating: number;
     }>;
     issueCategories: Array<{
@@ -142,7 +142,7 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
                                 <YAxis />
                                 <Tooltip />
                                 <Legend />
-                                <Line type="monotone" dataKey="onTime" stroke="#3b82f6" name="On-Time %" strokeWidth={2} />
+                                <Line type="monotone" dataKey="completionRate" stroke="#3b82f6" name="Completion %" strokeWidth={2} />
                                 <Line type="monotone" dataKey="utilization" stroke="#10b981" name="Utilization %" strokeWidth={2} />
                             </LineChart>
                         </ResponsiveContainer>
@@ -188,7 +188,7 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Area type="monotone" dataKey="onTime" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="On-Time %" />
+                            <Area type="monotone" dataKey="completionRate" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Completion %" />
                             <Area type="monotone" dataKey="rating" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Rating (x20)" />
                         </AreaChart>
                     </ResponsiveContainer>

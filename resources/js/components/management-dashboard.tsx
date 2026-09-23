@@ -46,7 +46,6 @@ export interface ManagementDashboardProps {
             active: number;
             on_trip: number;
             available: number;
-            temporary: number;
         };
         routes: {
             total: number;
@@ -75,11 +74,16 @@ export interface ManagementDashboardProps {
             resolved_today: number;
             total_this_month: number;
         };
-        notifications: {
-            pending: number;
-            sent_today: number;
-            reminders: number;
+        vehicleAlerts: {
+            expiring_documents: number;
+            active_vehicles: number;
         };
+    };
+    roleStats: {
+        total_roles: number;
+        admins: number;
+        employees: number;
+        drivers: number;
     };
     recentActivities: Array<{
         id: number;
@@ -111,7 +115,7 @@ export interface ManagementDashboardProps {
         created_at: string;
     }>;
     performanceMetrics: {
-        on_time_percentage: number;
+        completion_rate: number;
         fuel_efficiency: number;
         customer_satisfaction: number;
         vehicle_utilization: number;
@@ -132,14 +136,14 @@ export interface ManagementDashboardProps {
         }>;
         monthlyPerformance: Array<{
             month: string;
-            onTime: number;
+            completionRate: number;
             satisfaction: number;
             utilization: number;
         }>;
         routePerformance: Array<{
             route: string;
             trips: number;
-            onTime: number;
+            completionRate: number;
             rating: number;
         }>;
         issueCategories: Array<{
@@ -159,6 +163,7 @@ export function ManagementDashboard({
     attendanceStatus,
     factories,
     moduleStats,
+    roleStats,
     recentActivities,
     upcomingSchedules,
     activeIssues,
@@ -214,7 +219,7 @@ export function ManagementDashboard({
             </div>
 
             {/* Module Overview Cards */}
-            <DashboardModuleCards moduleStats={moduleStats} performanceMetrics={performanceMetrics} />
+            <DashboardModuleCards moduleStats={moduleStats} performanceMetrics={performanceMetrics} roleStats={roleStats} />
 
             {/* Charts Section */}
             <DashboardCharts chartData={chartData} />
@@ -270,25 +275,31 @@ export function ManagementDashboard({
                         <CardDescription>Performance rating distribution</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <ResponsiveContainer width="100%" height={250}>
-                            <PieChart>
-                                <Pie
-                                    data={chartData.driverPerformance}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={40}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="count"
-                                    label={({ range, count }) => `${range}: ${count}`}
-                                >
-                                    {chartData.driverPerformance.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={entry.color} />
-                                    ))}
-                                </Pie>
-                                <Tooltip />
-                            </PieChart>
-                        </ResponsiveContainer>
+                        {chartData.driverPerformance.length > 0 ? (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={chartData.driverPerformance}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={40}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="count"
+                                        label={({ range, count }) => `${range}: ${count}`}
+                                    >
+                                        {chartData.driverPerformance.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        ) : (
+                            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+                                No rated drivers yet.
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

@@ -28,7 +28,6 @@ interface ModuleStats {
         active: number;
         on_trip: number;
         available: number;
-        temporary: number;
     };
     routes: {
         total: number;
@@ -57,15 +56,14 @@ interface ModuleStats {
         resolved_today: number;
         total_this_month: number;
     };
-    notifications: {
-        pending: number;
-        sent_today: number;
-        reminders: number;
+    vehicleAlerts: {
+        expiring_documents: number;
+        active_vehicles: number;
     };
 }
 
 interface PerformanceMetrics {
-    on_time_percentage: number;
+    completion_rate: number;
     fuel_efficiency: number;
     customer_satisfaction: number;
     vehicle_utilization: number;
@@ -73,12 +71,20 @@ interface PerformanceMetrics {
     maintenance_compliance: number;
 }
 
+interface RoleStats {
+    total_roles: number;
+    admins: number;
+    employees: number;
+    drivers: number;
+}
+
 interface DashboardModuleCardsProps {
     moduleStats: ModuleStats;
     performanceMetrics: PerformanceMetrics;
+    roleStats: RoleStats;
 }
 
-export function DashboardModuleCards({ moduleStats, performanceMetrics }: DashboardModuleCardsProps) {
+export function DashboardModuleCards({ moduleStats, performanceMetrics, roleStats }: DashboardModuleCardsProps) {
     return (
         <>
             {/* Module Overview Cards */}
@@ -238,20 +244,16 @@ export function DashboardModuleCards({ moduleStats, performanceMetrics }: Dashbo
 
                 <Card className="hover:shadow-lg transition-shadow duration-300">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">🔔 Notifications</CardTitle>
+                        <CardTitle className="text-sm font-medium">🔔 Vehicle Alerts</CardTitle>
                         <Bell className="h-4 w-4 text-orange-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-orange-600">{moduleStats.notifications.pending}</div>
-                        <p className="text-xs text-muted-foreground">Pending</p>
+                        <div className="text-2xl font-bold text-orange-600">{moduleStats.vehicleAlerts.expiring_documents}</div>
+                        <p className="text-xs text-muted-foreground">Documents Expiring/Expired</p>
                         <div className="mt-2 space-y-1">
                             <div className="flex justify-between text-xs">
-                                <span>Sent Today:</span>
-                                <span className="font-medium text-green-600">{moduleStats.notifications.sent_today}</span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                                <span>Reminders:</span>
-                                <span className="font-medium text-blue-600">{moduleStats.notifications.reminders}</span>
+                                <span>Active Vehicles:</span>
+                                <span className="font-medium text-green-600">{moduleStats.vehicleAlerts.active_vehicles}</span>
                             </div>
                         </div>
                     </CardContent>
@@ -263,8 +265,8 @@ export function DashboardModuleCards({ moduleStats, performanceMetrics }: Dashbo
                         <BarChart3 className="h-4 w-4 text-cyan-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-cyan-600">{performanceMetrics.on_time_percentage}%</div>
-                        <p className="text-xs text-muted-foreground">On-Time Performance</p>
+                        <div className="text-2xl font-bold text-cyan-600">{performanceMetrics.completion_rate}%</div>
+                        <p className="text-xs text-muted-foreground">Completion Rate (This Month)</p>
                         <div className="mt-2 space-y-1">
                             <div className="flex justify-between text-xs">
                                 <span>Satisfaction:</span>
@@ -329,20 +331,20 @@ export function DashboardModuleCards({ moduleStats, performanceMetrics }: Dashbo
                         <Shield className="h-4 w-4 text-violet-600" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-violet-600">4</div>
+                        <div className="text-2xl font-bold text-violet-600">{roleStats.total_roles}</div>
                         <p className="text-xs text-muted-foreground">Active Roles</p>
                         <div className="mt-2 space-y-1">
                             <div className="flex justify-between text-xs">
-                                <span>Admin:</span>
-                                <span className="font-medium text-red-600">2</span>
+                                <span>Admins:</span>
+                                <span className="font-medium text-red-600">{roleStats.admins}</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                                <span>Coordinators:</span>
-                                <span className="font-medium text-blue-600">8</span>
+                                <span>Drivers:</span>
+                                <span className="font-medium text-blue-600">{roleStats.drivers}</span>
                             </div>
                             <div className="flex justify-between text-xs">
                                 <span>Employees:</span>
-                                <span className="font-medium">156</span>
+                                <span className="font-medium">{roleStats.employees}</span>
                             </div>
                         </div>
                     </CardContent>
@@ -362,8 +364,8 @@ export function DashboardModuleCards({ moduleStats, performanceMetrics }: Dashbo
                                 <span className="font-medium text-green-600">{performanceMetrics.maintenance_compliance}%</span>
                             </div>
                             <div className="flex justify-between text-xs">
-                                <span>On-Time:</span>
-                                <span className="font-medium text-blue-600">{performanceMetrics.on_time_percentage}%</span>
+                                <span>Completion:</span>
+                                <span className="font-medium text-blue-600">{performanceMetrics.completion_rate}%</span>
                             </div>
                         </div>
                     </CardContent>

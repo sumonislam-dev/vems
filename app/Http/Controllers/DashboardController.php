@@ -4,15 +4,21 @@ namespace App\Http\Controllers;
 
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
+use App\Models\Stop;
 use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\TripPassenger;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleDriverAssignment;
+use App\Models\VehicleRoute;
 use App\Models\Vendor;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 class DashboardController extends Controller
 {
@@ -52,11 +58,17 @@ class DashboardController extends Controller
             ]);
         }
 
-        return Inertia::render('dashboard', [
-            'variant' => 'management',
+        return Inertia::render('dashboard', array_merge(
+            ['variant' => 'management'],
+            $this->buildManagementDashboard($user)
+        ));
+    }
+
+    protected function buildManagementDashboard(?User $user): array
+    {
+        return [
             'attendanceStatus' => $user ? $this->buildAttendanceStatus($user) : null,
             'factories' => Factory::select('id', 'name')->orderBy('name')->get(),
-            // Basic stats from existing models
             'stats' => [
                 'total_users' => User::count(),
                 'total_vehicles' => Vehicle::count(),
@@ -70,252 +82,21 @@ class DashboardController extends Controller
             'recent_users' => User::latest()
                 ->take(5)
                 ->get(['id', 'name', 'username', 'user_type', 'status', 'image', 'photo', 'created_at']),
-
-            // Module Statistics (Dummy Data)
-            'moduleStats' => [
-                'vehicles' => [
-                    'total' => 45,
-                    'active' => 38,
-                    'maintenance' => 4,
-                    'available' => 22,
-                    'regular' => 35,
-                    'adhoc' => 10,
-                ],
-                'drivers' => [
-                    'total' => 52,
-                    'active' => 47,
-                    'on_trip' => 28,
-                    'available' => 19,
-                    'temporary' => 5,
-                ],
-                'routes' => [
-                    'total' => 18,
-                    'active' => 15,
-                    'scheduled_today' => 12,
-                    'pickup_points' => 45,
-                    'factories' => 8,
-                ],
-                'trips' => [
-                    'today' => 24,
-                    'completed' => 18,
-                    'ongoing' => 6,
-                    'total_distance' => 1247,
-                    'avg_duration' => 45,
-                ],
-                'schedules' => [
-                    'this_week' => 156,
-                    'pick_drop' => 120,
-                    'engineer' => 18,
-                    'training' => 12,
-                    'adhoc' => 6,
-                ],
-                'issues' => [
-                    'open' => 8,
-                    'in_progress' => 5,
-                    'resolved_today' => 12,
-                    'total_this_month' => 67,
-                ],
-                'notifications' => [
-                    'pending' => 15,
-                    'sent_today' => 89,
-                    'reminders' => 23,
-                ],
-            ],
-
-            // Recent Activities (Dummy Data)
-            'recentActivities' => [
-                [
-                    'id' => 1,
-                    'type' => 'trip_completed',
-                    'message' => 'Trip RSC-001 completed successfully',
-                    'user' => 'Driver Ahmed Hassan',
-                    'time' => '5 minutes ago',
-                    'icon' => 'check-circle',
-                    'color' => 'green',
-                ],
-                [
-                    'id' => 2,
-                    'type' => 'vehicle_assigned',
-                    'message' => 'Vehicle BUS-15 assigned to Route R-05',
-                    'user' => 'Coordinator Sarah Khan',
-                    'time' => '12 minutes ago',
-                    'icon' => 'truck',
-                    'color' => 'blue',
-                ],
-                [
-                    'id' => 3,
-                    'type' => 'issue_reported',
-                    'message' => 'AC issue reported for Vehicle BUS-08',
-                    'user' => 'Employee John Smith',
-                    'time' => '25 minutes ago',
-                    'icon' => 'alert-triangle',
-                    'color' => 'orange',
-                ],
-                [
-                    'id' => 4,
-                    'type' => 'schedule_approved',
-                    'message' => 'Weekly schedule approved for Route R-12',
-                    'user' => 'Admin Manager',
-                    'time' => '1 hour ago',
-                    'icon' => 'calendar-check',
-                    'color' => 'green',
-                ],
-                [
-                    'id' => 5,
-                    'type' => 'driver_assigned',
-                    'message' => 'Temporary driver assigned to Route R-03',
-                    'user' => 'Coordinator Mike Johnson',
-                    'time' => '2 hours ago',
-                    'icon' => 'user-plus',
-                    'color' => 'purple',
-                ],
-            ],
-
-            // Upcoming Schedules (Dummy Data)
-            'upcomingSchedules' => [
-                [
-                    'id' => 1,
-                    'route' => 'R-01: Factory A → Office Complex',
-                    'driver' => 'Ahmed Hassan',
-                    'vehicle' => 'BUS-12',
-                    'time' => '08:30 AM',
-                    'type' => 'pick-and-drop',
-                    'passengers' => 28,
-                    'status' => 'scheduled',
-                ],
-                [
-                    'id' => 2,
-                    'route' => 'R-05: Training Center → HQ',
-                    'driver' => 'Sarah Khan',
-                    'vehicle' => 'VAN-08',
-                    'time' => '09:15 AM',
-                    'type' => 'training',
-                    'passengers' => 12,
-                    'status' => 'in_progress',
-                ],
-                [
-                    'id' => 3,
-                    'route' => 'R-12: Site Visit → Factory B',
-                    'driver' => 'Mike Johnson',
-                    'vehicle' => 'CAR-05',
-                    'time' => '10:00 AM',
-                    'type' => 'engineer',
-                    'passengers' => 4,
-                    'status' => 'scheduled',
-                ],
-                [
-                    'id' => 4,
-                    'route' => 'R-08: Emergency Transport',
-                    'driver' => 'Ali Rahman',
-                    'vehicle' => 'VAN-12',
-                    'time' => '11:30 AM',
-                    'type' => 'adhoc',
-                    'passengers' => 6,
-                    'status' => 'pending_approval',
-                ],
-            ],
-
-            // Active Issues (Dummy Data)
-            'activeIssues' => [
-                [
-                    'id' => 1,
-                    'title' => 'AC not working in BUS-08',
-                    'category' => 'vehicle',
-                    'priority' => 'high',
-                    'status' => 'in_progress',
-                    'reported_by' => 'John Smith',
-                    'assigned_to' => 'Maintenance Team',
-                    'created_at' => '2 hours ago',
-                ],
-                [
-                    'id' => 2,
-                    'title' => 'Driver late pickup complaint',
-                    'category' => 'driver',
-                    'priority' => 'medium',
-                    'status' => 'open',
-                    'reported_by' => 'Employee Group',
-                    'assigned_to' => 'Coordinator Sarah',
-                    'created_at' => '4 hours ago',
-                ],
-                [
-                    'id' => 3,
-                    'title' => 'Route R-15 needs optimization',
-                    'category' => 'route',
-                    'priority' => 'low',
-                    'status' => 'open',
-                    'reported_by' => 'Analytics System',
-                    'assigned_to' => 'Route Manager',
-                    'created_at' => '1 day ago',
-                ],
-            ],
-
-            // Performance Metrics (Dummy Data)
-            'performanceMetrics' => [
-                'on_time_percentage' => 94.5,
-                'fuel_efficiency' => 12.8,
-                'customer_satisfaction' => 4.6,
-                'vehicle_utilization' => 87.2,
-                'driver_performance' => 91.3,
-                'maintenance_compliance' => 96.8,
-            ],
-
-            // Chart Data (Dummy Data)
+            'moduleStats' => $this->buildModuleStats(),
+            'roleStats' => $this->buildRoleStats(),
+            'recentActivities' => $this->buildRecentActivities(),
+            'upcomingSchedules' => $this->buildUpcomingSchedules(),
+            'activeIssues' => $this->buildActiveIssues(),
+            'performanceMetrics' => $this->buildPerformanceMetrics(),
             'chartData' => [
-                // Weekly Trip Statistics
-                'weeklyTrips' => [
-                    ['day' => 'Mon', 'trips' => 28, 'completed' => 26, 'cancelled' => 2],
-                    ['day' => 'Tue', 'trips' => 32, 'completed' => 30, 'cancelled' => 2],
-                    ['day' => 'Wed', 'trips' => 25, 'completed' => 24, 'cancelled' => 1],
-                    ['day' => 'Thu', 'trips' => 35, 'completed' => 33, 'cancelled' => 2],
-                    ['day' => 'Fri', 'trips' => 40, 'completed' => 38, 'cancelled' => 2],
-                    ['day' => 'Sat', 'trips' => 22, 'completed' => 21, 'cancelled' => 1],
-                    ['day' => 'Sun', 'trips' => 18, 'completed' => 17, 'cancelled' => 1],
-                ],
-
-                // Vehicle Status Distribution
-                'vehicleStatus' => [
-                    ['name' => 'Active', 'value' => 38, 'color' => '#10b981'],
-                    ['name' => 'Available', 'value' => 22, 'color' => '#3b82f6'],
-                    ['name' => 'Maintenance', 'value' => 4, 'color' => '#f59e0b'],
-                    ['name' => 'Inactive', 'value' => 7, 'color' => '#ef4444'],
-                ],
-
-                // Monthly Performance Trends
-                'monthlyPerformance' => [
-                    ['month' => 'Jan', 'onTime' => 92.5, 'satisfaction' => 4.3, 'utilization' => 85.2],
-                    ['month' => 'Feb', 'onTime' => 93.8, 'satisfaction' => 4.4, 'utilization' => 87.1],
-                    ['month' => 'Mar', 'onTime' => 91.2, 'satisfaction' => 4.2, 'utilization' => 84.8],
-                    ['month' => 'Apr', 'onTime' => 94.1, 'satisfaction' => 4.5, 'utilization' => 88.3],
-                    ['month' => 'May', 'onTime' => 95.3, 'satisfaction' => 4.6, 'utilization' => 89.7],
-                    ['month' => 'Jun', 'onTime' => 94.5, 'satisfaction' => 4.6, 'utilization' => 87.2],
-                ],
-
-                // Route Performance
-                'routePerformance' => [
-                    ['route' => 'R-01', 'trips' => 45, 'onTime' => 96.2, 'rating' => 4.8],
-                    ['route' => 'R-02', 'trips' => 38, 'onTime' => 94.1, 'rating' => 4.6],
-                    ['route' => 'R-03', 'trips' => 42, 'onTime' => 92.8, 'rating' => 4.4],
-                    ['route' => 'R-04', 'trips' => 35, 'onTime' => 95.7, 'rating' => 4.7],
-                    ['route' => 'R-05', 'trips' => 40, 'onTime' => 93.5, 'rating' => 4.5],
-                ],
-
-                // Issue Categories
-                'issueCategories' => [
-                    ['category' => 'Vehicle', 'count' => 12, 'color' => '#ef4444'],
-                    ['category' => 'Driver', 'count' => 8, 'color' => '#f59e0b'],
-                    ['category' => 'Route', 'count' => 5, 'color' => '#3b82f6'],
-                    ['category' => 'Schedule', 'count' => 3, 'color' => '#8b5cf6'],
-                ],
-
-                // Driver Performance Distribution
-                'driverPerformance' => [
-                    ['range' => '90-100%', 'count' => 28, 'color' => '#10b981'],
-                    ['range' => '80-89%', 'count' => 15, 'color' => '#3b82f6'],
-                    ['range' => '70-79%', 'count' => 6, 'color' => '#f59e0b'],
-                    ['range' => '60-69%', 'count' => 3, 'color' => '#ef4444'],
-                ],
+                'weeklyTrips' => $this->buildWeeklyTripsChart(),
+                'vehicleStatus' => $this->buildVehicleStatusChart(),
+                'monthlyPerformance' => $this->buildMonthlyPerformanceChart(),
+                'routePerformance' => $this->buildRoutePerformanceChart(),
+                'issueCategories' => $this->buildIssueCategoriesChart(),
+                'driverPerformance' => $this->buildDriverPerformanceChart(),
             ],
-        ]);
+        ];
     }
 
     /**
@@ -437,5 +218,554 @@ class DashboardController extends Controller
             ],
             'recent' => $recent,
         ];
+    }
+
+    /**
+     * Management dashboard module cards. Every number here is a real query —
+     * there is no "notifications" module because no notification feature
+     * exists in this app; it's replaced with a vehicle-document-expiry alert
+     * count (Vehicle::getExpiringDocuments(), the same check VehicleExpiryTest
+     * exercises), computed in PHP rather than the model's own
+     * scopeWithExpiringDocuments() because that scope's DATEDIFF() SQL is
+     * MySQL-only and would break under the SQLite test database.
+     */
+    protected function buildModuleStats(): array
+    {
+        $today = today();
+        $weekStart = today()->startOfWeek()->toDateString();
+        $weekEnd = today()->endOfWeek()->toDateString();
+
+        $vehicleCounts = Vehicle::selectRaw(
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active, '.
+            "SUM(CASE WHEN status = 'maintenance' THEN 1 ELSE 0 END) as maintenance, ".
+            "SUM(CASE WHEN status = 'available' THEN 1 ELSE 0 END) as available, ".
+            "SUM(CASE WHEN rental_type = 'adhoc' THEN 1 ELSE 0 END) as adhoc"
+        )->first();
+
+        $driverCounts = User::drivers()->selectRaw(
+            'COUNT(*) as total, '.
+            "SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active, ".
+            "SUM(CASE WHEN driver_status = 'on_trip' THEN 1 ELSE 0 END) as on_trip, ".
+            "SUM(CASE WHEN driver_status = 'available' THEN 1 ELSE 0 END) as available"
+        )->first();
+
+        $activeRoutes = Trip::where('scheduled_date', '>=', now()->subDays(30)->toDateString())
+            ->whereNotNull('vehicle_route_id')
+            ->distinct('vehicle_route_id')
+            ->count('vehicle_route_id');
+
+        $scheduledTodayRoutes = Trip::whereDate('scheduled_date', $today)
+            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotNull('vehicle_route_id')
+            ->distinct('vehicle_route_id')
+            ->count('vehicle_route_id');
+
+        $tripsTodayCounts = Trip::whereDate('scheduled_date', $today)->selectRaw(
+            'COUNT(*) as today, '.
+            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
+            "SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as ongoing"
+        )->first();
+
+        $completedToday = Trip::whereDate('scheduled_date', $today)
+            ->where('status', 'completed')
+            ->get(['distance_traveled', 'start_time', 'end_time']);
+        $durationsToday = $completedToday
+            ->filter(fn ($trip) => $trip->start_time && $trip->end_time)
+            ->map(fn ($trip) => $trip->start_time->diffInMinutes($trip->end_time));
+
+        $scheduleCounts = Trip::whereBetween('scheduled_date', [$weekStart, $weekEnd])->selectRaw(
+            'COUNT(*) as this_week, '.
+            "SUM(CASE WHEN schedule_type IN ('pick-and-drop', 'pick-up', 'drop-off') THEN 1 ELSE 0 END) as pick_drop, ".
+            "SUM(CASE WHEN schedule_type = 'engineer' THEN 1 ELSE 0 END) as engineer, ".
+            "SUM(CASE WHEN schedule_type = 'training' THEN 1 ELSE 0 END) as training, ".
+            "SUM(CASE WHEN schedule_type = 'adhoc' THEN 1 ELSE 0 END) as adhoc"
+        )->first();
+
+        $issueCounts = TripFeedback::selectRaw(
+            "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, ".
+            "SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_progress, ".
+            "SUM(CASE WHEN status = 'resolved' AND DATE(resolved_at) = ? THEN 1 ELSE 0 END) as resolved_today, ".
+            'SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_this_month',
+            [$today->toDateString(), now()->startOfMonth()->toDateTimeString()]
+        )->first();
+
+        $expiringVehicleCount = $this->countVehiclesWithExpiringDocuments();
+
+        return [
+            'vehicles' => [
+                'total' => (int) $vehicleCounts->total,
+                'active' => (int) $vehicleCounts->active,
+                'maintenance' => (int) $vehicleCounts->maintenance,
+                'available' => (int) $vehicleCounts->available,
+                'regular' => (int) $vehicleCounts->total - (int) $vehicleCounts->adhoc,
+                'adhoc' => (int) $vehicleCounts->adhoc,
+            ],
+            'drivers' => [
+                'total' => (int) $driverCounts->total,
+                'active' => (int) $driverCounts->active,
+                'on_trip' => (int) $driverCounts->on_trip,
+                'available' => (int) $driverCounts->available,
+            ],
+            'routes' => [
+                'total' => VehicleRoute::count(),
+                'active' => $activeRoutes,
+                'scheduled_today' => $scheduledTodayRoutes,
+                'pickup_points' => Stop::count(),
+                'factories' => Factory::count(),
+            ],
+            'trips' => [
+                'today' => (int) $tripsTodayCounts->today,
+                'completed' => (int) $tripsTodayCounts->completed,
+                'ongoing' => (int) $tripsTodayCounts->ongoing,
+                'total_distance' => round((float) $completedToday->sum('distance_traveled'), 1),
+                'avg_duration' => $durationsToday->isNotEmpty() ? (int) round($durationsToday->avg()) : 0,
+            ],
+            'schedules' => [
+                'this_week' => (int) $scheduleCounts->this_week,
+                'pick_drop' => (int) $scheduleCounts->pick_drop,
+                'engineer' => (int) $scheduleCounts->engineer,
+                'training' => (int) $scheduleCounts->training,
+                'adhoc' => (int) $scheduleCounts->adhoc,
+            ],
+            'issues' => [
+                'open' => (int) $issueCounts->open,
+                'in_progress' => (int) $issueCounts->in_progress,
+                'resolved_today' => (int) $issueCounts->resolved_today,
+                'total_this_month' => (int) $issueCounts->total_this_month,
+            ],
+            'vehicleAlerts' => [
+                'expiring_documents' => $expiringVehicleCount,
+                'active_vehicles' => (int) $vehicleCounts->active,
+            ],
+        ];
+    }
+
+    /**
+     * Real role distribution (Spatie's Role::users() morph relation) rather
+     * than the hardcoded "4 roles / 2 admins / 8 coordinators / 156 employees"
+     * this card used to render regardless of props.
+     */
+    protected function buildRoleStats(): array
+    {
+        $counts = Role::withCount('users')->get()->keyBy('name');
+
+        return [
+            'total_roles' => $counts->count(),
+            'admins' => ($counts['super-admin']->users_count ?? 0) + ($counts['admin']->users_count ?? 0),
+            'employees' => $counts['employee']->users_count ?? 0,
+            'drivers' => $counts['driver']->users_count ?? 0,
+        ];
+    }
+
+    /**
+     * Merges three real event sources (completed trips, submitted feedback,
+     * driver-vehicle assignments) into one feed, newest first.
+     */
+    protected function buildRecentActivities(): array
+    {
+        $completedTrips = Trip::where('status', 'completed')
+            ->whereNotNull('end_time')
+            ->with('vehicle.driver:id,name')
+            ->latest('end_time')
+            ->take(5)
+            ->get()
+            ->map(fn ($trip) => [
+                'type' => 'trip_completed',
+                'message' => "Trip {$trip->trip_number} completed",
+                'user' => $trip->vehicle?->driver?->name ?? 'Unassigned driver',
+                'timestamp' => $trip->end_time,
+                'icon' => 'check-circle',
+                'color' => 'green',
+            ]);
+
+        $feedback = TripFeedback::with('submitter:id,name')
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(fn ($feedback) => [
+                'type' => $feedback->type === 'complaint' ? 'issue_reported' : 'feedback_submitted',
+                'message' => ($feedback->type === 'complaint' ? 'Complaint' : 'Feedback').": {$feedback->subject}",
+                'user' => $feedback->is_anonymous ? 'Anonymous' : ($feedback->submitter?->name ?? 'Unknown'),
+                'timestamp' => $feedback->created_at,
+                'icon' => 'alert-triangle',
+                'color' => 'orange',
+            ]);
+
+        $assignments = VehicleDriverAssignment::where('is_current', true)
+            ->with(['driver:id,name', 'vehicle:id,registration_number'])
+            ->latest('started_at')
+            ->take(5)
+            ->get()
+            ->map(fn ($assignment) => [
+                'type' => 'driver_assigned',
+                'message' => "Driver {$assignment->driver?->name} assigned to vehicle {$assignment->vehicle?->registration_number}",
+                'user' => $assignment->driver?->name ?? 'Unknown',
+                'timestamp' => $assignment->started_at,
+                'icon' => 'user-plus',
+                'color' => 'purple',
+            ]);
+
+        return $completedTrips->concat($feedback)->concat($assignments)
+            ->filter(fn ($activity) => $activity['timestamp'] !== null)
+            ->sortByDesc('timestamp')
+            ->take(6)
+            ->values()
+            ->map(fn ($activity, $index) => [
+                'id' => $index + 1,
+                'type' => $activity['type'],
+                'message' => $activity['message'],
+                'user' => $activity['user'],
+                'time' => $activity['timestamp']->diffForHumans(),
+                'icon' => $activity['icon'],
+                'color' => $activity['color'],
+            ])
+            ->all();
+    }
+
+    protected function buildUpcomingSchedules(): array
+    {
+        return Trip::whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+            ->whereDate('scheduled_date', '>=', today())
+            ->with(['vehicle.driver:id,name', 'vehicleRoute:id,name'])
+            ->withCount('passengers')
+            ->orderBy('scheduled_date')
+            ->orderBy('scheduled_start_time')
+            ->take(6)
+            ->get()
+            ->map(fn ($trip) => [
+                'id' => $trip->id,
+                'route' => $trip->vehicleRoute?->name ?? $trip->trip_number,
+                'driver' => $trip->vehicle?->driver?->name ?? 'Unassigned',
+                'vehicle' => $trip->vehicle?->registration_number ?? 'Unassigned',
+                'time' => $trip->scheduled_start_time
+                    ? Carbon::createFromFormat('H:i:s', $trip->scheduled_start_time)->format('h:i A')
+                    : '—',
+                'type' => $trip->schedule_type,
+                'passengers' => $trip->passengers_count,
+                'status' => $trip->status,
+            ])
+            ->all();
+    }
+
+    protected function buildActiveIssues(): array
+    {
+        return TripFeedback::whereIn('status', ['open', 'in_review'])
+            ->with(['submitter:id,name', 'assignee:id,name'])
+            ->orderByRaw("CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END")
+            ->latest()
+            ->take(6)
+            ->get()
+            ->map(fn ($feedback) => [
+                'id' => $feedback->id,
+                'title' => $feedback->subject,
+                'category' => $feedback->category,
+                'priority' => $feedback->priority,
+                'status' => $feedback->status,
+                'reported_by' => $feedback->is_anonymous ? 'Anonymous' : ($feedback->submitter?->name ?? 'Unknown'),
+                'assigned_to' => $feedback->assignee?->name ?? 'Unassigned',
+                'created_at' => $feedback->created_at->diffForHumans(),
+            ])
+            ->all();
+    }
+
+    /**
+     * Note: there's no "on-time" tracking anywhere in this app (no column
+     * compares scheduled vs. actual start) — 'completion_rate' (completed vs.
+     * completed+cancelled, same formula ReportController uses) replaces the
+     * old fabricated 'on_time_percentage'.
+     */
+    protected function buildPerformanceMetrics(): array
+    {
+        $monthStart = now()->startOfMonth();
+
+        [$completionRate] = $this->completionRateFor($monthStart->toDateString(), now()->toDateString());
+
+        // Total distance / total fuel across all trips, not an average of each
+        // trip's own ratio — averaging per-trip ratios lets a single trip with
+        // a near-zero fuel_consumed value dominate and blow up the result.
+        $fuelStats = Trip::where('scheduled_date', '>=', $monthStart->toDateString())
+            ->where('status', 'completed')
+            ->whereNotNull('fuel_consumed')
+            ->where('fuel_consumed', '>', 0)
+            ->selectRaw('SUM(distance_traveled) as total_distance, SUM(fuel_consumed) as total_fuel')
+            ->first();
+        $totalFuelConsumed = (float) $fuelStats->total_fuel;
+        $fuelEfficiency = $totalFuelConsumed > 0
+            ? round(((float) $fuelStats->total_distance) / $totalFuelConsumed, 1)
+            : 0.0;
+
+        $customerSatisfaction = $this->averageFeedbackRating($monthStart, now());
+
+        $activeVehicleCount = Vehicle::where('is_active', true)->count();
+        $vehiclesUsedThisWeek = Trip::whereBetween('scheduled_date', [today()->startOfWeek()->toDateString(), today()->endOfWeek()->toDateString()])
+            ->whereNotNull('vehicle_id')
+            ->distinct('vehicle_id')
+            ->count('vehicle_id');
+        $vehicleUtilization = $activeVehicleCount > 0 ? round($vehiclesUsedThisWeek / $activeVehicleCount * 100, 1) : 0.0;
+
+        $ratedDrivers = User::drivers()->where('average_rating', '>', 0)->pluck('average_rating');
+        $driverPerformance = $ratedDrivers->isNotEmpty() ? round(((float) $ratedDrivers->avg()) / 5 * 100, 1) : 0.0;
+
+        $expiringVehicleCount = $this->countVehiclesWithExpiringDocuments();
+        $maintenanceCompliance = $activeVehicleCount > 0
+            ? round(($activeVehicleCount - $expiringVehicleCount) / $activeVehicleCount * 100, 1)
+            : 100.0;
+
+        return [
+            'completion_rate' => $completionRate,
+            'fuel_efficiency' => $fuelEfficiency,
+            'customer_satisfaction' => $customerSatisfaction,
+            'vehicle_utilization' => $vehicleUtilization,
+            'driver_performance' => $driverPerformance,
+            'maintenance_compliance' => $maintenanceCompliance,
+        ];
+    }
+
+    protected function buildWeeklyTripsChart(): array
+    {
+        $start = today()->subDays(6);
+
+        $rows = Trip::whereBetween('scheduled_date', [$start->toDateString(), today()->toDateString()])
+            ->selectRaw(
+                'scheduled_date, COUNT(*) as trips, '.
+                "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
+                "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled"
+            )
+            ->groupBy('scheduled_date')
+            ->get()
+            ->keyBy(fn ($row) => $row->scheduled_date->toDateString());
+
+        $days = [];
+        for ($i = 0; $i < 7; $i++) {
+            $date = $start->copy()->addDays($i);
+            $row = $rows->get($date->toDateString());
+            $days[] = [
+                'day' => $date->format('D'),
+                'trips' => (int) ($row->trips ?? 0),
+                'completed' => (int) ($row->completed ?? 0),
+                'cancelled' => (int) ($row->cancelled ?? 0),
+            ];
+        }
+
+        return $days;
+    }
+
+    protected function buildVehicleStatusChart(): array
+    {
+        $colors = [
+            'available' => '#3b82f6',
+            'assigned' => '#10b981',
+            'in_transit' => '#06b6d4',
+            'maintenance' => '#f59e0b',
+            'out_of_service' => '#ef4444',
+        ];
+
+        return Vehicle::selectRaw('status, COUNT(*) as value')
+            ->groupBy('status')
+            ->get()
+            ->map(fn ($row) => [
+                'name' => ucwords(str_replace('_', ' ', $row->status)),
+                'value' => (int) $row->value,
+                'color' => $colors[$row->status] ?? '#94a3b8',
+            ])
+            ->all();
+    }
+
+    protected function buildMonthlyPerformanceChart(): array
+    {
+        $activeVehicleCount = Vehicle::where('is_active', true)->count();
+        $months = [];
+
+        for ($i = 5; $i >= 0; $i--) {
+            $monthStart = now()->subMonths($i)->startOfMonth();
+            $monthEnd = now()->subMonths($i)->endOfMonth();
+
+            [$completionRate] = $this->completionRateFor($monthStart->toDateString(), $monthEnd->toDateString());
+            $satisfaction = $this->averageFeedbackRating($monthStart, $monthEnd);
+
+            $vehiclesUsed = Trip::whereBetween('scheduled_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
+                ->whereNotNull('vehicle_id')
+                ->distinct('vehicle_id')
+                ->count('vehicle_id');
+            $utilization = $activeVehicleCount > 0 ? round($vehiclesUsed / $activeVehicleCount * 100, 1) : 0.0;
+
+            $months[] = [
+                'month' => $monthStart->format('M'),
+                'completionRate' => $completionRate,
+                'satisfaction' => $satisfaction,
+                'utilization' => $utilization,
+            ];
+        }
+
+        return $months;
+    }
+
+    protected function buildRoutePerformanceChart(): array
+    {
+        $topRoutes = Trip::whereNotNull('vehicle_route_id')
+            ->selectRaw('vehicle_route_id, COUNT(*) as trips_count')
+            ->groupBy('vehicle_route_id')
+            ->orderByDesc('trips_count')
+            ->take(5)
+            ->get();
+
+        $routeNames = VehicleRoute::whereIn('id', $topRoutes->pluck('vehicle_route_id'))->pluck('name', 'id');
+
+        return $topRoutes->map(function ($row) use ($routeNames) {
+            [$completionRate] = $this->completionRateFor(null, null, $row->vehicle_route_id);
+            $rating = $this->averageFeedbackRating(null, null, $row->vehicle_route_id);
+
+            return [
+                'route' => $routeNames[$row->vehicle_route_id] ?? 'Unknown Route',
+                'trips' => (int) $row->trips_count,
+                'completionRate' => $completionRate,
+                'rating' => $rating,
+            ];
+        })->values()->all();
+    }
+
+    protected function buildIssueCategoriesChart(): array
+    {
+        $colors = [
+            'driver_behavior' => '#f59e0b',
+            'vehicle_condition' => '#ef4444',
+            'punctuality' => '#3b82f6',
+            'safety' => '#dc2626',
+            'route' => '#8b5cf6',
+            'other' => '#94a3b8',
+        ];
+
+        $counts = TripFeedback::selectRaw('category, COUNT(*) as count')
+            ->groupBy('category')
+            ->pluck('count', 'category');
+
+        return collect(TripFeedbackController::CATEGORIES)
+            ->map(fn ($label, $key) => [
+                'category' => $label,
+                'count' => (int) ($counts[$key] ?? 0),
+                'color' => $colors[$key] ?? '#94a3b8',
+            ])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Buckets User::average_rating (a real, 1-5 field updated on trip
+     * completion, see User::updateDriverStats()) into the same
+     * percentage-style ranges the old dummy chart used. Drivers who've never
+     * been rated (average_rating = 0) are excluded rather than shown as 0%,
+     * since "never rated" and "rated poorly" aren't the same thing.
+     */
+    protected function buildDriverPerformanceChart(): array
+    {
+        $ratings = User::drivers()->where('average_rating', '>', 0)->pluck('average_rating');
+
+        $buckets = [
+            '90-100%' => 0,
+            '80-89%' => 0,
+            '70-79%' => 0,
+            '60-69%' => 0,
+            'Below 60%' => 0,
+        ];
+
+        foreach ($ratings as $rating) {
+            $percent = ((float) $rating / 5) * 100;
+            $bucket = match (true) {
+                $percent >= 90 => '90-100%',
+                $percent >= 80 => '80-89%',
+                $percent >= 70 => '70-79%',
+                $percent >= 60 => '60-69%',
+                default => 'Below 60%',
+            };
+            $buckets[$bucket]++;
+        }
+
+        $colors = [
+            '90-100%' => '#10b981',
+            '80-89%' => '#3b82f6',
+            '70-79%' => '#f59e0b',
+            '60-69%' => '#ef4444',
+            'Below 60%' => '#94a3b8',
+        ];
+
+        return collect($buckets)
+            ->map(fn ($count, $range) => ['range' => $range, 'count' => $count, 'color' => $colors[$range]])
+            ->filter(fn ($row) => $row['count'] > 0)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Shared completed-vs-cancelled ratio, optionally scoped to a date range
+     * and/or a route — same formula ReportController uses for completion/
+     * cancellation rate. Returns [rate] (array so call sites can destructure
+     * without an intermediate variable).
+     */
+    protected function completionRateFor(?string $from, ?string $to, ?int $vehicleRouteId = null): array
+    {
+        $query = Trip::query();
+
+        if ($from && $to) {
+            $query->whereBetween('scheduled_date', [$from, $to]);
+        }
+
+        if ($vehicleRouteId) {
+            $query->where('vehicle_route_id', $vehicleRouteId);
+        }
+
+        $counts = $query->selectRaw(
+            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
+            "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled"
+        )->first();
+
+        $completed = (int) $counts->completed;
+        $cancelled = (int) $counts->cancelled;
+        $total = $completed + $cancelled;
+
+        return [$total > 0 ? round($completed / $total * 100, 1) : 0.0];
+    }
+
+    /**
+     * Average of driver_rating/vehicle_rating across feedback in a date
+     * range and/or for a specific route (via the feedback's trip).
+     */
+    protected function averageFeedbackRating(?Carbon $from = null, ?Carbon $to = null, ?int $vehicleRouteId = null): float
+    {
+        $query = TripFeedback::query();
+
+        if ($from && $to) {
+            $query->whereBetween('created_at', [$from, $to]);
+        }
+
+        if ($vehicleRouteId) {
+            $query->whereHas('trip', fn ($q) => $q->where('vehicle_route_id', $vehicleRouteId));
+        }
+
+        /** @var Collection $ratings */
+        $ratings = $query->get(['driver_rating', 'vehicle_rating'])
+            ->flatMap(fn ($feedback) => array_filter([$feedback->driver_rating, $feedback->vehicle_rating]));
+
+        return $ratings->isNotEmpty() ? round((float) $ratings->avg(), 1) : 0.0;
+    }
+
+    /**
+     * Counts active vehicles with an expiring/expired tracked document, in
+     * PHP via Vehicle::getExpiringDocuments() rather than the model's
+     * scopeWithExpiringDocuments() — that scope's raw DATEDIFF() is
+     * MySQL-only and errors under the SQLite test database.
+     */
+    protected function countVehiclesWithExpiringDocuments(): int
+    {
+        return Vehicle::where('is_active', true)
+            ->get([
+                'tax_token_last_date', 'tax_token_alert_enabled',
+                'fitness_certificate_last_date', 'fitness_alert_enabled',
+                'insurance_last_date', 'insurance_alert_enabled',
+                'alert_days_before',
+            ])
+            ->filter(fn ($vehicle) => ! empty($vehicle->getExpiringDocuments()))
+            ->count();
     }
 }

@@ -4,6 +4,7 @@ use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleRoute;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -121,6 +122,121 @@ test('a user with view-trips gets the management dashboard', function () {
             ->component('dashboard')
             ->where('variant', 'management')
             ->has('moduleStats')
+        );
+});
+
+test('the management dashboard computes real module stats, role stats, and performance metrics from seeded data', function () {
+    seedDashboardPermissions();
+
+    Role::firstOrCreate(['name' => 'admin', 'guard_name' => 'web']);
+    Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'web']);
+
+    $admin = makeDashboardUser('admin-2');
+    $admin->assignRole('admin');
+    $admin->givePermissionTo(['view-trips', 'view-complaints']);
+
+    $driver = User::create([
+        'email_verified_at' => now(),
+        'name' => 'Driver One',
+        'username' => 'driver-one',
+        'email' => 'driver-one@example.com',
+        'user_type' => 'driver',
+        'status' => 'active',
+        'driver_status' => 'on_trip',
+        'password' => Hash::make('password'),
+    ]);
+    $driver->assignRole('driver');
+
+    $availableVehicle = Vehicle::create([
+        'brand' => 'Toyota',
+        'model' => 'Corolla',
+        'registration_number' => 'VEH-AVAIL-'.uniqid(),
+        'is_active' => true,
+        'status' => 'available',
+        'rental_type' => 'pool',
+    ]);
+
+    Vehicle::create([
+        'brand' => 'Toyota',
+        'model' => 'Hiace',
+        'registration_number' => 'VEH-MAINT-'.uniqid(),
+        'driver_id' => $driver->id,
+        'is_active' => true,
+        'status' => 'maintenance',
+        'rental_type' => 'adhoc',
+    ]);
+
+    $route = VehicleRoute::create(['name' => 'Route Dash Test']);
+
+    $completedTrip = Trip::create([
+        'trip_number' => 'TRIP-DASH-'.uniqid(),
+        'vehicle_id' => $availableVehicle->id,
+        'vehicle_route_id' => $route->id,
+        'requested_by' => $admin->id,
+        'priority' => 'medium',
+        'scheduled_date' => now()->toDateString(),
+        'scheduled_start_time' => '08:00:00',
+        'scheduled_end_time' => '09:00:00',
+        'status' => 'completed',
+        'odometer_start' => 100,
+        'odometer_end' => 150,
+        'fuel_consumed' => 5,
+        'fuel_cost' => 500,
+        'start_time' => now()->subHour(),
+        'end_time' => now(),
+    ]);
+
+    Trip::create([
+        'trip_number' => 'TRIP-DASH-'.uniqid(),
+        'vehicle_id' => $availableVehicle->id,
+        'requested_by' => $admin->id,
+        'priority' => 'medium',
+        'scheduled_date' => now()->toDateString(),
+        'scheduled_start_time' => '10:00:00',
+        'scheduled_end_time' => '11:00:00',
+        'status' => 'cancelled',
+    ]);
+
+    TripFeedback::create([
+        'trip_id' => $completedTrip->id,
+        'submitted_by' => $admin->id,
+        'type' => 'complaint',
+        'category' => 'safety',
+        'subject' => 'Open issue',
+        'description' => 'Description.',
+        'priority' => 'high',
+        'status' => 'open',
+    ]);
+
+    TripFeedback::create([
+        'trip_id' => $completedTrip->id,
+        'submitted_by' => $admin->id,
+        'type' => 'complaint',
+        'category' => 'punctuality',
+        'subject' => 'Resolved issue',
+        'description' => 'Description.',
+        'priority' => 'low',
+        'status' => 'resolved',
+        'resolved_at' => now(),
+    ]);
+
+    $this->actingAs($admin)
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('dashboard')
+            ->where('variant', 'management')
+            ->where('moduleStats.vehicles.total', 2)
+            ->where('moduleStats.vehicles.maintenance', 1)
+            ->where('moduleStats.vehicles.available', 1)
+            ->where('moduleStats.vehicles.adhoc', 1)
+            ->where('moduleStats.drivers.total', 1)
+            ->where('moduleStats.drivers.on_trip', 1)
+            ->where('moduleStats.trips.today', 2)
+            ->where('moduleStats.trips.completed', 1)
+            ->where('moduleStats.issues.open', 1)
+            ->where('roleStats.drivers', 1)
+            ->where('performanceMetrics.completion_rate', 50)
         );
 });
 
