@@ -84,13 +84,17 @@ CRUD → `TripController::update/destroy` → the untested controllers list.
   **Fix direction:** move to a private disk and serve these through an
   authenticated, permission-checked route instead of a public URL.
 
-- **`TripFeedbackController::store` doesn't verify the submitter has any
-  relationship to the trip** (`TripFeedbackController.php:128-147`) —
-  validation only checks `trip_id => exists:trips,id`, not that the user
-  requested, rode, or drove that trip. Since ratings submitted here feed
-  `User::average_rating` (shown on the dashboard's driver-performance
-  chart), anyone holding `create-complaints` can currently rate a driver
-  on a trip they had nothing to do with.
+**Fixed 2026-09-23** — ~~`TripFeedbackController::store` doesn't verify the
+submitter has any relationship to the trip~~. Confirmed live: without this,
+any user holding `create-complaints` could POST an arbitrary `trip_id` (only
+`exists:trips,id` was checked) and rate a driver/vehicle on a trip they had
+no connection to, which fed straight into `User::average_rating`. Fixed by
+checking the submitter is the trip's requester, a passenger on it, or its
+driver (via the assigned vehicle) — the same three conditions
+`Trip::scopeVisibleTo()` already uses elsewhere in the app — unless they
+hold `view-complaints`, mirroring `create()`'s existing trip-picker scoping
+(which was also missing the driver case, so it got the same fix for
+consistency). Covered by 4 new tests in `tests/Feature/TripFeedbackTest.php`.
 
 **Fixed 2026-09-23** — ~~Raw exception messages are shown to end users~~.
 `TripController::store/storeRecurring/update` and `VehicleController::store`
@@ -206,4 +210,4 @@ Covered by `tests/Feature/DepartmentExportImportTest.php`.
 3. ~~Fix or hide the `users.export`/`users.import` stub~~ — done 2026-09-23, including the identical `DepartmentController` bug.
 4. Decide on and implement a private, authenticated route for driver/vehicle documents instead of the public disk.
 5. ~~Replace the generic `catch (\Exception) { ...$e->getMessage()... }` pattern in `TripController`/`VehicleController` with scoped exceptions and generic user-facing messages~~ — done 2026-09-23.
-6. Add an ownership check to `TripFeedbackController::store` (submitter must actually be tied to the trip being rated).
+6. ~~Add an ownership check to `TripFeedbackController::store`~~ — done 2026-09-23.

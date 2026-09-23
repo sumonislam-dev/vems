@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Trip;
 use App\Models\TripFeedback;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class TripFeedbackController extends Controller implements HasMiddleware
@@ -107,10 +109,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
         $tripsQuery = Trip::query()->select(['id', 'trip_number', 'scheduled_date', 'description']);
 
         if (!$user->can('view-complaints')) {
-            $tripsQuery->where(function ($q) use ($user) {
-                $q->where('requested_by', $user->id)
-                    ->orWhereHas('passengers', fn ($pq) => $pq->where('user_id', $user->id));
-            });
+            $this->scopeTripsToUser($tripsQuery, $user);
         }
 
         $trips = $tripsQuery->orderByDesc('scheduled_date')->limit(100)->get();
@@ -139,9 +138,22 @@ class TripFeedbackController extends Controller implements HasMiddleware
             'is_anonymous' => 'nullable|boolean',
         ]);
 
+        $user = $request->user();
+
+        // `exists:trips,id` above only confirms the trip is real, not that
+        // this user has anything to do with it — without this, anyone with
+        // create-complaints could rate a driver/vehicle on a trip they never
+        // requested, rode, or drove (ratings here feed User::average_rating).
+        if (!$user->can('view-complaints')
+            && !$this->scopeTripsToUser(Trip::where('id', $validated['trip_id']), $user)->exists()) {
+            throw ValidationException::withMessages([
+                'trip_id' => 'You can only submit feedback for a trip you requested, rode on, or drove.',
+            ]);
+        }
+
         $feedback = TripFeedback::create([
             ...$validated,
-            'submitted_by' => $request->user()->id,
+            'submitted_by' => $user->id,
             'priority' => $validated['priority'] ?? 'low',
             'status' => 'open',
         ]);
@@ -185,5 +197,21 @@ class TripFeedbackController extends Controller implements HasMiddleware
         $user = $request->user();
 
         abort_unless($user->can('view-complaints') || $complaint->submitted_by === $user->id, 403);
+    }
+
+    /**
+     * Restrict a trips query to ones this user requested, rode as a
+     * passenger on, or drove (mirrors Trip::scopeVisibleTo()'s non-privileged
+     * branch — kept separate here since that scope is gated on view-trips,
+     * a different permission than the view-complaints gate used in this
+     * controller).
+     */
+    private function scopeTripsToUser($query, User $user)
+    {
+        return $query->where(function ($q) use ($user) {
+            $q->where('requested_by', $user->id)
+                ->orWhereHas('passengers', fn ($pq) => $pq->where('user_id', $user->id))
+                ->orWhereHas('vehicle', fn ($vq) => $vq->where('driver_id', $user->id));
+        });
     }
 }
