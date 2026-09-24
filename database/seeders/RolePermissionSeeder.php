@@ -129,8 +129,6 @@ class RolePermissionSeeder extends Seeder
             'create-roles',
             'edit-roles',
             'delete-roles',
-            'view-permissions',
-            'edit-permissions',
 
             // System Settings
             'view-settings',

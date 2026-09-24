@@ -240,7 +240,7 @@ license, TIN, BIN, tax return, each with an upload) and bank details.
 category, status) — independent of trips/vehicles. It has its own
 export options (CSV, Excel, or PDF).
 
-### 5.7 Users, User Groups, Roles & Permissions
+### 5.7 Users, User Groups & Roles
 
 - **Users** — create/edit accounts: name, username, contact info,
   department, user type, one or more roles, and (for drivers) license
@@ -248,10 +248,11 @@ export options (CSV, Excel, or PDF).
   a file.
 - **User Groups** — organize users into named groups with a description
   and status; add or remove members from a searchable list.
-- **Roles** — admins can view, create, edit, and delete roles.
-- **Permissions** — currently view-only in the interface; permission
-  assignment happens through roles, not by editing individual permissions
-  directly.
+- **Roles** — admins can view, create, edit, and delete roles, including
+  which permissions each role has. There is no separate Permissions
+  screen — permission strings are defined in code/seed data, and the only
+  thing an admin manages day-to-day is which roles have which permissions,
+  done from the role's edit page.
 
 ### 5.8 Complaints & Feedback
 

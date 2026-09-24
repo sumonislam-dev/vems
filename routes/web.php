@@ -9,7 +9,6 @@ use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
@@ -161,9 +160,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/complaints/{complaint}/close', [TripFeedbackStateController::class, 'close'])->name('complaints.close');
     Route::post('/complaints/{complaint}/reopen', [TripFeedbackStateController::class, 'reopen'])->name('complaints.reopen');
 
-    // Role and Permission management routes
+    // Role management routes (permissions are managed per-role here, not
+    // through a standalone Permissions CRUD)
     Route::resource('roles', RoleController::class);
-    Route::resource('permissions', PermissionController::class);
 
     // Activity / audit log viewer
     Route::get('/activity-logs', [ActivityLogController::class, 'index'])->name('activity-logs.index');

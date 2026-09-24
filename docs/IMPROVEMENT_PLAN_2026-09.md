@@ -55,12 +55,12 @@ act on it without checking first.
 
 - **Whole controllers with no test file and no route ever hit in
   `tests/`:** `DepartmentController`, `VehicleRouteController`,
-  `RoleController`, `PermissionController`, `FactoryController`,
-  `LogisticsController`, `VendorController`, `ActivityLogController`,
-  `ReportController`, `StopController`. `RoleController`/
-  `PermissionController` are especially notable — they directly control
-  RBAC, with no automated check that the permission middleware actually
-  blocks unauthorized users from managing roles.
+  `RoleController`, `FactoryController`, `LogisticsController`,
+  `VendorController`, `ActivityLogController`, `ReportController`,
+  `StopController`. `RoleController` is especially notable — it directly
+  controls RBAC, with no automated check that the permission middleware
+  actually blocks unauthorized users from managing roles. (`PermissionController`
+  no longer exists — see §4, removed 2026-09-24.)
 
 **Suggested order:** stand up CI first (cheap, immediately valuable), then
 add feature tests in this order: `UserController` CRUD → `VehicleController`
@@ -166,13 +166,22 @@ export/import UI at all before this — both an "Export Departments" link
 and an "Import Departments" dialog were added to the department list page.
 Covered by `tests/Feature/DepartmentExportImportTest.php`.
 
-**Medium**
-- **The Permissions page is create/edit-incapable in the UI** even though
-  the controller supports the full CRUD — only `permissions/index.tsx`
-  exists, no `create`/`edit` page files. Confirm whether this is
-  intentional (permissions managed only via roles) and, if so, consider
-  removing the unused controller actions/routes to avoid confusion; if
-  not, the frontend is incomplete.
+**Fixed 2026-09-24** — ~~The Permissions page was create/edit-incapable in
+the UI even though the controller supported full CRUD~~. Turned out to be
+worse than "incomplete": `permissions/index.tsx`'s Create/Edit/Show/Delete
+actions all pointed at real routes backed by a fully-built controller, but
+the `create`/`edit`/`show` page components never existed — clicking any of
+them broke at render time. Since `roles/create.tsx`/`edit.tsx` already have
+a complete, working "assign these permissions to this role" checklist, a
+separate Permissions CRUD added no real workflow — a freshly created
+permission name has no effect anywhere until a developer also adds a
+matching `permission:xxx`/`can()` check in code, so "create permission"
+was more trap than feature. Removed rather than rebuilt: deleted
+`PermissionController`, `resources/js/pages/permissions/`, the
+`permissions` resource route, the sidebar nav entry, and the now-unused
+`view-permissions`/`edit-permissions` permission strings from
+`RolePermissionSeeder`. Permission-to-role assignment continues to work
+exactly as before, from the Roles page.
 
 ---
 

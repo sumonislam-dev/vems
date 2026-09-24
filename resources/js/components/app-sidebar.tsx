@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { hasPermission } from '@/lib/permissions';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Key, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, MessageSquareWarning, ClipboardCheck, History } from 'lucide-react';
+import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, MessageSquareWarning, ClipboardCheck, History } from 'lucide-react';
 import AppLogo from './app-logo';
 
 // `permission` gates each item to match its target page's controller middleware
@@ -16,12 +16,6 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: '/dashboard',
         icon: LayoutGrid,
-    },
-    {
-        title: 'Permissions',
-        href: '/permissions',
-        icon: Key,
-        permission: 'view-permissions',
     },
     {
         title: 'Roles',
