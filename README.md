@@ -104,6 +104,36 @@ npm run lint                     # ESLint (auto-fixes)
 npm run format                   # Prettier (auto-fixes)
 ```
 
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on every push to `develop` and every pull
+request targeting `main`, as two parallel jobs:
+
+- **Backend (Pint + Pest)** — installs PHP deps, generates a throwaway
+  `.env`/`APP_KEY` (tests run against in-memory SQLite regardless), runs
+  `pint --test` scoped to only the PHP files changed in that push/PR (the
+  full tree isn't clean yet — see the workflow file's comment), then the
+  full Pest suite.
+- **Frontend (tsc + ESLint)** — `npm ci`, `tsc --noEmit`, and `eslint .`
+  (not `npm run lint`, which auto-fixes and would silently pass).
+
+### Making it a required check on `main`
+
+The workflow running is only informational until it's required. To make
+it block merges into `main`:
+
+1. On GitHub, go to the repo's **Settings → Branches**.
+2. Under **Branch protection rules**, add a rule (or edit the existing one)
+   for `main`.
+3. Enable **Require status checks to pass before merging**.
+4. Search for and select **Backend (Pint + Pest)** and
+   **Frontend (tsc + ESLint)** — these only appear once the workflow has
+   run at least once on a push or PR, so open one throwaway PR first if
+   the list is empty.
+5. Save the rule.
+
+After this, a PR into `main` can't be merged while either job is failing.
+
 ## Project structure
 
 ```

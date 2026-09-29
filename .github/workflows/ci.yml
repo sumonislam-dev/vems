@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (Pint + Pest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, dom, fileinfo, curl, pdo_sqlite, sqlite3, bcmath, intl, zip, gd, xml
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment file
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+
+      # phpunit.xml forces DB_CONNECTION=sqlite / :memory: regardless of
+      # .env, so the test suite needs no database service here.
+
+      - name: Determine changed PHP files
+        id: changed-php
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.base_ref }}" --depth=1
+            BASE_SHA=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+          else
+            BASE_SHA="${{ github.event.before }}"
+          fi
+
+          if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA" 2>/dev/null; then
+            echo "files=" >> "$GITHUB_OUTPUT"
+          else
+            FILES=$(git diff --name-only --diff-filter=ACMR "$BASE_SHA" "${{ github.sha }}" -- '*.php' | tr '\n' ' ')
+            echo "files=$FILES" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Pint is only enforced on files touched by this push/PR: a repo-wide
+      # `pint --test` fails today on ~100 pre-existing files that predate
+      # this workflow, so gating on the whole tree would block every PR for
+      # debt unrelated to it. Run `vendor/bin/pint` (no --test) across the
+      # repo in a dedicated cleanup PR if you want the full-tree gate later.
+      - name: Pint (changed files only)
+        if: steps.changed-php.outputs.files != ''
+        run: vendor/bin/pint --test ${{ steps.changed-php.outputs.files }}
+
+      - name: Pest
+        run: vendor/bin/pest
+
+  frontend:
+    name: Frontend (tsc + ESLint)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Type check
+        run: npm run types
+
+      # Deliberately `npx eslint .`, not `npm run lint` (which is `eslint
+      # . --fix` and would silently rewrite files and still exit 0).
+      # --max-old-space-size is set defensively: a full-project ESLint run
+      # has hit a heap OOM locally on the default Node heap size.
+      - name: ESLint
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: npx eslint .
