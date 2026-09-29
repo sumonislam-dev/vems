@@ -13,6 +13,16 @@
 
 pest()->extend(Tests\TestCase::class)
     ->use(Illuminate\Foundation\Testing\RefreshDatabase::class)
+    ->beforeEach(function () {
+        // Any Inertia::render() in a test hits the `@vite(...)` directive,
+        // which throws if `public/build/manifest.json` doesn't exist. That
+        // file only exists locally because `npm run build`/`npm run dev`
+        // has been run at some point — a fresh CI checkout never has it,
+        // which silently fails every page-rendering test there while
+        // passing locally. withoutVite() swaps in a no-op Vite instance so
+        // tests don't depend on a frontend build existing at all.
+        $this->withoutVite();
+    })
     ->in('Feature');
 
 /*

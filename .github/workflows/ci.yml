@@ -88,6 +88,28 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # tsconfig.json/vite.config.ts alias `ziggy-js` to `vendor/tightenco/ziggy`
+      # (the Composer package ships its own JS dist + types) rather than an
+      # npm dependency, so `tsc`/ESLint can't resolve that import without
+      # the PHP package on disk. --no-scripts skips Laravel's post-install
+      # artisan hooks, which need a bootable app this job has no reason to set up.
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+          tools: composer:v2
+
+      - name: Cache Composer packages
+        uses: actions/cache@v4
+        with:
+          path: vendor
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install ziggy-js's backing PHP package
+        run: composer install --no-interaction --prefer-dist --no-progress --no-dev --no-scripts
+
       - name: Install JS dependencies
         run: npm ci
 
