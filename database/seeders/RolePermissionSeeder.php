@@ -116,6 +116,12 @@ class RolePermissionSeeder extends Seeder
             'delete-departments',
             'manage-department-budget',
 
+            // Zone Management
+            'view-zones',
+            'create-zones',
+            'edit-zones',
+            'delete-zones',
+
             // User Management
             'view-users',
             'create-users',

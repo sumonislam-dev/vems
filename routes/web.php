@@ -23,6 +23,7 @@ use App\Http\Controllers\UserGroupController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleRouteController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\ZoneController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -102,6 +103,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Logistics management routes
     Route::resource('logistics', LogisticsController::class);
     Route::patch('/logistics/{logistic}/toggle-lock', [LogisticsController::class, 'toggleLock'])->name('logistics.toggle-lock');
+
+    // Zone management routes
+    Route::resource('zones', ZoneController::class)->except(['show']);
+    Route::patch('/zones/{zone}/toggle-status', [ZoneController::class, 'toggleStatus'])->name('zones.toggle-status');
 
     // Department management routes
     Route::resource('departments', DepartmentController::class);

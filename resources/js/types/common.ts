@@ -21,6 +21,16 @@ export interface Department {
     updated_at: string;
 }
 
+export interface Zone {
+    id: number;
+    name: string;
+    code: string;
+    is_active: boolean;
+    status: 'active' | 'inactive';
+    created_at: string;
+    updated_at: string;
+}
+
 export interface Factory {
     id: number;
     name: string;
