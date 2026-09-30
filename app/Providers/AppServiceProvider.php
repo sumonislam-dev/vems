@@ -6,8 +6,10 @@ use App\Listeners\LogFailedLogin;
 use App\Listeners\LogSuccessfulLogin;
 use App\Listeners\LogSuccessfulLogout;
 use App\Models\Trip;
+use App\Models\User;
 use App\Models\Vehicle;
 use App\Observers\TripObserver;
+use App\Observers\UserObserver;
 use App\Observers\VehicleObserver;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -44,6 +46,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Observe trip changes to track vehicle assignments
         Trip::observe(TripObserver::class);
+
+        // Drop a user's group memberships the moment they're disabled
+        User::observe(UserObserver::class);
 
         // Log authentication events to the activity log
         Event::listen(Login::class, LogSuccessfulLogin::class);

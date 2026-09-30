@@ -3,11 +3,12 @@ import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, Plus, Trash2, Shield, Upload, User, Mail } from 'lucide-react';
+import { Edit, Eye, Plus, Trash2, Shield, Upload, User, Mail, UserCheck, UserX } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface User {
@@ -79,6 +80,41 @@ export default function UsersIndex({
     const [importOpen, setImportOpen] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
     const [importProcessing, setImportProcessing] = useState(false);
+
+    const [statusDialogUser, setStatusDialogUser] = useState<User | null>(null);
+    const [statusDialogAction, setStatusDialogAction] = useState<'activate' | 'deactivate' | null>(null);
+    const [groupChoice, setGroupChoice] = useState(true);
+    const [statusProcessing, setStatusProcessing] = useState(false);
+
+    const openStatusDialog = (user: User, action: 'activate' | 'deactivate') => {
+        setStatusDialogUser(user);
+        setStatusDialogAction(action);
+        setGroupChoice(true);
+    };
+
+    const closeStatusDialog = () => {
+        setStatusDialogUser(null);
+        setStatusDialogAction(null);
+    };
+
+    const submitStatusChange = () => {
+        if (!statusDialogUser || !statusDialogAction) {
+            return;
+        }
+
+        const routeName = statusDialogAction === 'activate' ? 'users.activate' : 'users.deactivate';
+        const payload =
+            statusDialogAction === 'activate'
+                ? { restore_previous_groups: groupChoice }
+                : { remove_from_groups: groupChoice };
+
+        router.post(route(routeName, statusDialogUser.id), payload, {
+            preserveScroll: true,
+            onStart: () => setStatusProcessing(true),
+            onFinish: () => setStatusProcessing(false),
+            onSuccess: () => closeStatusDialog(),
+        });
+    };
 
     const submitImport = () => {
         if (!importFile) {
@@ -229,6 +265,33 @@ export default function UsersIndex({
                     >
                         <Edit className="h-4 w-4" />
                     </Button>
+                    {row.status === 'active' ? (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusDialog(row, 'deactivate');
+                            }}
+                            title="Deactivate user"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-amber-50 hover:text-amber-600"
+                        >
+                            <UserX className="h-4 w-4" />
+                        </Button>
+                    ) : (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                openStatusDialog(row, 'activate');
+                            }}
+                            title="Activate user"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-green-50 hover:text-green-600"
+                        >
+                            <UserCheck className="h-4 w-4" />
+                        </Button>
+                    )}
                     <Button
                         variant="ghost"
                         size="sm"
@@ -386,6 +449,43 @@ export default function UsersIndex({
                         </Button>
                         <Button type="button" onClick={submitImport} disabled={!importFile || importProcessing}>
                             {importProcessing ? 'Importing…' : 'Import'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={statusDialogUser !== null} onOpenChange={(open) => !open && closeStatusDialog()}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>
+                            {statusDialogAction === 'activate' ? 'Activate' : 'Deactivate'} {statusDialogUser?.name}?
+                        </DialogTitle>
+                        <DialogDescription>
+                            {statusDialogAction === 'activate'
+                                ? 'This will set the user back to active.'
+                                : 'This will set the user to inactive.'}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="flex items-center space-x-2">
+                        <Checkbox
+                            id="status-dialog-group-choice"
+                            checked={groupChoice}
+                            onCheckedChange={(checked) => setGroupChoice(checked as boolean)}
+                        />
+                        <label htmlFor="status-dialog-group-choice" className="text-sm font-medium leading-none">
+                            {statusDialogAction === 'activate'
+                                ? 'Add back to the groups they were removed from'
+                                : 'Remove from all groups'}
+                        </label>
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={closeStatusDialog} disabled={statusProcessing}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={submitStatusChange} disabled={statusProcessing}>
+                            {statusProcessing ? 'Saving…' : statusDialogAction === 'activate' ? 'Activate' : 'Deactivate'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

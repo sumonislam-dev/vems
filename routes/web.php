@@ -73,6 +73,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('vendors-select', [VendorController::class, 'getVendorsForSelect'])->name('vendors.select');
 
     Route::resource('users', UserController::class);
+    Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
     Route::middleware('throttle:60,1')->group(function () {
         Route::get('/api/drivers/available', [DriverController::class, 'getAvailableDrivers'])->name('drivers.available');
     });

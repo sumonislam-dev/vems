@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -14,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
+    /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, LogsActivity, Notifiable;
 
     public function getActivitylogOptions(): LogOptions
@@ -87,6 +89,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'previous_group_ids',
     ];
 
     /**
@@ -106,8 +109,18 @@ class User extends Authenticatable implements MustVerifyEmail
             'total_distance_covered' => 'decimal:2',
             'average_rating' => 'decimal:2',
             'total_trips_completed' => 'integer',
+            'previous_group_ids' => 'array',
         ];
     }
+
+    /**
+     * Request-scoped hint for UserObserver, set by UserController's
+     * activate()/deactivate() actions to reflect an explicit admin choice
+     * (the "remove from groups"/"restore previous groups" confirm dialogs).
+     * Not a database attribute — a plain public property, not fillable, and
+     * never persisted or serialized as model data.
+     */
+    public ?array $groupMembershipChoice = null;
 
     /**
      * Get the identifier that will be used for authentication.
@@ -146,7 +159,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function vehicleAssignments(): HasMany
     {
-        return $this->hasMany(\App\Models\VehicleDriverAssignment::class, 'driver_id');
+        return $this->hasMany(VehicleDriverAssignment::class, 'driver_id');
     }
 
     public function requestedTrips(): HasMany
@@ -172,6 +185,13 @@ class User extends Authenticatable implements MustVerifyEmail
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(UserGroup::class, 'group_user')
+            ->withPivot(['added_by', 'added_at'])
+            ->withTimestamps();
     }
 
     // Scopes

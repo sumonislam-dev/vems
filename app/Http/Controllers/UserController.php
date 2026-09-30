@@ -7,12 +7,14 @@ use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
 use App\Imports\UsersImport;
 use App\Models\Department;
+use App\Models\TripRecurringGroup;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -27,7 +29,7 @@ class UserController extends Controller implements HasMiddleware
         return [
             new Middleware('permission:view-users', only: ['index', 'show', 'export']),
             new Middleware('permission:create-users', only: ['create', 'store', 'import']),
-            new Middleware('permission:edit-users', only: ['edit', 'update']),
+            new Middleware('permission:edit-users', only: ['edit', 'update', 'deactivate', 'activate']),
             new Middleware('permission:delete-users', only: ['destroy']),
         ];
     }
@@ -150,7 +152,7 @@ class UserController extends Controller implements HasMiddleware
         $userTypes = User::distinct()->pluck('user_type')->filter()->values()->toArray();
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
-        $roles = \Spatie\Permission\Models\Role::pluck('name')->toArray();
+        $roles = Role::pluck('name')->toArray();
 
         // Calculate stats with a single aggregate query
         $userStats = User::selectRaw(
@@ -429,7 +431,7 @@ class UserController extends Controller implements HasMiddleware
                 ->with('error', 'Cannot delete user: they have requested trips on record. Deactivate the account instead.');
         }
 
-        if (\App\Models\TripRecurringGroup::where('created_by', $user->id)->exists()) {
+        if (TripRecurringGroup::where('created_by', $user->id)->exists()) {
             return redirect()->back()
                 ->with('error', 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.');
         }
@@ -449,12 +451,54 @@ class UserController extends Controller implements HasMiddleware
     }
 
     /**
+     * Deactivate a user via the quick-action button on the users list.
+     * Whether this also drops their group memberships is an explicit choice
+     * from the confirm dialog's checkbox (see UserObserver), not automatic —
+     * unlike a status change made through the full edit form.
+     */
+    public function deactivate(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'remove_from_groups' => 'boolean',
+        ]);
+
+        $user->groupMembershipChoice = [
+            'remove' => $validated['remove_from_groups'] ?? true,
+        ];
+
+        $user->update(['status' => 'inactive']);
+
+        return redirect()->back()->with('success', "{$user->name} has been deactivated.");
+    }
+
+    /**
+     * Reactivate a user via the quick-action button on the users list.
+     * Whether their previous group memberships come back is an explicit
+     * choice from the confirm dialog's checkbox (see UserObserver) — a
+     * no-op if they had no groups removed to begin with.
+     */
+    public function activate(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'restore_previous_groups' => 'boolean',
+        ]);
+
+        $user->groupMembershipChoice = [
+            'restore_previous' => $validated['restore_previous_groups'] ?? true,
+        ];
+
+        $user->update(['status' => 'active']);
+
+        return redirect()->back()->with('success', "{$user->name} has been activated.");
+    }
+
+    /**
      * Resolve role IDs to Role models, refusing to let anyone below
      * super-admin grant (or accidentally strip) the super-admin role.
      *
      * @param  array<int, int|string>  $roleIds
      */
-    private function assignableRoles(array $roleIds, ?User $targetUser = null): \Illuminate\Support\Collection
+    private function assignableRoles(array $roleIds, ?User $targetUser = null): Collection
     {
         $roles = Role::whereIn('id', $roleIds)->get();
 
