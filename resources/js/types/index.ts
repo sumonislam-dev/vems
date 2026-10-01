@@ -1,5 +1,5 @@
 // Re-export all domain types for backward compatibility
-export type { Auth, BreadcrumbItem, NavGroup, NavItem, SharedData } from './app';
+export type { Auth, AvailableZone, BreadcrumbItem, NavGroup, NavItem, SharedData } from './app';
 export type { User, Role } from './user';
 export type { Permission } from './permission';
 export type { VendorContactPerson, Vendor, Vehicle } from './vehicle';

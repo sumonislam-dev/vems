@@ -188,8 +188,8 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
                             <YAxis />
                             <Tooltip />
                             <Legend />
-                            <Area type="monotone" dataKey="completionRate" stackId="1" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Completion %" />
-                            <Area type="monotone" dataKey="rating" stackId="2" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Rating (x20)" />
+                            <Area type="monotone" dataKey="completionRate" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.6} name="Completion %" />
+                            <Area type="monotone" dataKey="rating" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Rating (x20)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 </CardContent>

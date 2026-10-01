@@ -55,16 +55,17 @@ class Zone extends Model
     }
 
     /**
-     * The zone IDs $user's access is restricted to — null means unrestricted
+     * The zone IDs $user's role/grants allow — null means unrestricted
      * (sees/can-grant every zone). An explicit multi-zone grant in
      * `user_zone` (see User::accessZones()) takes priority; otherwise falls
      * back to the user's single `zone_id`, the common single-zone case.
-     * Centralizes the access computation shared by BelongsToZone and the
-     * dropdown/validation helpers below.
+     * This ignores the active-zone switcher (see accessIds()) — it's the
+     * user's full underlying grant, used only to populate the switcher's
+     * own options and to validate a switch request.
      *
      * @return array<int>|null
      */
-    public static function accessIds(?User $user = null): ?array
+    public static function realAccessIds(?User $user = null): ?array
     {
         $user ??= auth()->user();
 
@@ -79,6 +80,63 @@ class Zone extends Model
         }
 
         return $user->zone_id ? [$user->zone_id] : null;
+    }
+
+    /**
+     * The zone IDs $user is currently scoped to — null means unrestricted.
+     * This is realAccessIds() narrowed by the navbar zone switcher's
+     * session selection, if any: switching to one zone is a temporary
+     * viewing filter on top of a user's real access, never a way to see
+     * more than that access allows. A stale/invalid session value (e.g. a
+     * zone the user's grant no longer includes) is ignored. Used by
+     * BelongsToZone and the dropdown/validation helpers below.
+     *
+     * @return array<int>|null
+     */
+    public static function accessIds(?User $user = null): ?array
+    {
+        $real = static::realAccessIds($user);
+        $active = session('active_zone_id');
+
+        if (! $active) {
+            return $real;
+        }
+
+        if ($real !== null && ! in_array($active, $real, true)) {
+            return $real;
+        }
+
+        return [$active];
+    }
+
+    /**
+     * Zones $user can switch their current view between, via the navbar
+     * zone switcher — their full real access (not narrowed by any current
+     * selection), or an empty collection if they only ever have one zone
+     * (or none), since there's nothing to switch between.
+     */
+    public static function switcherOptions(?User $user = null): Collection
+    {
+        $user ??= auth()->user();
+
+        if (! $user) {
+            return new Collection;
+        }
+
+        $realIds = static::realAccessIds($user);
+        $query = static::query()->orderBy('name');
+
+        if ($realIds === null) {
+            $query->active();
+        } elseif (count($realIds) <= 1) {
+            return new Collection;
+        } else {
+            $query->whereIn('id', $realIds);
+        }
+
+        $zones = $query->get(['id', 'name']);
+
+        return $zones->count() > 1 ? $zones : new Collection;
     }
 
     /**

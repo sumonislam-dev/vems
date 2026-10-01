@@ -197,6 +197,18 @@ class TripController extends Controller implements HasMiddleware
             'passengers.user',
         ])->visibleTo($request->user());
 
+        $filters = $validated['filters'] ?? [];
+
+        // Trips aren't zone-access-restricted (see Trip::scopeVisibleTo()) —
+        // a pending trip has no vehicle/zone yet, so hard-restricting would
+        // hide exactly what a manager needs to assign. But default this
+        // filter to the navbar zone switcher's selection when the request
+        // didn't specify one itself, so the list matches the rest of the
+        // zone-aware app unless the user explicitly filters differently.
+        if (! array_key_exists('zone_id', $filters) && ($activeZoneId = session('active_zone_id'))) {
+            $filters['zone_id'] = [(string) $activeZoneId];
+        }
+
         // Apply search
         if ($request->filled('search')) {
             $search = $request->search;
@@ -212,9 +224,7 @@ class TripController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if (! empty($validated['filters'])) {
-            $filters = $validated['filters'];
-
+        if (! empty($filters)) {
             if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
@@ -286,7 +296,10 @@ class TripController extends Controller implements HasMiddleware
                     'value' => (string) $z->id,
                 ]),
             ],
-            'queryParams' => $request->only(['search', 'filters', 'date_from', 'date_to', 'vehicle_id', 'sort', 'direction', 'per_page']),
+            'queryParams' => [
+                ...$request->only(['search', 'date_from', 'date_to', 'vehicle_id', 'sort', 'direction', 'per_page']),
+                'filters' => $filters,
+            ],
         ]);
     }
 

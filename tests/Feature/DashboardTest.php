@@ -5,6 +5,7 @@ use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use App\Models\Zone;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
@@ -282,8 +283,10 @@ test('the management dashboard aggregates are cached rather than recomputed on e
         ->assertInertia(fn ($page) => $page->where('moduleStats.vehicles.total', 1));
 
     // Once the cache is cleared (e.g. the TTL elapsing), the real, current
-    // count is computed fresh.
-    Cache::forget('dashboard.management.aggregates');
+    // count is computed fresh. The cache key is namespaced by the viewer's
+    // zone scope (see DashboardController::buildManagementDashboard()) —
+    // 'all' for this unrestricted admin.
+    Cache::forget('dashboard.management.aggregates:all');
 
     $this->actingAs($admin)
         ->get('/dashboard')
@@ -338,4 +341,58 @@ test('a driver gets the driver dashboard scoped to trips assigned via their vehi
             ->has('license')
             ->has('driverStatus')
         );
+});
+
+test('the management dashboard trip-based stats respect the navbar active zone switcher', function () {
+    seedDashboardPermissions();
+    Permission::firstOrCreate(['name' => 'view-all-zones', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $dhakaVehicle = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'Corolla',
+        'registration_number' => 'VEH-DASH-'.uniqid(),
+        'is_active' => true, 'zone_id' => $dhaka->id,
+    ]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'VEH-DASH-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+
+    $admin = makeDashboardUser('admin-zone-dash');
+    $admin->givePermissionTo(['view-trips', 'view-complaints', 'view-all-zones']);
+
+    foreach ([$dhakaVehicle, $ctgVehicle] as $vehicle) {
+        Trip::create([
+            'trip_number' => 'TRIP-DASH-'.uniqid(),
+            'requested_by' => $admin->id,
+            'vehicle_id' => $vehicle->id,
+            'priority' => 'medium',
+            'scheduled_date' => today()->toDateString(),
+            'scheduled_start_time' => '08:00:00',
+            'scheduled_end_time' => '09:00:00',
+            'status' => 'pending',
+        ]);
+    }
+
+    // Unrestricted: sees both of today's trips.
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 2));
+
+    // Switch to Dhaka only — the cache key must vary by zone, not just the
+    // underlying query, or this would still show the unrestricted result.
+    $this->actingAs($admin)->patch('/active-zone', ['zone_id' => $dhaka->id])
+        ->assertSessionDoesntHaveErrors();
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 1));
+
+    // Switch back to all zones.
+    $this->actingAs($admin)->patch('/active-zone', ['zone_id' => null]);
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 2));
 });

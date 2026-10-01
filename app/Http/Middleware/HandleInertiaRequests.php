@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Zone;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -47,6 +48,8 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
                 'permissions' => $request->user() ? $request->user()->getAllPermissions()->pluck('name')->toArray() : [],
                 'roles' => $request->user() ? $request->user()->getRoleNames()->toArray() : [],
+                'availableZones' => $request->user() ? Zone::switcherOptions($request->user())->values() : [],
+                'activeZoneId' => $request->user() ? $request->session()->get('active_zone_id') : null,
             ],
             'notifications' => $request->user() ? [
                 'unread_count' => $request->user()->unreadNotifications()->count(),

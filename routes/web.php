@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActiveZoneController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
@@ -53,6 +54,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
+
+    Route::patch('/active-zone', [ActiveZoneController::class, 'update'])->name('active-zone.update');
 
     // Debug route — restricted to Super Admin only
     Route::middleware('role:super-admin')->group(function () {

@@ -446,3 +446,142 @@ it('rejects a restricted editor granting zone access beyond their own zone', fun
     $response->assertSessionHasErrors('zone_ids.0');
     expect($target->fresh()->accessZones()->count())->toBe(0);
 });
+
+it('offers no zone switcher options to a single-zone user, and every zone to a view-all-zones user', function () {
+    seedZoneScopingPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $single = makeZoneScopingUser($dhaka);
+    expect(Zone::switcherOptions($single))->toHaveCount(0);
+
+    $viewAll = makeZoneScopingUser($dhaka);
+    $viewAll->givePermissionTo('view-all-zones');
+    expect(Zone::switcherOptions($viewAll)->pluck('id')->sort()->values()->all())
+        ->toBe(collect([$dhaka->id, $ctg->id])->sort()->values()->all());
+
+    $multi = makeZoneScopingUser();
+    $multi->accessZones()->sync([$dhaka->id, $ctg->id]);
+    expect(Zone::switcherOptions($multi))->toHaveCount(2);
+});
+
+it('lets a multi-zone user switch their active zone, narrowing what they see until they switch back', function () {
+    seedZoneScopingPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $dhakaVehicle = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'Corolla',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $dhaka->id,
+    ]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+
+    $viewer = makeZoneScopingUser();
+    $viewer->givePermissionTo('view-vehicles');
+    $viewer->accessZones()->sync([$dhaka->id, $ctg->id]);
+
+    $seesBoth = fn ($vehicles) => collect($vehicles)->pluck('id')->contains($dhakaVehicle->id)
+        && collect($vehicles)->pluck('id')->contains($ctgVehicle->id);
+    $seesOnlyDhaka = fn ($vehicles) => collect($vehicles)->pluck('id')->contains($dhakaVehicle->id)
+        && ! collect($vehicles)->pluck('id')->contains($ctgVehicle->id);
+
+    $this->actingAs($viewer)->get('/vehicles')
+        ->assertInertia(fn ($page) => $page->where('vehicles.data', $seesBoth));
+
+    $this->actingAs($viewer)->patch('/active-zone', ['zone_id' => $dhaka->id])
+        ->assertSessionDoesntHaveErrors();
+
+    $this->actingAs($viewer)->get('/vehicles')
+        ->assertInertia(fn ($page) => $page->where('vehicles.data', $seesOnlyDhaka));
+
+    $this->actingAs($viewer)->patch('/active-zone', ['zone_id' => null]);
+
+    $this->actingAs($viewer)->get('/vehicles')
+        ->assertInertia(fn ($page) => $page->where('vehicles.data', $seesBoth));
+});
+
+it("defaults the trips list zone filter to the navbar switcher's active zone, without hiding other zones once cleared", function () {
+    seedZoneScopingPermissions();
+    Permission::firstOrCreate(['name' => 'view-trips', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $dhakaVehicle = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'Corolla',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $dhaka->id,
+    ]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+
+    $viewer = makeZoneScopingUser();
+    $viewer->givePermissionTo('view-trips');
+    $viewer->accessZones()->sync([$dhaka->id, $ctg->id]);
+
+    $dhakaTrip = Trip::create([
+        'requested_by' => $viewer->id, 'vehicle_id' => $dhakaVehicle->id, 'priority' => 'medium',
+        'scheduled_date' => '2026-06-01', 'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00',
+        'status' => 'pending',
+    ]);
+    $ctgTrip = Trip::create([
+        'requested_by' => $viewer->id, 'vehicle_id' => $ctgVehicle->id, 'priority' => 'medium',
+        'scheduled_date' => '2026-06-01', 'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00',
+        'status' => 'pending',
+    ]);
+
+    // No active zone yet: trips list sees both, with no zone filter applied.
+    $this->actingAs($viewer)->get('/trips')->assertInertia(fn ($page) => $page
+        ->component('trips/index')
+        ->where('queryParams.filters', [])
+        ->where('trips.data', function ($trips) use ($dhakaTrip, $ctgTrip) {
+            $ids = collect($trips)->pluck('id');
+
+            return $ids->contains($dhakaTrip->id) && $ids->contains($ctgTrip->id);
+        })
+    );
+
+    $this->actingAs($viewer)->patch('/active-zone', ['zone_id' => $dhaka->id])->assertSessionDoesntHaveErrors();
+
+    // Active zone set: trips list defaults its own filter to it.
+    $this->actingAs($viewer)->get('/trips')->assertInertia(fn ($page) => $page
+        ->component('trips/index')
+        ->where('queryParams.filters.zone_id', [(string) $dhaka->id])
+        ->where('trips.data', function ($trips) use ($dhakaTrip, $ctgTrip) {
+            $ids = collect($trips)->pluck('id');
+
+            return $ids->contains($dhakaTrip->id) && ! $ids->contains($ctgTrip->id);
+        })
+    );
+
+    // Explicitly picking a different zone filter on the page overrides the default.
+    $this->actingAs($viewer)->get('/trips?filters[zone_id][]='.$ctg->id)->assertInertia(fn ($page) => $page
+        ->where('trips.data', function ($trips) use ($dhakaTrip, $ctgTrip) {
+            $ids = collect($trips)->pluck('id');
+
+            return ! $ids->contains($dhakaTrip->id) && $ids->contains($ctgTrip->id);
+        })
+    );
+});
+
+it('rejects switching the active zone to one outside the users real access', function () {
+    seedZoneScopingPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $viewer = makeZoneScopingUser($dhaka);
+
+    $this->actingAs($viewer)->patch('/active-zone', ['zone_id' => $ctg->id])->assertForbidden();
+});

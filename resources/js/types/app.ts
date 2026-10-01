@@ -2,10 +2,17 @@ import { LucideIcon } from 'lucide-react';
 import type { Config } from 'ziggy-js';
 import type { User } from './user';
 
+export interface AvailableZone {
+    id: number;
+    name: string;
+}
+
 export interface Auth {
     user: User;
     permissions?: string[];
     roles?: string[];
+    availableZones?: AvailableZone[];
+    activeZoneId?: number | null;
 }
 
 export interface NotificationItem {

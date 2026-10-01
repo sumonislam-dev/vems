@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { NotificationButton } from '@/components/ui/notification-button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
+import { ZoneSwitcher } from '@/components/zone-switcher';
 import { useInitials } from '@/hooks/use-initials';
 import { type BreadcrumbItem as BreadcrumbItemType, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
@@ -24,6 +25,9 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
 
             {/* Right side - User actions */}
             <div className="flex items-center gap-2">
+                {/* Zone switcher */}
+                <ZoneSwitcher />
+
                 {/* Notifications */}
                 <NotificationButton />
 
