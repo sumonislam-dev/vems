@@ -10,6 +10,7 @@ use App\Models\Department;
 use App\Models\TripRecurringGroup;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\Zone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -51,6 +52,7 @@ class UserController extends Controller implements HasMiddleware
             'status',
             'driver_status',
             'department_id',
+            'zone_id',
             'blood_group',
             'personal_phone',
             'official_phone',
@@ -64,7 +66,7 @@ class UserController extends Controller implements HasMiddleware
             'average_rating',
         ])
             ->where('user_type', 'employee')
-            ->with(['department:id,name', 'roles:id,name']);
+            ->with(['department:id,name', 'zone:id,name', 'accessZones:id,name', 'roles:id,name']);
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -94,6 +96,10 @@ class UserController extends Controller implements HasMiddleware
 
             if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
             }
 
             if (! empty($filters['blood_group'])) {
@@ -133,6 +139,7 @@ class UserController extends Controller implements HasMiddleware
                 'status' => $user->status,
                 'driver_status' => $user->driver_status,
                 'department' => $user->department,
+                'zone' => $user->zone,
                 'blood_group' => $user->blood_group,
                 'phone' => $user->personal_phone ?? $user->official_phone,
                 'roles' => $user->roles,
@@ -149,6 +156,7 @@ class UserController extends Controller implements HasMiddleware
 
         // Get filter options
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $userTypes = User::distinct()->pluck('user_type')->filter()->values()->toArray();
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
@@ -176,6 +184,7 @@ class UserController extends Controller implements HasMiddleware
                 'user_types' => $userTypes,
                 'statuses' => $statuses,
                 'departments' => $departments,
+                'zones' => $zones,
                 'blood_groups' => $bloodGroups,
                 'roles' => $roles,
             ],
@@ -190,6 +199,7 @@ class UserController extends Controller implements HasMiddleware
     public function create(): Response
     {
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
 
@@ -218,6 +228,8 @@ class UserController extends Controller implements HasMiddleware
 
         return Inertia::render('users/create', [
             'departments' => $departments,
+            'zones' => $zones,
+            'defaultZoneId' => auth()->user()->zone_id,
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
@@ -232,6 +244,9 @@ class UserController extends Controller implements HasMiddleware
     public function store(StoreUserRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $zoneAccess = $validated['zone_access'] ?? null;
+        $zoneIds = $validated['zone_ids'] ?? [];
+        unset($validated['zone_access'], $validated['zone_ids']);
 
         // Handle file uploads
         if ($request->hasFile('image')) {
@@ -261,6 +276,10 @@ class UserController extends Controller implements HasMiddleware
         }
 
         $this->logRoleChange($user, []);
+
+        if ($request->has('zone_access')) {
+            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
+        }
 
         return redirect()->route('users.index')
             ->with('success', 'User created successfully.');
@@ -299,6 +318,11 @@ class UserController extends Controller implements HasMiddleware
     public function edit(User $user): Response
     {
         $departments = Department::active()->get(['id', 'name']);
+        $currentZoneIds = $user->accessZones()->pluck('zones.id')->all();
+        if (empty($currentZoneIds) && $user->zone_id) {
+            $currentZoneIds = [$user->zone_id];
+        }
+        $zones = Zone::selectableBy(auth()->user(), $currentZoneIds);
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
         $userRoles = $user->roles->pluck('id')->map(function ($id) {
@@ -345,6 +369,9 @@ class UserController extends Controller implements HasMiddleware
         return Inertia::render('users/edit', [
             'user' => $user,
             'departments' => $departments,
+            'zones' => $zones,
+            'currentZoneIds' => $currentZoneIds,
+            'hasAllZoneAccess' => $user->can('view-all-zones'),
             'vendors' => $vendors,
             'roles' => $roles,
             'userRoles' => $userRoles,
@@ -362,6 +389,9 @@ class UserController extends Controller implements HasMiddleware
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
         $validated = $request->validated();
+        $zoneAccess = $validated['zone_access'] ?? null;
+        $zoneIds = $validated['zone_ids'] ?? [];
+        unset($validated['zone_access'], $validated['zone_ids']);
 
         // Handle file uploads
         if ($request->hasFile('image')) {
@@ -406,6 +436,10 @@ class UserController extends Controller implements HasMiddleware
             }
 
             $this->logRoleChange($user, $oldRoleNames);
+        }
+
+        if ($request->has('zone_access')) {
+            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
         }
 
         return redirect()->route('users.index')
@@ -594,6 +628,10 @@ class UserController extends Controller implements HasMiddleware
 
             if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
             }
 
             if (! empty($filters['blood_group'])) {

@@ -4,9 +4,20 @@ namespace App\Observers;
 
 use App\Models\Trip;
 use App\Models\TripVehicleAssignment;
+use App\Models\Vehicle;
 
 class TripObserver
 {
+    /**
+     * Handle the Trip "creating" event.
+     */
+    public function creating(Trip $trip): void
+    {
+        if ($trip->vehicle_id) {
+            $trip->zone_id = Vehicle::find($trip->vehicle_id)?->zone_id;
+        }
+    }
+
     /**
      * Handle the Trip "created" event.
      */
@@ -14,12 +25,12 @@ class TripObserver
     {
         if ($trip->vehicle_id) {
             TripVehicleAssignment::create([
-                'trip_id'      => $trip->id,
-                'vehicle_id'   => $trip->vehicle_id,
-                'assigned_at'  => now(),
-                'is_current'   => true,
-                'assigned_by'  => auth()->id(),
-                'reason'       => 'initial',
+                'trip_id' => $trip->id,
+                'vehicle_id' => $trip->vehicle_id,
+                'assigned_at' => now(),
+                'is_current' => true,
+                'assigned_by' => auth()->id(),
+                'reason' => 'initial',
             ]);
         }
     }
@@ -30,18 +41,22 @@ class TripObserver
     public function updating(Trip $trip): void
     {
         // Auto-update end_time when trip is marked as completed
-        if ($trip->isDirty('is_completed') && $trip->is_completed && !$trip->end_time) {
+        if ($trip->isDirty('is_completed') && $trip->is_completed && ! $trip->end_time) {
             $trip->end_time = now();
             $trip->status = 'completed'; // Update status as well
         }
 
         // Auto-update start_time when trip starts (status = in_progress)
-        if ($trip->isDirty('status') && $trip->status === 'in_progress' && !$trip->start_time) {
+        if ($trip->isDirty('status') && $trip->status === 'in_progress' && ! $trip->start_time) {
             $trip->start_time = now();
         }
 
         if ($trip->isDirty('vehicle_id')) {
             $now = now();
+
+            // Keep the zone snapshot in step with whichever vehicle is now assigned
+            // (or clear it if the trip was unassigned) — see Trip::zone().
+            $trip->zone_id = $trip->vehicle_id ? Vehicle::find($trip->vehicle_id)?->zone_id : null;
 
             // Close previous current assignment for this trip (if any)
             $prev = $trip->vehicleAssignments()
@@ -52,20 +67,20 @@ class TripObserver
             if ($prev) {
                 $prev->update([
                     'unassigned_at' => $now,
-                    'is_current'    => false,
+                    'is_current' => false,
                 ]);
             }
 
             // Create new current assignment for the new vehicle
             if ($trip->vehicle_id) {
                 TripVehicleAssignment::create([
-                    'trip_id'      => $trip->id,
-                    'vehicle_id'   => $trip->vehicle_id,
-                    'assigned_at'  => $now,
-                    'is_current'   => true,
-                    'assigned_by'  => auth()->id(),
-                    'reason'       => $trip->pendingVehicleReassignReason ?? 'replacement',
-                    'notes'        => $trip->pendingVehicleReassignNotes,
+                    'trip_id' => $trip->id,
+                    'vehicle_id' => $trip->vehicle_id,
+                    'assigned_at' => $now,
+                    'is_current' => true,
+                    'assigned_by' => auth()->id(),
+                    'reason' => $trip->pendingVehicleReassignReason ?? 'replacement',
+                    'notes' => $trip->pendingVehicleReassignNotes,
                 ]);
             }
         }

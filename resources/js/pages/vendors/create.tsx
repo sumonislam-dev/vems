@@ -3,7 +3,7 @@ import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem } from '@/types';
+import { BreadcrumbItem, Zone } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus, Trash2, UserPlus, LayoutGrid } from 'lucide-react';
 
@@ -33,8 +33,14 @@ type VendorForm = {
     tax_return: string;
     tax_return_file: File | null;
     bank_details: string;
+    zone_id: string;
     contact_persons: ContactPerson[];
 };
+
+interface CreateVendorProps {
+    zones: Zone[];
+    defaultZoneId: number | null;
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -42,7 +48,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create Vendor', href: '#' },
 ];
 
-export default function CreateVendor() {
+export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps) {
     const { data, setData, post, processing, errors } = useForm<VendorForm>({
         name: '',
         address: '',
@@ -51,6 +57,7 @@ export default function CreateVendor() {
         website: '',
         description: '',
         status: 'active',
+        zone_id: defaultZoneId?.toString() || '',
         trade_license: '',
         trade_license_file: null,
         tin: '',
@@ -231,6 +238,21 @@ export default function CreateVendor() {
                                                     onChange={(value) => setData('website', value)}
                                                     error={errors.website}
                                                     placeholder="Enter website URL"
+                                                    className="text-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                            <div>
+                                                <FormSelect
+                                                    label="Zone"
+                                                    name="zone_id"
+                                                    value={data.zone_id}
+                                                    onChange={(value) => setData('zone_id', value)}
+                                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                                    error={errors.zone_id}
+                                                    placeholder="Select zone..."
                                                     className="text-sm"
                                                 />
                                             </div>

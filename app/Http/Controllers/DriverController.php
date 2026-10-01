@@ -3,16 +3,16 @@
 namespace App\Http\Controllers;
 
 use App\Exports\DriversExport;
-use App\Models\User;
-use App\Models\Department;
-use App\Models\Vehicle;
-use App\Models\Vendor;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
+use App\Models\Department;
+use App\Models\TripRecurringGroup;
+use App\Models\User;
+use App\Models\Vehicle;
+use App\Models\Vendor;
+use App\Models\Zone;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Inertia\Inertia;
-use Inertia\Response;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,6 +20,9 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Inertia\Inertia;
+use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Role;
 
@@ -44,30 +47,33 @@ class DriverController extends Controller implements HasMiddleware
         $validated = $request->validated();
 
         $query = User::select([
-                'id',
-                'name',
-                'username',
-                'employee_id',
-                'email',
-                'user_type',
-                'status',
-                'driver_status',
-                'department_id',
-                'blood_group',
-                'area',
-                'personal_phone',
-                'official_phone',
-                'created_at',
-                'driving_license_no',
-                'license_class',
-                'license_expiry_date',
-                'license_issue_date',
-                'total_trips_completed',
-                'average_rating',
-                'vendor_id',
-            ])
+            'id',
+            'name',
+            'username',
+            'employee_id',
+            'email',
+            'user_type',
+            'status',
+            'driver_status',
+            'department_id',
+            'zone_id',
+            'blood_group',
+            'area',
+            'personal_phone',
+            'official_phone',
+            'created_at',
+            'driving_license_no',
+            'license_class',
+            'license_expiry_date',
+            'license_issue_date',
+            'total_trips_completed',
+            'average_rating',
+            'vendor_id',
+        ])
             ->with([
                 'department:id,name',
+                'zone:id,name',
+                'accessZones:id,name',
                 'roles:id,name',
                 'assignedVehicles:id,driver_id,registration_number,brand,model,vehicle_type',
                 'vendor:id,name,status',
@@ -75,51 +81,55 @@ class DriverController extends Controller implements HasMiddleware
             ->whereIn('user_type', ['driver', 'transport_manager']);
 
         // Apply search
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('employee_id', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('driving_license_no', 'like', "%{$search}%")
-                  ->orWhereHas('department', function ($subQ) use ($search) {
-                      $subQ->where('name', 'like', "%{$search}%");
-                  });
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('driving_license_no', 'like', "%{$search}%")
+                    ->orWhereHas('department', function ($subQ) use ($search) {
+                        $subQ->where('name', 'like', "%{$search}%");
+                    });
             });
         }
 
         // Apply filters
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['user_type'])) {
+            if (! empty($filters['user_type'])) {
                 $query->whereIn('user_type', $filters['user_type']);
             }
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
 
-            if (!empty($filters['driver_status'])) {
+            if (! empty($filters['driver_status'])) {
                 $query->whereIn('driver_status', $filters['driver_status']);
             }
 
-            if (!empty($filters['department_id'])) {
+            if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
             }
 
-            if (!empty($filters['blood_group'])) {
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
+
+            if (! empty($filters['blood_group'])) {
                 $query->whereIn('blood_group', $filters['blood_group']);
             }
 
-            if (!empty($filters['roles'])) {
+            if (! empty($filters['roles'])) {
                 $query->whereHas('roles', function ($q) use ($filters) {
                     $q->whereIn('name', $filters['roles']);
                 });
             }
 
-            if (!empty($filters['vendor_id'])) {
+            if (! empty($filters['vendor_id'])) {
                 $query->whereIn('vendor_id', $filters['vendor_id']);
             }
         }
@@ -130,42 +140,44 @@ class DriverController extends Controller implements HasMiddleware
 
         if ($sortColumn === 'department') {
             $query->leftJoin('departments', 'users.department_id', '=', 'departments.id')
-                  ->orderBy('departments.name', $sortDirection)
-                  ->select('users.*');
+                ->orderBy('departments.name', $sortDirection)
+                ->select('users.*');
         } else {
             $query->orderBy($sortColumn, $sortDirection);
         }
 
         $users = $query->paginate($validated['per_page'])
-                      ->withQueryString()
-                      ->through(fn ($user) => [
-                          'id' => $user->id,
-                          'name' => $user->name,
-                          'username' => $user->username,
-                          'employee_id' => $user->employee_id,
-                          'email' => $user->email,
-                          'user_type' => $user->user_type,
-                          'status' => $user->status,
-                          'driver_status' => $user->driver_status,
-                          'department' => $user->department,
-                          'blood_group' => $user->blood_group,
-                          'area' => $user->area,
-                          'phone' => $user->personal_phone ?? $user->official_phone,
-                          'roles' => $user->roles,
-                          'vehicle' => $user->assignedVehicles->first(),
-                          'vendor' => $user->vendor,
-                          'is_driver' => true,
-                          'created_at' => $user->created_at,
-                          'driving_license_no' => $user->driving_license_no,
-                          'license_class' => $user->license_class,
-                          'license_expiry_date' => $user->license_expiry_date,
-                          'license_status' => $user->license_status,
-                          'license_issue_date' => $user->license_issue_date,
-                          'total_trips_completed' => $user->total_trips_completed ?? 0,
-                          'average_rating' => $user->average_rating,
-                      ]);
+            ->withQueryString()
+            ->through(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'username' => $user->username,
+                'employee_id' => $user->employee_id,
+                'email' => $user->email,
+                'user_type' => $user->user_type,
+                'status' => $user->status,
+                'driver_status' => $user->driver_status,
+                'department' => $user->department,
+                'zone' => $user->zone,
+                'blood_group' => $user->blood_group,
+                'area' => $user->area,
+                'phone' => $user->personal_phone ?? $user->official_phone,
+                'roles' => $user->roles,
+                'vehicle' => $user->assignedVehicles->first(),
+                'vendor' => $user->vendor,
+                'is_driver' => true,
+                'created_at' => $user->created_at,
+                'driving_license_no' => $user->driving_license_no,
+                'license_class' => $user->license_class,
+                'license_expiry_date' => $user->license_expiry_date,
+                'license_status' => $user->license_status,
+                'license_issue_date' => $user->license_issue_date,
+                'total_trips_completed' => $user->total_trips_completed ?? 0,
+                'average_rating' => $user->average_rating,
+            ]);
 
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $userTypes = ['driver', 'transport_manager'];
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $driverStatuses = User::distinct()->whereNotNull('driver_status')->pluck('driver_status')->filter()->values()->toArray();
@@ -175,9 +187,9 @@ class DriverController extends Controller implements HasMiddleware
 
         $driverStats = User::whereIn('user_type', ['driver', 'transport_manager'])
             ->selectRaw(
-                'COUNT(*) as total, ' .
-                'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
-                'SUM(CASE WHEN driver_status = ? THEN 1 ELSE 0 END) as available, ' .
+                'COUNT(*) as total, '.
+                'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
+                'SUM(CASE WHEN driver_status = ? THEN 1 ELSE 0 END) as available, '.
                 'SUM(CASE WHEN driver_status = ? THEN 1 ELSE 0 END) as on_trip',
                 ['active', 'available', 'on_trip']
             )
@@ -197,6 +209,7 @@ class DriverController extends Controller implements HasMiddleware
                 'statuses' => $statuses,
                 'driver_statuses' => $driverStatuses,
                 'departments' => $departments,
+                'zones' => $zones,
                 'blood_groups' => $bloodGroups,
                 'roles' => $roles,
                 'vendors' => $vendors,
@@ -216,41 +229,45 @@ class DriverController extends Controller implements HasMiddleware
         $query = User::with(['department:id,name', 'vendor:id,name'])
             ->whereIn('user_type', ['driver', 'transport_manager']);
 
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhere('employee_id', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('driving_license_no', 'like', "%{$search}%");
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('employee_id', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('driving_license_no', 'like', "%{$search}%");
             });
         }
 
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['user_type'])) {
+            if (! empty($filters['user_type'])) {
                 $query->whereIn('user_type', $filters['user_type']);
             }
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
 
-            if (!empty($filters['driver_status'])) {
+            if (! empty($filters['driver_status'])) {
                 $query->whereIn('driver_status', $filters['driver_status']);
             }
 
-            if (!empty($filters['department_id'])) {
+            if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
             }
 
-            if (!empty($filters['blood_group'])) {
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
+
+            if (! empty($filters['blood_group'])) {
                 $query->whereIn('blood_group', $filters['blood_group']);
             }
 
-            if (!empty($filters['vendor_id'])) {
+            if (! empty($filters['vendor_id'])) {
                 $query->whereIn('vendor_id', $filters['vendor_id']);
             }
         }
@@ -308,7 +325,7 @@ class DriverController extends Controller implements HasMiddleware
 
         return response($csvContent)
             ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', 'attachment; filename="drivers_export_' . $timestamp . '.csv"');
+            ->header('Content-Disposition', 'attachment; filename="drivers_export_'.$timestamp.'.csv"');
     }
 
     /**
@@ -317,6 +334,7 @@ class DriverController extends Controller implements HasMiddleware
     public function create(): Response
     {
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
 
@@ -352,6 +370,7 @@ class DriverController extends Controller implements HasMiddleware
 
         return Inertia::render('drivers/create', [
             'departments' => $departments,
+            'zones' => $zones,
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
@@ -360,6 +379,7 @@ class DriverController extends Controller implements HasMiddleware
             'defaults' => [
                 'user_type' => 'driver',
                 'department_id' => $defaultDepartment?->id,
+                'zone_id' => auth()->user()->zone_id,
                 'role_id' => $driverRole?->id,
                 'driver_status' => 'available',
             ],
@@ -372,6 +392,9 @@ class DriverController extends Controller implements HasMiddleware
     public function store(StoreUserRequest $request): RedirectResponse
     {
         $validated = $request->validated();
+        $zoneAccess = $validated['zone_access'] ?? null;
+        $zoneIds = $validated['zone_ids'] ?? [];
+        unset($validated['zone_access'], $validated['zone_ids']);
 
         // Driver module is fixed to driver user type
         $validated['user_type'] = 'driver';
@@ -397,7 +420,7 @@ class DriverController extends Controller implements HasMiddleware
         $generatedPassword = null;
         if (empty($validated['password'])) {
             // Generate strong password: 12 characters with letters, numbers, and symbols
-            $generatedPassword = \Illuminate\Support\Str::random(12);
+            $generatedPassword = Str::random(12);
             $validated['password'] = Hash::make($generatedPassword);
         } else {
             $validated['password'] = Hash::make($validated['password']);
@@ -425,6 +448,10 @@ class DriverController extends Controller implements HasMiddleware
             $user->syncRoles([$driverRole->id]);
         }
 
+        if ($request->has('zone_access')) {
+            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
+        }
+
         return redirect()->route('drivers.index')->with('success', $generatedPassword
             ? "Driver created successfully! Generated Password: {$generatedPassword} (Save this, it won't be shown again)"
             : 'Driver created successfully.');
@@ -435,7 +462,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function show(User $driver): Response
     {
-        if (!in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
             abort(404, 'Driver not found');
         }
 
@@ -471,14 +498,19 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function edit(User $driver): Response
     {
-        if (!in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
             abort(404, 'Driver not found');
         }
 
         $departments = Department::active()->get(['id', 'name']);
+        $currentZoneIds = $driver->accessZones()->pluck('zones.id')->all();
+        if (empty($currentZoneIds) && $driver->zone_id) {
+            $currentZoneIds = [$driver->zone_id];
+        }
+        $zones = Zone::selectableBy(auth()->user(), $currentZoneIds);
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
-        $userRoles = $driver->roles->pluck('id')->map(fn($id) => (string) $id)->toArray();
+        $userRoles = $driver->roles->pluck('id')->map(fn ($id) => (string) $id)->toArray();
 
         $userTypes = [
             ['value' => 'driver', 'label' => 'Driver'],
@@ -507,6 +539,9 @@ class DriverController extends Controller implements HasMiddleware
         return Inertia::render('drivers/edit', [
             'user' => $driver,
             'departments' => $departments,
+            'zones' => $zones,
+            'currentZoneIds' => $currentZoneIds,
+            'hasAllZoneAccess' => $driver->can('view-all-zones'),
             'vendors' => $vendors,
             'roles' => $roles,
             'userRoles' => $userRoles,
@@ -521,11 +556,14 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function update(UpdateUserRequest $request, User $driver): RedirectResponse
     {
-        if (!in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
             abort(404, 'Driver not found');
         }
 
         $validated = $request->validated();
+        $zoneAccess = $validated['zone_access'] ?? null;
+        $zoneIds = $validated['zone_ids'] ?? [];
+        unset($validated['zone_access'], $validated['zone_ids']);
 
         // Driver module is fixed to driver user type
         $validated['user_type'] = 'driver';
@@ -560,7 +598,7 @@ class DriverController extends Controller implements HasMiddleware
         }
 
         // Hash password if provided
-        if (!empty($validated['password'])) {
+        if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -574,6 +612,10 @@ class DriverController extends Controller implements HasMiddleware
             $driver->syncRoles([$driverRole->id]);
         }
 
+        if ($request->has('zone_access')) {
+            Zone::applyAccess($driver, $zoneAccess ?? 'specific', $zoneIds);
+        }
+
         return redirect()->route('drivers.index')->with('success', 'Driver updated successfully.');
     }
 
@@ -582,7 +624,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function destroy(User $driver): RedirectResponse
     {
-        if (!in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
             abort(404, 'Driver not found');
         }
 
@@ -598,7 +640,7 @@ class DriverController extends Controller implements HasMiddleware
             return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they have requested trips on record. Deactivate the account instead.']);
         }
 
-        if (\App\Models\TripRecurringGroup::where('created_by', $driver->id)->exists()) {
+        if (TripRecurringGroup::where('created_by', $driver->id)->exists()) {
             return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they created recurring trip groups on record. Deactivate the account instead.']);
         }
 
@@ -671,15 +713,15 @@ class DriverController extends Controller implements HasMiddleware
             'driver_status' => 'required|in:available,on_trip,on_leave,inactive,suspended',
         ]);
 
-        if (!$user->isDriver()) {
+        if (! $user->isDriver()) {
             return redirect()->back()
-                           ->with('error', 'User is not a driver.');
+                ->with('error', 'User is not a driver.');
         }
 
         $user->update(['driver_status' => $request->driver_status]);
 
         return redirect()->back()
-                        ->with('success', 'Driver status updated successfully.');
+            ->with('success', 'Driver status updated successfully.');
     }
 
     /**

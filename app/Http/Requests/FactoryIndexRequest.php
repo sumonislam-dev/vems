@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class FactoryIndexRequest extends FormRequest
@@ -17,7 +18,7 @@ class FactoryIndexRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -32,6 +33,8 @@ class FactoryIndexRequest extends FormRequest
             'filters.status.*' => 'string|in:active,inactive',
             'filters.city' => 'nullable|array',
             'filters.city.*' => 'string|max:255',
+            'filters.zone_id' => 'nullable|array',
+            'filters.zone_id.*' => 'string',
         ];
     }
 

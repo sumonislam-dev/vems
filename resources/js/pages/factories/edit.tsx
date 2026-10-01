@@ -7,7 +7,7 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
 import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
 import { useFormValidation, commonValidationRules, ValidationRules } from '@/hooks/use-form-validation';
-import { BreadcrumbItem } from '@/types';
+import { BreadcrumbItem, Zone } from '@/types';
 
 interface Factory {
     id: number;
@@ -19,10 +19,12 @@ interface Factory {
     latitude: number | null;
     longitude: number | null;
     mileage_km: number | null;
+    zone_id: number | null;
 }
 
 interface EditFactoryProps {
     factory: Factory;
+    zones: Zone[];
 }
 
 type FactoryForm = {
@@ -34,6 +36,7 @@ type FactoryForm = {
     latitude: string;
     longitude: string;
     mileage_km: string;
+    zone_id: string;
 };
 
 const statusOptions = [
@@ -41,7 +44,7 @@ const statusOptions = [
     { label: 'Inactive', value: 'inactive' },
 ];
 
-export default function EditFactory({ factory }: EditFactoryProps) {
+export default function EditFactory({ factory, zones }: EditFactoryProps) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Factories', href: '/factories' },
@@ -61,6 +64,7 @@ export default function EditFactory({ factory }: EditFactoryProps) {
         status: factory.status || 'active',
         address: factory.address || '',
         city: factory.city || '',
+        zone_id: factory.zone_id?.toString() || '',
         latitude: factory.latitude?.toString() || '',
         longitude: factory.longitude?.toString() || '',
         mileage_km: factory.mileage_km?.toString() || '',
@@ -215,6 +219,16 @@ export default function EditFactory({ factory }: EditFactoryProps) {
                                     onChange={(e) => handleFieldChange('city', e)}
                                     error={getFieldError('city')}
                                     placeholder="e.g., Dhaka"
+                                />
+
+                                <FormSelect
+                                    label="Zone"
+                                    name="zone_id"
+                                    value={data.zone_id}
+                                    onChange={(e) => handleFieldChange('zone_id', e)}
+                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                    error={getFieldError('zone_id')}
+                                    placeholder="Select zone..."
                                 />
                             </div>
 

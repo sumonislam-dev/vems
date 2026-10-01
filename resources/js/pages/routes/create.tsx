@@ -13,6 +13,7 @@ import MapStopPicker from '@/components/MapStopPicker';
 import {
   BaseForm,
   FormField,
+  FormSelect,
   FormTextarea
 } from '@/base-components/base-form';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ interface Stop {
     description: string | null;
     latitude: number | null;
     longitude: number | null;
+    zone_id?: number | null;
 }
 
 interface RouteStopForm {
@@ -34,15 +36,23 @@ interface RouteStopForm {
     manual_distance?: number | null;
 }
 
-interface CreateRouteProps {
-    stops: Stop[];
+interface Zone {
+    id: number;
+    name: string;
 }
 
-export default function CreateRoute({ stops: initialStops }: CreateRouteProps) {
+interface CreateRouteProps {
+    stops: Stop[];
+    zones: Zone[];
+    defaultZoneId: number | null;
+}
+
+export default function CreateRoute({ stops: initialStops, zones, defaultZoneId }: CreateRouteProps) {
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         description: '',
         remarks: '',
+        zone_id: defaultZoneId?.toString() || '',
         stops: [],
     });
 
@@ -166,7 +176,7 @@ export default function CreateRoute({ stops: initialStops }: CreateRouteProps) {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
                 },
-                body: JSON.stringify(stopData)
+                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null })
             });
 
             if (response.ok) {
@@ -288,6 +298,16 @@ export default function CreateRoute({ stops: initialStops }: CreateRouteProps) {
                                         error={errors.remarks}
                                         placeholder="Enter any additional remarks..."
                                         rows={2}
+                                    />
+
+                                    <FormSelect
+                                        label="Zone"
+                                        name="zone_id"
+                                        value={data.zone_id as string}
+                                        onChange={(value) => setData('zone_id', value)}
+                                        error={errors.zone_id}
+                                        options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                        placeholder="Select zone..."
                                     />
                                 </BaseForm>
                             </CardContent>

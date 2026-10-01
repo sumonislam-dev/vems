@@ -7,7 +7,7 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
 import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
 import { useFormValidation, commonValidationRules, ValidationRules } from '@/hooks/use-form-validation';
-import { BreadcrumbItem } from '@/types';
+import { BreadcrumbItem, Zone } from '@/types';
 
 type FactoryForm = {
     account_id: string;
@@ -18,7 +18,13 @@ type FactoryForm = {
     latitude: string;
     longitude: string;
     mileage_km: string;
+    zone_id: string;
 };
+
+interface CreateFactoryProps {
+    zones: Zone[];
+    defaultZoneId: number | null;
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -31,7 +37,7 @@ const statusOptions = [
     { label: 'Inactive', value: 'inactive' },
 ];
 
-export default function CreateFactory() {
+export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryProps) {
     const {
         data,
         setData,
@@ -44,6 +50,7 @@ export default function CreateFactory() {
         status: 'active',
         address: '',
         city: '',
+        zone_id: defaultZoneId?.toString() || '',
         latitude: '',
         longitude: '',
         mileage_km: '',
@@ -198,6 +205,16 @@ export default function CreateFactory() {
                                     onChange={(e) => handleFieldChange('city', e)}
                                     error={getFieldError('city')}
                                     placeholder="e.g., Dhaka"
+                                />
+
+                                <FormSelect
+                                    label="Zone"
+                                    name="zone_id"
+                                    value={data.zone_id}
+                                    onChange={(e) => handleFieldChange('zone_id', e)}
+                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                    error={getFieldError('zone_id')}
+                                    placeholder="Select zone..."
                                 />
                             </div>
 

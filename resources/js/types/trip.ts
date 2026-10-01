@@ -1,12 +1,13 @@
 import type { User } from './user';
 import type { Vehicle } from './vehicle';
-import type { VehicleRoute, Stop, Department, Factory, Logistics } from './common';
+import type { VehicleRoute, Stop, Department, Factory, Logistics, Zone } from './common';
 
 export interface Trip {
     id: number;
     trip_number: string;
     vehicle_route_id?: number;
     vehicle_id?: number;
+    zone_id?: number;
     driver_id?: number;
     department_id?: number;
     requested_by: number;
@@ -81,6 +82,7 @@ export interface Trip {
     driver?: User;
     department?: Department;
     departments?: Department[];
+    zone?: Zone;
     logistics?: Logistics[];
     passengers?: TripPassenger[];
     trip_stops?: TripStop[];

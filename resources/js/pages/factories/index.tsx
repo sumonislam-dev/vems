@@ -17,6 +17,7 @@ interface Factory {
     latitude: number | null;
     longitude: number | null;
     mileage_km: number | null;
+    zone: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;
 }
@@ -36,6 +37,7 @@ interface FactoriesPageProps {
     filterOptions: {
         statuses: string[];
         cities: string[];
+        zones: Array<{ id: number; name: string }>;
     };
     stats: {
         total: number;
@@ -84,6 +86,12 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
             label: 'City',
             sortable: true,
             render: (value) => value || '-',
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            filterable: true,
+            render: (value) => value?.name || 'No Zone',
         },
         {
             key: 'mileage_km',

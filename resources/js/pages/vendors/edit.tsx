@@ -4,12 +4,13 @@ import { useFlashMessage } from '@/components/flash-messages';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem, Vendor } from '@/types';
+import { BreadcrumbItem, Vendor, Zone } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, LayoutGrid, Save, Trash2, UserPlus } from 'lucide-react';
 
 interface EditVendorProps {
     vendor: Vendor;
+    zones: Zone[];
 }
 
 type ContactPerson = {
@@ -40,6 +41,7 @@ type VendorForm = {
     tax_return: string;
     tax_return_file: File | null;
     bank_details: string;
+    zone_id: string;
     contact_persons: ContactPerson[];
 };
 
@@ -49,7 +51,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Edit Vendor', href: '#' },
 ];
 
-export default function EditVendor({ vendor }: EditVendorProps) {
+export default function EditVendor({ vendor, zones }: EditVendorProps) {
     const { showError } = useFlashMessage();
 
     const { data, setData, post, processing, errors } = useForm<VendorForm>({
@@ -61,6 +63,7 @@ export default function EditVendor({ vendor }: EditVendorProps) {
         website: vendor.website || '',
         description: vendor.description || '',
         status: vendor.status,
+        zone_id: vendor.zone_id?.toString() || '',
         trade_license: vendor.trade_license || '',
         trade_license_file: null,
         tin: vendor.tin || '',
@@ -270,6 +273,21 @@ export default function EditVendor({ vendor }: EditVendorProps) {
                                                     onChange={(value) => setData('website', value)}
                                                     error={errors.website}
                                                     placeholder="Enter website URL"
+                                                    className="text-sm"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
+                                            <div>
+                                                <FormSelect
+                                                    label="Zone"
+                                                    name="zone_id"
+                                                    value={data.zone_id}
+                                                    onChange={(value) => setData('zone_id', value)}
+                                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                                    error={errors.zone_id}
+                                                    placeholder="Select zone..."
                                                     className="text-sm"
                                                 />
                                             </div>

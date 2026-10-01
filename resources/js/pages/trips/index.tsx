@@ -55,6 +55,9 @@ interface TripsPageProps {
         completed: number;
         today: number;
     };
+    filterOptions: {
+        zones: Array<{ label: string; value: string }>;
+    };
     queryParams: {
         search?: string;
         filters?: Record<string, (string | number)[]>;
@@ -101,7 +104,7 @@ const checkPermission = (permission: string, permissions: string[] = []): boolea
 
 type TripActionType = 'reject' | 'start' | 'complete' | 'cancel';
 
-export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps) {
+export default function TripsIndex({ trips, stats, filterOptions, queryParams }: TripsPageProps) {
     const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[] } };
     const permissions = pageProps.auth?.permissions ?? [];
     const currentUserId = pageProps.auth?.user?.id;
@@ -326,6 +329,13 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
                 ),
         },
         {
+            key: 'zone',
+            label: 'Zone',
+            render: (_, row) => (
+                <span className="text-sm text-muted-foreground">{row.zone?.name ?? '-'}</span>
+            ),
+        },
+        {
             key: 'driver_id',
             label: 'Driver',
             render: (_, row) =>
@@ -502,7 +512,16 @@ export default function TripsIndex({ trips, stats, queryParams }: TripsPageProps
             ],
             type: 'select' as const,
         },
-    ], []);
+        {
+            key: 'zone_id',
+            label: 'Zone',
+            options: [
+                { label: 'All', value: '' },
+                ...filterOptions.zones.map((zone) => ({ label: zone.label, value: zone.value })),
+            ],
+            type: 'select' as const,
+        },
+    ], [filterOptions.zones]);
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>

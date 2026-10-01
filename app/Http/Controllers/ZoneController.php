@@ -136,6 +136,13 @@ class ZoneController extends Controller implements HasMiddleware
      */
     public function destroy(Zone $zone): RedirectResponse
     {
+        if (
+            $zone->users()->exists() || $zone->vehicles()->exists() || $zone->stops()->exists()
+            || $zone->vehicleRoutes()->exists() || $zone->factories()->exists() || $zone->vendors()->exists()
+        ) {
+            return back()->with('error', 'Cannot delete zone: it still has users, vehicles, stops, routes, factories or vendors assigned. Reassign them first.');
+        }
+
         try {
             $zone->delete();
 

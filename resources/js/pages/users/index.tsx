@@ -18,6 +18,8 @@ interface User {
     username: string;
     user_type: string;
     department: { name: string } | null;
+    zone: { name: string } | null;
+    access_zones: Array<{ id: number; name: string }>;
     status: string;
     area: string | null;
     roles: Array<{ name: string }>;
@@ -45,6 +47,7 @@ interface UsersPageProps {
         statuses: string[];
         roles: string[];
         departments: Array<{ id: number; name: string }>;
+        zones: Array<{ id: number; name: string }>;
         blood_groups: string[];
     };
     stats: {
@@ -172,6 +175,15 @@ export default function UsersIndex({
                     {value?.name || 'No Department'}
                 </span>
             ),
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            filterable: true,
+            render: (value, row) => {
+                const zoneNames = row.access_zones?.length ? row.access_zones.map((z) => z.name).join(', ') : value?.name;
+                return <span className="text-sm">{zoneNames || 'No Zone'}</span>;
+            },
         },
         {
             key: 'area',
@@ -334,6 +346,15 @@ export default function UsersIndex({
             })),
         },
         {
+            key: 'zone_id',
+            label: 'Zone',
+            type: 'multiselect',
+            options: filterOptions.zones.map((zone) => ({
+                label: zone.name,
+                value: zone.id.toString(),
+            })),
+        },
+        {
             key: 'roles',
             label: 'Roles',
             type: 'multiselect',
@@ -354,6 +375,7 @@ export default function UsersIndex({
     ], [
         filterOptions.statuses,
         filterOptions.departments,
+        filterOptions.zones,
         filterOptions.roles,
         filterOptions.blood_groups,
     ]);

@@ -31,6 +31,8 @@ export interface Vendor {
     tax_return_file: string | null;
     bank_details: string | null;
     status: 'active' | 'inactive';
+    zone_id: number | null;
+    zone?: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;
     contact_persons?: VendorContactPerson[];
@@ -51,6 +53,8 @@ export interface Vehicle {
     vendor_id: number | null;
     driver_id: number;
     driver?: User;
+    zone_id: number | null;
+    zone?: { id: number; name: string } | null;
     is_active: boolean;
     status: 'available' | 'assigned' | 'in_transit' | 'maintenance' | 'out_of_service';
     parking_address: string | null;

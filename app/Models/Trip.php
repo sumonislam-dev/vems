@@ -2,15 +2,14 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
-use App\Models\Department;
 
 class Trip extends Model
 {
@@ -123,6 +122,17 @@ class Trip extends Model
         return $this->belongsTo(Vehicle::class);
     }
 
+    /**
+     * A snapshot of the assigned vehicle's zone at assignment time (see
+     * TripObserver::creating()/updating()) — not user-settable (deliberately
+     * absent from $fillable), so it can't drift from the vehicle's zone at
+     * the moment it was assigned without going through that snapshot logic.
+     */
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class);
+    }
+
     public function driver(): BelongsTo
     {
         return $this->belongsTo(User::class, 'driver_id');
@@ -164,6 +174,7 @@ class Trip extends Model
     {
         return $this->hasOne(TripVehicleAssignment::class)->where('is_current', true)->latestOfMany('assigned_at');
     }
+
     /**
      * Selected stops for this trip
      */
@@ -179,6 +190,7 @@ class Trip extends Model
     {
         return $this->hasMany(TripStop::class)->destinations()->ordered();
     }
+
     /**
      * Named cancelledByUser (not cancelledBy) so the eager-loaded relation
      * doesn't serialize to the same JSON key as the raw cancelled_by FK
@@ -303,7 +315,8 @@ class Trip extends Model
     {
         $date = now()->format('Ymd');
         $count = static::whereDate('created_at', today())->count() + 1;
-        return "TRP-{$date}-" . str_pad($count, 4, '0', STR_PAD_LEFT);
+
+        return "TRP-{$date}-".str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -316,7 +329,7 @@ class Trip extends Model
      */
     public function canTransitionTo(string $newStatus): bool
     {
-        return match($this->status) {
+        return match ($this->status) {
             'pending' => in_array($newStatus, ['approved', 'rejected', 'cancelled']),
             'approved' => in_array($newStatus, ['assigned', 'in_progress', 'rejected', 'cancelled']),
             'assigned' => in_array($newStatus, ['in_progress', 'cancelled']),
@@ -328,7 +341,7 @@ class Trip extends Model
 
     public function transitionTo(string $newStatus, array $attributes = [], ?string $reason = null): bool
     {
-        if (!$this->canTransitionTo($newStatus)) {
+        if (! $this->canTransitionTo($newStatus)) {
             return false;
         }
 
@@ -350,7 +363,7 @@ class Trip extends Model
 
     public function cancel(string $reason, ?string $notes = null): bool
     {
-        if (!$this->canTransitionTo('cancelled')) {
+        if (! $this->canTransitionTo('cancelled')) {
             return false;
         }
 
@@ -381,7 +394,7 @@ class Trip extends Model
 
     public function assignLogistics(int $logisticsId, ?string $notes = null): void
     {
-        if (!$this->logistics()->where('logistics_id', $logisticsId)->exists()) {
+        if (! $this->logistics()->where('logistics_id', $logisticsId)->exists()) {
             $this->logistics()->attach($logisticsId, [
                 'assigned_by' => auth()->id(),
                 'assigned_at' => now(),
@@ -474,7 +487,7 @@ class Trip extends Model
         }
 
         // Add selected destination stops
-        if (!empty($stopIds)) {
+        if (! empty($stopIds)) {
             $order = $startStopId ? 2 : 1;
             foreach ($stopIds as $stopId) {
                 $stops[] = [
@@ -524,6 +537,7 @@ class Trip extends Model
                 ->orderBy('stop_order', 'desc')
                 ->first()?->stop;
         }
+
         return null;
     }
 
@@ -548,7 +562,7 @@ class Trip extends Model
      */
     public function startTrip(?float $odometerStart = null, ?string $startLocation = null): bool
     {
-        if (!$this->canTransitionTo('in_progress')) {
+        if (! $this->canTransitionTo('in_progress')) {
             return false;
         }
 
@@ -582,7 +596,7 @@ class Trip extends Model
      */
     public function completeTrip(array $data = []): bool
     {
-        if (!$this->canTransitionTo('completed')) {
+        if (! $this->canTransitionTo('completed')) {
             return false;
         }
 
@@ -677,6 +691,7 @@ class Trip extends Model
         if ($this->start_time && $this->end_time) {
             return $this->start_time->diffInHours($this->end_time, true);
         }
+
         return null;
     }
 
@@ -685,7 +700,7 @@ class Trip extends Model
      */
     public function getTripTypeLabel(): string
     {
-        return match($this->trip_type) {
+        return match ($this->trip_type) {
             'inspection' => 'Inspection',
             'pick-up' => 'Pick-up',
             'drop-off' => 'Drop-off',
@@ -714,12 +729,13 @@ class Trip extends Model
         if ($this->actual_start && $this->actual_end) {
             return $this->actual_start->diffInHours($this->actual_end, true);
         }
+
         return null;
     }
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
+        return match ($this->status) {
             'pending' => 'yellow',
             'approved' => 'blue',
             'assigned' => 'cyan',
@@ -733,7 +749,7 @@ class Trip extends Model
 
     public function getPriorityColorAttribute(): string
     {
-        return match($this->priority) {
+        return match ($this->priority) {
             'urgent' => 'red',
             'high' => 'orange',
             'medium' => 'yellow',
@@ -759,7 +775,7 @@ class Trip extends Model
 
             $auditableChanges = array_diff_key($changes, array_flip($excludeFields));
 
-            if (!empty($auditableChanges)) {
+            if (! empty($auditableChanges)) {
                 TripAuditLog::create([
                     'trip_id' => $trip->id,
                     'user_id' => auth()->id(), // null for console/queue/system operations

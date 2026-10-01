@@ -8,6 +8,7 @@ import { UserForm, UserFormBody } from '@/components/user-form-body';
 
 interface CreateDriverProps {
   departments: Array<{ id: number; name: string }>;
+  zones: Array<{ id: number; name: string }>;
   vendors: Array<{ id: number; name: string }>;
   roles: Array<{ id: number; name: string }>;
   userTypes: Array<{ value: string; label: string }>;
@@ -16,12 +17,13 @@ interface CreateDriverProps {
   defaults: {
     user_type: string;
     department_id?: number;
+    zone_id?: number;
     role_id?: number;
     driver_status: string;
   };
 }
 
-export default function CreateDriver({ departments, vendors, roles, userTypes, licenseClasses, bloodGroups, defaults }: CreateDriverProps) {
+export default function CreateDriver({ departments, zones, vendors, roles, userTypes, licenseClasses, bloodGroups, defaults }: CreateDriverProps) {
   const { data, setData, post, processing, errors: serverErrors, reset } = useForm<UserForm>({
     name: '',
     username: '',
@@ -29,6 +31,8 @@ export default function CreateDriver({ departments, vendors, roles, userTypes, l
     email: '',
     user_type: defaults.user_type || 'driver',
     department_id: defaults.department_id?.toString() || '',
+    zone_access: 'specific',
+    zone_ids: defaults.zone_id ? [defaults.zone_id.toString()] : [],
     vendor_id: '',
     roles: defaults.role_id ? [defaults.role_id.toString()] : [],
     official_phone: '',
@@ -151,6 +155,7 @@ export default function CreateDriver({ departments, vendors, roles, userTypes, l
   const formCompletion = getFormCompletion();
 
   const departmentOptions = departments.map((dept) => ({ label: dept.name, value: dept.id.toString() }));
+  const zoneOptions = zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }));
   const vendorOptions = vendors.map((vendor) => ({ label: vendor.name, value: vendor.id.toString() }));
   const statusOptions = [
     { label: 'Active', value: 'active' },
@@ -212,6 +217,7 @@ export default function CreateDriver({ departments, vendors, roles, userTypes, l
             licenseClasses={licenseClasses}
             bloodGroups={bloodGroups}
             departmentOptions={departmentOptions}
+            zoneOptions={zoneOptions}
             statusOptions={statusOptions}
             driverStatusOptions={driverStatusOptions}
           />

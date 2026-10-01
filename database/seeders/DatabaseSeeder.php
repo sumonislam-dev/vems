@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             RolePermissionSeeder::class, // Must run first to create roles
+            ZoneSeeder::class, // Must run before any seeder assigning zone_id
             DepartmentSeeder::class,
             UserSeeder::class, // UserSeeder should handle VMS user fields
             VehicleSeeder::class,

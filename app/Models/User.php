@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +18,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, HasRoles, LogsActivity, Notifiable;
+    use BelongsToZone, HasFactory, HasRoles, LogsActivity, Notifiable;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -57,6 +58,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'user_type',
         'department_id',
         'vendor_id',
+        'zone_id',
         'blood_group',
         'image',
         'status',
@@ -192,6 +194,16 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(UserGroup::class, 'group_user')
             ->withPivot(['added_by', 'added_at'])
             ->withTimestamps();
+    }
+
+    /**
+     * Additional zones this user has been explicitly granted access to,
+     * beyond their single `zone_id`. See Zone::accessIds() — a user with
+     * rows here is restricted to this set instead of just their zone_id.
+     */
+    public function accessZones(): BelongsToMany
+    {
+        return $this->belongsToMany(Zone::class, 'user_zone')->withTimestamps();
     }
 
     // Scopes

@@ -8,6 +8,8 @@ import { UserForm, UserFormBody } from '@/components/user-form-body';
 
 interface CreateUserProps {
   departments: Array<{ id: number; name: string }>;
+  zones: Array<{ id: number; name: string }>;
+  defaultZoneId: number | null;
   vendors: Array<{ id: number; name: string }>;
   roles: Array<{ id: number; name: string }>;
   userTypes: Array<{ value: string; label: string }>;
@@ -15,7 +17,7 @@ interface CreateUserProps {
   bloodGroups: Array<{ value: string; label: string }>;
 }
 
-export default function CreateUser({ departments, vendors, roles, userTypes, licenseClasses, bloodGroups }: CreateUserProps) {
+export default function CreateUser({ departments, zones, defaultZoneId, vendors, roles, userTypes, licenseClasses, bloodGroups }: CreateUserProps) {
   const { data, setData, post, processing, errors: serverErrors, reset } = useForm<UserForm>({
     name: '',
     username: '',
@@ -23,6 +25,8 @@ export default function CreateUser({ departments, vendors, roles, userTypes, lic
     email: '',
     user_type: 'employee',
     department_id: '',
+    zone_access: 'specific',
+    zone_ids: defaultZoneId ? [defaultZoneId.toString()] : [],
     vendor_id: '',
     roles: [],
     official_phone: '',
@@ -152,6 +156,7 @@ export default function CreateUser({ departments, vendors, roles, userTypes, lic
   const formCompletion = getFormCompletion();
 
   const departmentOptions = departments.map((dept) => ({ label: dept.name, value: dept.id.toString() }));
+  const zoneOptions = zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }));
   const vendorOptions = vendors.map((vendor) => ({ label: vendor.name, value: vendor.id.toString() }));
   const statusOptions = [
     { label: 'Active', value: 'active' },
@@ -213,6 +218,7 @@ export default function CreateUser({ departments, vendors, roles, userTypes, lic
             licenseClasses={licenseClasses}
             bloodGroups={bloodGroups}
             departmentOptions={departmentOptions}
+            zoneOptions={zoneOptions}
             statusOptions={statusOptions}
             driverStatusOptions={driverStatusOptions}
           />

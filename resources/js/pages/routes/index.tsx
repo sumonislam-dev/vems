@@ -17,6 +17,7 @@ interface VehicleRoute {
     created_at: string;
     updated_at: string;
     route_stops?: RouteStop[];
+    zone: { id: number; name: string } | null;
 }
 
 interface RouteStop {
@@ -107,6 +108,13 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                 <span className="text-muted-foreground text-sm">Not calculated</span>
             ),
             className: 'text-center',
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            render: (value: { id: number; name: string } | null) => (
+                <span className="text-sm">{value?.name || 'No Zone'}</span>
+            ),
         },
         {
             key: 'remarks',

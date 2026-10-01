@@ -4,13 +4,15 @@ import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/searchable-select';
 import { FormDateField } from '@/components/date-picker';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem, Vendor, User } from '@/types';
+import { BreadcrumbItem, Vendor, User, Zone } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus } from 'lucide-react';
 
 interface CreateVehicleProps {
     vendors: Vendor[];
     drivers: User[];
+    zones: Zone[];
+    defaultZoneId: number | null;
 }
 
 type VehicleForm = {
@@ -24,6 +26,7 @@ type VehicleForm = {
     vendor: string;
     vendor_id: string;
     driver_id: string;
+    zone_id: string;
     is_active: boolean;
     status: string;
     // Parking Location
@@ -70,7 +73,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create Vehicle', href: '#' },
 ];
 
-export default function CreateVehicle({ vendors = [], drivers = [] }: CreateVehicleProps) {
+export default function CreateVehicle({ vendors = [], drivers = [], zones = [], defaultZoneId = null }: CreateVehicleProps) {
     const { data, setData, post, processing, errors } = useForm<VehicleForm>({
         brand: '',
         model: '',
@@ -82,6 +85,7 @@ export default function CreateVehicle({ vendors = [], drivers = [] }: CreateVehi
         vendor: '',
         vendor_id: 'none',
         driver_id: 'none',
+        zone_id: defaultZoneId?.toString() || 'none',
         is_active: true,
         status: 'available',
         // Parking Location
@@ -185,6 +189,14 @@ export default function CreateVehicle({ vendors = [], drivers = [] }: CreateVehi
         ...(vendors || []).map(vendor => ({
             label: vendor.name,
             value: vendor.id.toString()
+        }))
+    ];
+
+    const zoneOptions = [
+        { label: 'No Zone', value: 'none' },
+        ...(zones || []).map(zone => ({
+            label: zone.name,
+            value: zone.id.toString()
         }))
     ];
 
@@ -302,6 +314,16 @@ export default function CreateVehicle({ vendors = [], drivers = [] }: CreateVehi
                                         error={errors.driver_id || undefined}
                                         required
                                         placeholder="Select driver..."
+                                    />
+
+                                    <SearchableSelect
+                                        label="Zone"
+                                        name="zone_id"
+                                        value={data.zone_id}
+                                        onChange={(value) => setData('zone_id', value)}
+                                        options={zoneOptions}
+                                        error={errors.zone_id || undefined}
+                                        placeholder="Select zone..."
                                     />
 
                                     <FormSelect

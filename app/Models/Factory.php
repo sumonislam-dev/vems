@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Activitylog\LogOptions;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Factory extends Model
 {
-    use LogsActivity;
+    use BelongsToZone, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -30,6 +31,7 @@ class Factory extends Model
         'latitude',
         'longitude',
         'mileage_km',
+        'zone_id',
     ];
 
     protected $casts = [

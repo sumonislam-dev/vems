@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Zone;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -105,6 +106,9 @@ class UpdateUserRequest extends FormRequest
             // User Classification
             'user_type' => ['nullable', 'string', 'in:employee,driver,transport_manager,admin'],
             'department_id' => ['nullable', 'exists:departments,id'],
+            'zone_access' => ['nullable', 'in:all,specific'],
+            'zone_ids' => ['nullable', 'array'],
+            'zone_ids.*' => Zone::validationRule(),
             'vendor_id' => [
                 'nullable',
                 'exists:vendors,id',
@@ -157,6 +161,7 @@ class UpdateUserRequest extends FormRequest
             'roles.*.exists' => 'One or more selected roles are invalid.',
             'vendor_id.required' => 'Vendor is required for driver users.',
             'vendor_id.exists' => 'The selected vendor is invalid.',
+            'zone_ids.*.in' => 'You are not allowed to grant access to one or more of the selected zones.',
         ];
     }
 
@@ -177,6 +182,10 @@ class UpdateUserRequest extends FormRequest
                 if (empty($this->license_expiry_date)) {
                     $validator->errors()->add('license_expiry_date', 'License expiry date is required for drivers.');
                 }
+            }
+
+            if ($this->input('zone_access') === 'specific' && empty(array_filter((array) $this->input('zone_ids')))) {
+                $validator->errors()->add('zone_ids', 'Select at least one zone, or choose "All Zones".');
             }
 
             // Prevent admin users from changing their own user_type

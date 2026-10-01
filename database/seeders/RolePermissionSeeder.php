@@ -121,6 +121,10 @@ class RolePermissionSeeder extends Seeder
             'create-zones',
             'edit-zones',
             'delete-zones',
+            // Lets a zone-assigned user (e.g. a future scoped manager role) see
+            // and manage every zone's data instead of just their own — see
+            // BelongsToZone. super-admin/admin get it automatically below.
+            'view-all-zones',
 
             // User Management
             'view-users',

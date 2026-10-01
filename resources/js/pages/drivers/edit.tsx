@@ -1,18 +1,12 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { BaseForm, FormDatePicker, FormField, FormFileUpload, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Users, CheckCircle, Car, User, Shield } from 'lucide-react';
+import { ZoneAccessSelect } from '@/components/zone-access-select';
 import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/base-components/page-header';
-import {
-  BaseForm,
-  FormField,
-  FormSelect,
-  FormTextarea,
-  FormFileUpload,
-  FormDatePicker
-} from '@/base-components/base-form';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, Car, CheckCircle, Save, Shield, User, Users } from 'lucide-react';
+import { FormEventHandler } from 'react';
 
 /**
  * Edit User Page
@@ -34,6 +28,8 @@ type UserForm = {
   email: string;
   user_type: string;
   department_id: string;
+  zone_access: 'all' | 'specific';
+  zone_ids: string[];
   vendor_id: string;
   roles: string[];
   official_phone: string;
@@ -66,6 +62,9 @@ type UserForm = {
 interface EditUserProps {
   user: Record<string, unknown>; // User data from the backend
   departments: Array<{ id: number; name: string }>;
+  zones: Array<{ id: number; name: string }>;
+  currentZoneIds: number[];
+  hasAllZoneAccess: boolean;
   vendors: Array<{ id: number; name: string }>;
   roles: Array<{ id: number; name: string }>;
   userRoles: string[]; // Current user roles
@@ -86,32 +85,32 @@ const toDateInputValue = (value: unknown): string => {
 // Enhanced user type options with icons and descriptions
 const enhancedUserTypeOptions = [
   {
-    label: "Employee",
-    value: "employee",
+    label: 'Employee',
+    value: 'employee',
     icon: <User className="h-4 w-4 text-blue-600" />,
-    description: "Regular organization staff who can request vehicles"
+    description: 'Regular organization staff who can request vehicles',
   },
   {
-    label: "Driver",
-    value: "driver",
+    label: 'Driver',
+    value: 'driver',
     icon: <Car className="h-4 w-4 text-green-600" />,
-    description: "Can drive vehicles and handle trip operations"
+    description: 'Can drive vehicles and handle trip operations',
   },
   {
-    label: "Transport Manager",
-    value: "transport_manager",
+    label: 'Transport Manager',
+    value: 'transport_manager',
     icon: <Shield className="h-4 w-4 text-purple-600" />,
-    description: "Manages transport operations and approves trips"
+    description: 'Manages transport operations and approves trips',
   },
   {
-    label: "Administrator",
-    value: "admin",
+    label: 'Administrator',
+    value: 'admin',
     icon: <Shield className="h-4 w-4 text-red-600" />,
-    description: "Full system access and user management"
-  }
+    description: 'Full system access and user management',
+  },
 ];
 
-export default function EditUser({ user, vendors, userRoles, licenseClasses, bloodGroups }: EditUserProps) {
+export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess, vendors, userRoles, licenseClasses, bloodGroups }: EditUserProps) {
   const { data, setData, post, transform, processing, errors, reset } = useForm<UserForm>({
     name: (user.name as string) || '',
     username: (user.username as string) || '',
@@ -119,6 +118,8 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
     email: (user.email as string) || '',
     user_type: 'driver',
     department_id: (user.department_id as number)?.toString() || '',
+    zone_access: hasAllZoneAccess ? 'all' : 'specific',
+    zone_ids: currentZoneIds.map((id) => id.toString()),
     vendor_id: (user.vendor_id as number)?.toString() || '',
     roles: userRoles || [],
     official_phone: (user.official_phone as string) || '',
@@ -151,16 +152,21 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
   // Show driver fields if user type is driver
   const showDriverFields = true;
 
-  const vendorOptions = vendors.map(vendor => ({
+  const vendorOptions = vendors.map((vendor) => ({
     label: vendor.name,
-    value: vendor.id.toString()
+    value: vendor.id.toString(),
+  }));
+
+  const zoneOptions = zones.map((zone) => ({
+    label: zone.name,
+    value: zone.id.toString(),
   }));
 
   // Status options
   const statusOptions = [
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' },
-    { label: 'Suspended', value: 'suspended' }
+    { label: 'Suspended', value: 'suspended' },
   ];
 
   // Driver status options
@@ -168,7 +174,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
     { label: 'Available', value: 'available' },
     { label: 'On Trip', value: 'on_trip' },
     { label: 'Off Duty', value: 'off_duty' },
-    { label: 'Maintenance', value: 'maintenance' }
+    { label: 'Maintenance', value: 'maintenance' },
   ];
 
   // Handle field changes
@@ -188,24 +194,24 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
 
   // Calculate form completion (for existing user, assume basic fields are filled)
   const requiredFields = ['name', 'username', 'email', 'user_type'];
-  const filledFields = requiredFields.filter(field => data[field as keyof UserForm]).length;
+  const filledFields = requiredFields.filter((field) => data[field as keyof UserForm]).length;
   const formCompletion = Math.round((filledFields / requiredFields.length) * 100);
 
   return (
     <AppLayout>
       <Head title={`Edit User - ${user.name as string}`} />
 
-      <div className="container mx-auto px-4 py-8 space-y-6">
+      <div className="container mx-auto space-y-6 px-4 py-8">
         <PageHeader
           title={`Edit User - ${user.name as string}`}
           description="Update user information and settings"
           actions={[
             {
-              label: "Back to Users",
+              label: 'Back to Users',
               icon: <ArrowLeft className="h-4 w-4" />,
               href: route('drivers.index'),
-              variant: "outline"
-            }
+              variant: 'outline',
+            },
           ]}
         />
 
@@ -213,10 +219,10 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
           <BaseForm onSubmit={submit} processing={processing}>
             {/* Compact Main Form Card */}
             <Card className="shadow-sm">
-              <CardHeader className="pb-3 px-4 sm:px-6">
+              <CardHeader className="px-4 pb-3 sm:px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-primary/10 rounded-md">
+                    <div className="rounded-md bg-primary/10 p-1.5">
                       <Users className="h-4 w-4 text-primary" />
                     </div>
                     <div>
@@ -227,11 +233,9 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                   {/* Compact Progress */}
                   <div className="flex items-center gap-2">
                     {formCompletion === 100 && <CheckCircle className="h-4 w-4 text-green-500" />}
-                    <div className="w-12 bg-muted rounded-full h-1.5">
+                    <div className="h-1.5 w-12 rounded-full bg-muted">
                       <div
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          formCompletion === 100 ? 'bg-green-500' : 'bg-primary'
-                        }`}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${formCompletion === 100 ? 'bg-green-500' : 'bg-primary'}`}
                         style={{ width: `${formCompletion}%` }}
                       />
                     </div>
@@ -241,7 +245,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
 
               <CardContent className="space-y-5 px-4 sm:px-6">
                 {/* Compact 3-Column Grid */}
-                <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                   {/* Basic Information */}
                   <FormField
                     label="Full Name"
@@ -274,7 +278,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                   />
                 </div>
 
-                <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                   <FormField
                     label="Email Address"
                     name="email"
@@ -286,12 +290,23 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                   />
 
                   {/* User Type, Department, and Roles are fixed for drivers - Hidden */}
+
+                  <ZoneAccessSelect
+                    zoneAccess={data.zone_access}
+                    zoneIds={data.zone_ids}
+                    onChange={(zoneAccess, zoneIds) => {
+                      setData('zone_access', zoneAccess);
+                      setData('zone_ids', zoneIds);
+                    }}
+                    zoneOptions={zoneOptions}
+                    error={errors.zone_ids}
+                  />
                 </div>
 
                 {/* Contact Information */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Contact Information</h4>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                     <FormField
                       label="Official Phone"
                       name="official_phone"
@@ -326,7 +341,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                 {/* Identity Documents */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Identity Documents</h4>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:gap-6">
                     <FormField
                       label="National ID Number"
                       name="nid_number"
@@ -367,7 +382,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                 {/* Personal Information */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Personal Information</h4>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                     <FormSelect
                       label="Blood Group"
                       name="blood_group"
@@ -401,7 +416,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                 {/* Emergency Contact */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Emergency Contact</h4>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                     <FormField
                       label="Contact Name"
                       name="emergency_contact_name"
@@ -434,7 +449,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                 {/* Addresses - Compact Layout */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">Address Information</h4>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
                     <FormField
                       label="Area/Location"
                       name="area"
@@ -444,7 +459,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                       placeholder="e.g., Gulshan, Mohakhali, Banani"
                     />
 
-                    <div className="md:col-span-2 grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4 md:col-span-2 md:grid-cols-2 md:gap-6">
                       <FormTextarea
                         label="Present Address"
                         name="present_address"
@@ -470,15 +485,13 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
 
                 {/* User Type Preview - Compact */}
                 {data.user_type && (
-                  <div className="p-3 rounded-md bg-muted/30 border-l-2 border-primary">
+                  <div className="rounded-md border-l-2 border-primary bg-muted/30 p-3">
                     <div className="flex items-center gap-2 text-sm">
-                      {enhancedUserTypeOptions.find(opt => opt.value === data.user_type)?.icon}
-                      <span className="font-medium">
-                        {enhancedUserTypeOptions.find(opt => opt.value === data.user_type)?.label}
-                      </span>
+                      {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.icon}
+                      <span className="font-medium">{enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.label}</span>
                       <span className="text-muted-foreground">-</span>
-                      <span className="text-muted-foreground text-xs">
-                        {enhancedUserTypeOptions.find(opt => opt.value === data.user_type)?.description}
+                      <span className="text-xs text-muted-foreground">
+                        {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.description}
                       </span>
                     </div>
                   </div>
@@ -489,9 +502,9 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
             {/* Driver Information Card (conditional) - Compact */}
             {showDriverFields && (
               <Card className="shadow-sm">
-                <CardHeader className="pb-3 px-4 sm:px-6">
+                <CardHeader className="px-4 pb-3 sm:px-6">
                   <div className="flex items-center gap-2">
-                    <div className="p-1.5 bg-green-100 rounded-md">
+                    <div className="rounded-md bg-green-100 p-1.5">
                       <Car className="h-4 w-4 text-green-600" />
                     </div>
                     <div>
@@ -502,7 +515,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                 </CardHeader>
 
                 <CardContent className="space-y-4 px-4 sm:px-6">
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
                     <FormSelect
                       label="Vendor"
                       name="vendor_id"
@@ -535,7 +548,12 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                         maxSize={2 * 1024 * 1024}
                       />
                       {(user.driving_license_file as string | null) && (
-                        <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                        <a
+                          href={`/storage/${user.driving_license_file}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-xs text-blue-600 hover:underline"
+                        >
                           View current file
                         </a>
                       )}
@@ -553,7 +571,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                     />
                   </div>
 
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                     <FormDatePicker
                       label="License Issue Date"
                       name="license_issue_date"
@@ -586,14 +604,14 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
 
             {/* File Uploads & Security - Compact */}
             <Card className="shadow-sm">
-              <CardHeader className="pb-3 px-4 sm:px-6">
+              <CardHeader className="px-4 pb-3 sm:px-6">
                 <CardTitle className="text-lg">Files & Security</CardTitle>
                 <CardDescription className="text-sm">Upload images and update password (optional)</CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-4 px-4 sm:px-6">
                 {/* File Uploads - Compact */}
-                <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
                   <FormFileUpload
                     label="Profile Image"
                     name="image"
@@ -619,7 +637,7 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
                     <h5 className="text-sm font-medium text-muted-foreground">Change Password (Optional)</h5>
                     <p className="text-xs text-muted-foreground">Leave blank to keep current password</p>
                   </div>
-                  <div className="grid gap-3 sm:gap-4 md:gap-6 grid-cols-1 md:grid-cols-2">
+                  <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 md:gap-6">
                     <FormField
                       label="New Password"
                       name="password"
@@ -646,29 +664,13 @@ export default function EditUser({ user, vendors, userRoles, licenseClasses, blo
 
             {/* Compact Form Actions */}
             <div className="flex justify-end gap-2 pt-4">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => reset()}
-                disabled={processing}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => reset()} disabled={processing}>
                 Reset
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => window.history.back()}
-                disabled={processing}
-              >
+              <Button type="button" variant="outline" size="sm" onClick={() => window.history.back()} disabled={processing}>
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={processing}
-              >
+              <Button type="submit" size="sm" disabled={processing}>
                 <Save className="h-4 w-4" />
                 Update User
               </Button>

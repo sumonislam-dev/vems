@@ -6,6 +6,8 @@ use App\Exports\VehiclesExport;
 use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\Vendor;
+use App\Models\Zone;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -143,10 +145,10 @@ class VehicleController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
 
-        $query = Vehicle::with(['vendor', 'driver']);
+        $query = Vehicle::with(['vendor', 'driver', 'zone']);
 
         // Apply search
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('brand', 'like', "%{$search}%")
@@ -158,44 +160,48 @@ class VehicleController extends Controller implements HasMiddleware
                     })
                     ->orWhereHas('driver', function ($driverQuery) use ($search) {
                         $driverQuery->where('name', 'like', "%{$search}%")
-                                   ->orWhere('email', 'like', "%{$search}%");
+                            ->orWhere('email', 'like', "%{$search}%");
                     });
             });
         }
 
         // Apply filters
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['brand'])) {
+            if (! empty($filters['brand'])) {
                 $query->whereIn('brand', $filters['brand']);
             }
 
-            if (!empty($filters['color'])) {
+            if (! empty($filters['color'])) {
                 $query->whereIn('color', $filters['color']);
             }
 
-            if (!empty($filters['vehicle_type'])) {
+            if (! empty($filters['vehicle_type'])) {
                 $query->whereIn('vehicle_type', $filters['vehicle_type']);
             }
 
-            if (!empty($filters['rental_type'])) {
+            if (! empty($filters['rental_type'])) {
                 $query->whereIn('rental_type', $filters['rental_type']);
             }
 
-            if (!empty($filters['fuel_type'])) {
+            if (! empty($filters['fuel_type'])) {
                 $query->whereIn('fuel_type', $filters['fuel_type']);
             }
 
-            if (!empty($filters['vendor_id'])) {
+            if (! empty($filters['vendor_id'])) {
                 $query->whereIn('vendor_id', $filters['vendor_id']);
             }
 
-            if (isset($filters['is_active']) && !empty($filters['is_active'])) {
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
+
+            if (isset($filters['is_active']) && ! empty($filters['is_active'])) {
                 $query->whereIn('is_active', $filters['is_active']);
             }
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
         }
@@ -238,9 +244,13 @@ class VehicleController extends Controller implements HasMiddleware
                 ['label' => 'Electric', 'value' => 'electric'],
                 ['label' => 'Hybrid', 'value' => 'hybrid'],
             ],
-            'vendors' => \App\Models\Vendor::active()->select('id', 'name')->orderBy('name')->get()->map(fn($v) => [
+            'vendors' => Vendor::active()->select('id', 'name')->orderBy('name')->get()->map(fn ($v) => [
                 'label' => $v->name,
-                'value' => (string)$v->id,
+                'value' => (string) $v->id,
+            ]),
+            'zones' => Zone::selectableBy()->map(fn ($z) => [
+                'label' => $z->name,
+                'value' => (string) $z->id,
             ]),
             'statuses' => [
                 ['label' => 'Active', 'value' => true],
@@ -257,9 +267,9 @@ class VehicleController extends Controller implements HasMiddleware
 
         // Get stats with a single aggregate query
         $vehicleStats = Vehicle::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active, ' .
-            'COUNT(DISTINCT brand) as brands, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) as active, '.
+            'COUNT(DISTINCT brand) as brands, '.
             'SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) as inactive'
         )->first();
 
@@ -290,7 +300,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         $query = Vehicle::with(['vendor', 'driver']);
 
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('brand', 'like', "%{$search}%")
@@ -302,43 +312,47 @@ class VehicleController extends Controller implements HasMiddleware
                     })
                     ->orWhereHas('driver', function ($driverQuery) use ($search) {
                         $driverQuery->where('name', 'like', "%{$search}%")
-                                   ->orWhere('email', 'like', "%{$search}%");
+                            ->orWhere('email', 'like', "%{$search}%");
                     });
             });
         }
 
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['brand'])) {
+            if (! empty($filters['brand'])) {
                 $query->whereIn('brand', $filters['brand']);
             }
 
-            if (!empty($filters['color'])) {
+            if (! empty($filters['color'])) {
                 $query->whereIn('color', $filters['color']);
             }
 
-            if (!empty($filters['vehicle_type'])) {
+            if (! empty($filters['vehicle_type'])) {
                 $query->whereIn('vehicle_type', $filters['vehicle_type']);
             }
 
-            if (!empty($filters['rental_type'])) {
+            if (! empty($filters['rental_type'])) {
                 $query->whereIn('rental_type', $filters['rental_type']);
             }
 
-            if (!empty($filters['fuel_type'])) {
+            if (! empty($filters['fuel_type'])) {
                 $query->whereIn('fuel_type', $filters['fuel_type']);
             }
 
-            if (!empty($filters['vendor_id'])) {
+            if (! empty($filters['vendor_id'])) {
                 $query->whereIn('vendor_id', $filters['vendor_id']);
             }
 
-            if (isset($filters['is_active']) && !empty($filters['is_active'])) {
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
+
+            if (isset($filters['is_active']) && ! empty($filters['is_active'])) {
                 $query->whereIn('is_active', $filters['is_active']);
             }
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
         }
@@ -394,7 +408,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         return response($csvContent)
             ->header('Content-Type', 'text/csv')
-            ->header('Content-Disposition', 'attachment; filename="vehicles_export_' . $timestamp . '.csv"');
+            ->header('Content-Disposition', 'attachment; filename="vehicles_export_'.$timestamp.'.csv"');
     }
 
     /**
@@ -403,7 +417,7 @@ class VehicleController extends Controller implements HasMiddleware
     public function create()
     {
         try {
-            $vendors = \App\Models\Vendor::active()
+            $vendors = Vendor::active()
                 ->select('id', 'name')
                 ->orderBy('name')
                 ->get();
@@ -419,9 +433,13 @@ class VehicleController extends Controller implements HasMiddleware
             $drivers = collect([]);
         }
 
+        $zones = Zone::selectableBy();
+
         return Inertia::render('vehicles/create', [
             'vendors' => $vendors,
             'drivers' => $drivers,
+            'zones' => $zones,
+            'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
 
@@ -436,6 +454,7 @@ class VehicleController extends Controller implements HasMiddleware
         $data['insurance_type'] = ($data['insurance_type'] ?? null) === 'none' ? null : ($data['insurance_type'] ?? null);
         $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
         $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
+        $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
 
         // Merge transformed data back to request
         $request->merge($data);
@@ -455,6 +474,7 @@ class VehicleController extends Controller implements HasMiddleware
             'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
             'vendor_id' => 'required|exists:vendors,id', // Required service provider
             'driver_id' => 'required|exists:users,id', // Required driver
+            'zone_id' => Zone::validationRule(),
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
@@ -480,7 +500,7 @@ class VehicleController extends Controller implements HasMiddleware
             'owner_email' => 'nullable|email|max:255',
             'owner_nid' => 'nullable|string|max:50',
             // Additional Vehicle Info
-            'manufacture_year' => 'nullable|numeric|min:1900|max:' . (date('Y') + 1),
+            'manufacture_year' => 'nullable|numeric|min:1900|max:'.(date('Y') + 1),
             'engine_number' => 'nullable|string|max:255',
             'chassis_number' => 'nullable|string|max:255',
             'fuel_type' => 'nullable|in:petrol,diesel,cng,electric,hybrid',
@@ -557,17 +577,19 @@ class VehicleController extends Controller implements HasMiddleware
     {
         $vehicle->load(['vendor', 'driver']);
 
-        $vendors = \App\Models\Vendor::active()
+        $vendors = Vendor::active()
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
 
         $drivers = $this->assignableDrivers($vehicle->driver_id);
+        $zones = Zone::selectableBy(auth()->user(), $vehicle->zone_id);
 
         return Inertia::render('vehicles/edit', [
             'vehicle' => $vehicle,
             'vendors' => $vendors,
             'drivers' => $drivers,
+            'zones' => $zones,
         ]);
     }
 
@@ -582,6 +604,7 @@ class VehicleController extends Controller implements HasMiddleware
         $data['insurance_type'] = ($data['insurance_type'] ?? null) === 'none' ? null : ($data['insurance_type'] ?? null);
         $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
         $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
+        $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
 
         // Merge transformed data back to request
         $request->merge($data);
@@ -590,7 +613,7 @@ class VehicleController extends Controller implements HasMiddleware
             'brand' => 'required|string|max:255',
             'model' => 'required|string|max:255',
             'color' => 'nullable|string|max:255', // Made optional
-            'registration_number' => 'required|string|max:255|unique:vehicles,registration_number,' . $vehicle->id,
+            'registration_number' => 'required|string|max:255|unique:vehicles,registration_number,'.$vehicle->id,
             'vehicle_type' => 'required|in:sedan,suv,van,microbus,coaster,bus,pickup,truck,other',
             'rental_type' => 'required|in:own,pool,rental,adhoc,support',
             'capacity' => 'nullable|integer|min:1',
@@ -602,6 +625,7 @@ class VehicleController extends Controller implements HasMiddleware
             // unassign flow, so editing it afterward must not force one back.
             'vendor_id' => 'nullable|exists:vendors,id',
             'driver_id' => 'nullable|exists:users,id',
+            'zone_id' => Zone::validationRule(),
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
@@ -627,7 +651,7 @@ class VehicleController extends Controller implements HasMiddleware
             'owner_email' => 'nullable|email|max:255',
             'owner_nid' => 'nullable|string|max:50',
             // Additional Vehicle Info
-            'manufacture_year' => 'nullable|integer|min:1900|max:' . (date('Y') + 1),
+            'manufacture_year' => 'nullable|integer|min:1900|max:'.(date('Y') + 1),
             'engine_number' => 'nullable|string|max:255',
             'chassis_number' => 'nullable|string|max:255',
             'fuel_type' => 'nullable|in:petrol,diesel,cng,electric,hybrid',

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { SearchableSelect } from '@/components/searchable-select';
 import { FormDateField } from '@/components/date-picker';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { BreadcrumbItem, Vehicle, Vendor, User } from '@/types';
+import { BreadcrumbItem, Vehicle, Vendor, User, Zone } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save } from 'lucide-react';
 
@@ -12,6 +12,7 @@ interface EditVehicleProps {
     vehicle: Vehicle;
     vendors: Vendor[];
     drivers: User[];
+    zones: Zone[];
 }
 
 type VehicleForm = {
@@ -25,6 +26,7 @@ type VehicleForm = {
     vendor: string;
     vendor_id: string;
     driver_id: string;
+    zone_id: string;
     is_active: boolean;
     status: string;
     // Parking Location
@@ -71,7 +73,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Edit Vehicle', href: '#' },
 ];
 
-export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehicleProps) {
+export default function EditVehicle({ vehicle, vendors, drivers = [], zones = [] }: EditVehicleProps) {
     const vendorValue = typeof vehicle.vendor === 'object' && vehicle.vendor !== null
         ? vehicle.vendor.name
         : (vehicle.vendor || '');
@@ -87,6 +89,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
         vendor: vendorValue,
         vendor_id: vehicle.vendor_id?.toString() || 'none',
         driver_id: vehicle.driver_id?.toString() || 'none',
+        zone_id: vehicle.zone_id?.toString() || 'none',
         is_active: vehicle.is_active ?? true,
         status: vehicle.status || 'available',
         // Parking Location
@@ -198,6 +201,14 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
         ...vendors.map(vendor => ({
             label: vendor.name,
             value: vendor.id.toString()
+        }))
+    ];
+
+    const zoneOptions = [
+        { label: 'No Zone', value: 'none' },
+        ...zones.map(zone => ({
+            label: zone.name,
+            value: zone.id.toString()
         }))
     ];
 
@@ -315,6 +326,16 @@ export default function EditVehicle({ vehicle, vendors, drivers = [] }: EditVehi
                                         error={errors.driver_id || undefined}
                                         required
                                         placeholder="Select driver..."
+                                    />
+
+                                    <SearchableSelect
+                                        label="Zone"
+                                        name="zone_id"
+                                        value={data.zone_id}
+                                        onChange={(value) => setData('zone_id', value)}
+                                        options={zoneOptions}
+                                        error={errors.zone_id || undefined}
+                                        placeholder="Select zone..."
                                     />
                                 </div>
                             </div>

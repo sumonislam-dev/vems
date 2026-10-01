@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vehicle extends Model
 {
-    use HasFactory, LogsActivity;
+    use BelongsToZone, HasFactory, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -38,6 +39,7 @@ class Vehicle extends Model
         'capacity',
         'vendor_id',
         'driver_id',
+        'zone_id',
         'is_active',
         'status',
         // Tax Token

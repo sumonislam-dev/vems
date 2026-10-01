@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Vendor;
+use App\Models\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -30,6 +31,7 @@ class VendorController extends Controller implements HasMiddleware
         $query = Vendor::with([
             'contactPersons:id,vendor_id',
             'vehicles:id,vendor_id',
+            'zone:id,name',
         ])->withCount('vehicles');
 
         // Search functionality
@@ -37,9 +39,9 @@ class VendorController extends Controller implements HasMiddleware
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -58,9 +60,9 @@ class VendorController extends Controller implements HasMiddleware
 
         // Get stats with a single aggregate query
         $vendorStats = Vendor::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, '.
             'SUM(CASE WHEN EXISTS (SELECT 1 FROM vehicles WHERE vehicles.vendor_id = vendors.id) THEN 1 ELSE 0 END) as with_vehicles',
             ['active', 'inactive']
         )->first();
@@ -84,7 +86,10 @@ class VendorController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        return Inertia::render('vendors/create');
+        return Inertia::render('vendors/create', [
+            'zones' => Zone::selectableBy(),
+            'defaultZoneId' => auth()->user()->zone_id,
+        ]);
     }
 
     /**
@@ -109,6 +114,7 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return' => 'nullable|string|max:255',
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
+            'zone_id' => Zone::validationRule(),
             'contact_persons' => 'array|min:1', // Minimum 1 contact person
             'contact_persons.*.name' => 'required|string|max:255',
             'contact_persons.*.position' => 'nullable|string|max:255',
@@ -124,7 +130,7 @@ class VendorController extends Controller implements HasMiddleware
         foreach (['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'] as $field) {
             if ($request->hasFile($field)) {
                 $file = $request->file($field);
-                $fileName = $field . '_' . time() . '.' . $file->getClientOriginalExtension();
+                $fileName = $field.'_'.time().'.'.$file->getClientOriginalExtension();
                 $file->storeAs('vendor_documents', $fileName, 'public');
                 $data[$field] = $fileName;
             }
@@ -175,6 +181,7 @@ class VendorController extends Controller implements HasMiddleware
 
         return Inertia::render('vendors/edit', [
             'vendor' => $vendorData,
+            'zones' => Zone::selectableBy(auth()->user(), $vendor->zone_id),
         ]);
     }
 
@@ -208,6 +215,7 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return' => 'nullable|string|max:255',
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
+            'zone_id' => Zone::validationRule(),
             'contact_persons' => $minContactsRule,
             'contact_persons.*.id' => [
                 'nullable',
@@ -228,44 +236,44 @@ class VendorController extends Controller implements HasMiddleware
             if ($request->hasFile('trade_license_file')) {
                 // Remove old file if it exists
                 if ($vendor->trade_license_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->trade_license_file);
+                    Storage::delete('public/vendor_documents/'.$vendor->trade_license_file);
                 }
 
                 $file = $request->file('trade_license_file');
-                $fileName = 'trade_license_' . time() . '.' . $file->getClientOriginalExtension();
+                $fileName = 'trade_license_'.time().'.'.$file->getClientOriginalExtension();
                 $file->storeAs('vendor_documents', $fileName, 'public');
                 $data['trade_license_file'] = $fileName;
             }
 
             if ($request->hasFile('tin_file')) {
                 if ($vendor->tin_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->tin_file);
+                    Storage::delete('public/vendor_documents/'.$vendor->tin_file);
                 }
 
                 $file = $request->file('tin_file');
-                $fileName = 'tin_' . time() . '.' . $file->getClientOriginalExtension();
+                $fileName = 'tin_'.time().'.'.$file->getClientOriginalExtension();
                 $file->storeAs('vendor_documents', $fileName, 'public');
                 $data['tin_file'] = $fileName;
             }
 
             if ($request->hasFile('bin_file')) {
                 if ($vendor->bin_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->bin_file);
+                    Storage::delete('public/vendor_documents/'.$vendor->bin_file);
                 }
 
                 $file = $request->file('bin_file');
-                $fileName = 'bin_' . time() . '.' . $file->getClientOriginalExtension();
+                $fileName = 'bin_'.time().'.'.$file->getClientOriginalExtension();
                 $file->storeAs('vendor_documents', $fileName, 'public');
                 $data['bin_file'] = $fileName;
             }
 
             if ($request->hasFile('tax_return_file')) {
                 if ($vendor->tax_return_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->tax_return_file);
+                    Storage::delete('public/vendor_documents/'.$vendor->tax_return_file);
                 }
 
                 $file = $request->file('tax_return_file');
-                $fileName = 'tax_return_' . time() . '.' . $file->getClientOriginalExtension();
+                $fileName = 'tax_return_'.time().'.'.$file->getClientOriginalExtension();
                 $file->storeAs('vendor_documents', $fileName, 'public');
                 $data['tax_return_file'] = $fileName;
             }
@@ -273,30 +281,30 @@ class VendorController extends Controller implements HasMiddleware
             $vendor->update($data);
 
             // Update contact persons
-        if (isset($validated['contact_persons'])) {
-            // Get existing contact person IDs
-            $existingIds = $vendor->contactPersons->pluck('id')->toArray();
-            $submittedIds = collect($validated['contact_persons'])
-                ->pluck('id')
-                ->filter()
-                ->toArray();
+            if (isset($validated['contact_persons'])) {
+                // Get existing contact person IDs
+                $existingIds = $vendor->contactPersons->pluck('id')->toArray();
+                $submittedIds = collect($validated['contact_persons'])
+                    ->pluck('id')
+                    ->filter()
+                    ->toArray();
 
-            // Delete removed contact persons
-            $toDelete = array_diff($existingIds, $submittedIds);
-            $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
+                // Delete removed contact persons
+                $toDelete = array_diff($existingIds, $submittedIds);
+                $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
 
-            // Update or create contact persons
-            foreach ($validated['contact_persons'] as $contactData) {
-                if (isset($contactData['id'])) {
-                    // Update existing (scoped to this vendor)
-                    $vendor->contactPersons()->where('id', $contactData['id'])
-                        ->update(\Arr::except($contactData, ['id']));
-                } else {
-                    // Create new
-                    $vendor->contactPersons()->create($contactData);
+                // Update or create contact persons
+                foreach ($validated['contact_persons'] as $contactData) {
+                    if (isset($contactData['id'])) {
+                        // Update existing (scoped to this vendor)
+                        $vendor->contactPersons()->where('id', $contactData['id'])
+                            ->update(\Arr::except($contactData, ['id']));
+                    } else {
+                        // Create new
+                        $vendor->contactPersons()->create($contactData);
+                    }
                 }
             }
-        }
 
             return redirect()
                 ->route('vendors.index')
@@ -316,6 +324,7 @@ class VendorController extends Controller implements HasMiddleware
         }
         try {
             $vendor->delete();
+
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor deleted successfully!');
         } catch (\Exception $e) {

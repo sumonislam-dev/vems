@@ -2,14 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Trip;
-use App\Models\TripPassengerEvent;
-use App\Models\Vehicle;
-use App\Models\VehicleRoute;
-use App\Models\User;
 use App\Models\Department;
 use App\Models\Factory;
 use App\Models\Logistics;
+use App\Models\Trip;
+use App\Models\TripPassengerEvent;
+use App\Models\TripRecurringGroup;
+use App\Models\User;
+use App\Models\UserGroup;
+use App\Models\Vehicle;
+use App\Models\VehicleRoute;
+use App\Models\Zone;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -120,7 +124,7 @@ class TripController extends Controller implements HasMiddleware
         }
 
         if ($request->filled('area')) {
-            $query->where('area_name', 'like', '%' . $request->area . '%');
+            $query->where('area_name', 'like', '%'.$request->area.'%');
         }
 
         $sortColumn = in_array($request->get('sort'), ['event_time', 'event_type', 'source', 'area_name'])
@@ -133,12 +137,12 @@ class TripController extends Controller implements HasMiddleware
 
         // Summary stats
         $stats = [
-            'total'          => TripPassengerEvent::count(),
-            'check_in'       => TripPassengerEvent::where('event_type', 'check_in')->count(),
-            'check_out'      => TripPassengerEvent::where('event_type', 'check_out')->count(),
-            'no_show'        => TripPassengerEvent::where('event_type', 'no_show')->count(),
-            'voided'         => TripPassengerEvent::where('is_valid', false)->count(),
-            'corrections'    => TripPassengerEvent::where('event_type', 'correction')->count(),
+            'total' => TripPassengerEvent::count(),
+            'check_in' => TripPassengerEvent::where('event_type', 'check_in')->count(),
+            'check_out' => TripPassengerEvent::where('event_type', 'check_out')->count(),
+            'no_show' => TripPassengerEvent::where('event_type', 'no_show')->count(),
+            'voided' => TripPassengerEvent::where('is_valid', false)->count(),
+            'corrections' => TripPassengerEvent::where('event_type', 'correction')->count(),
         ];
 
         // Unique sources for filter dropdown
@@ -154,10 +158,10 @@ class TripController extends Controller implements HasMiddleware
             ->get();
 
         return Inertia::render('trips/passenger-events', [
-            'events'      => $events,
-            'stats'       => $stats,
-            'sources'     => $sources,
-            'trips'       => $trips,
+            'events' => $events,
+            'stats' => $stats,
+            'sources' => $sources,
+            'trips' => $trips,
             'queryParams' => $request->only(['event_type', 'validity', 'source', 'trip_id', 'user_id', 'date_from', 'date_to', 'area', 'sort', 'direction', 'per_page']),
         ]);
     }
@@ -179,6 +183,8 @@ class TripController extends Controller implements HasMiddleware
             'filters.schedule_type.*' => 'string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
             'filters.trip_type' => 'nullable|array',
             'filters.trip_type.*' => 'string',
+            'filters.zone_id' => 'nullable|array',
+            'filters.zone_id.*' => 'string',
         ]);
 
         $query = Trip::with([
@@ -187,7 +193,8 @@ class TripController extends Controller implements HasMiddleware
             'requester',
             'approver',
             'department',
-            'passengers.user'
+            'zone',
+            'passengers.user',
         ])->visibleTo($request->user());
 
         // Apply search
@@ -223,6 +230,10 @@ class TripController extends Controller implements HasMiddleware
             if (! empty($filters['trip_type'])) {
                 $query->whereIn('trip_type', $filters['trip_type']);
             }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
         }
 
         if ($request->filled('date_from')) {
@@ -248,11 +259,11 @@ class TripController extends Controller implements HasMiddleware
 
         // Get stats with a single aggregate query
         $tripStats = Trip::visibleTo($request->user())->selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as approved, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, '.
             'SUM(CASE WHEN DATE(scheduled_date) = ? THEN 1 ELSE 0 END) as today',
             ['pending', 'approved', 'in_progress', 'completed', today()->toDateString()]
         )->first();
@@ -269,6 +280,12 @@ class TripController extends Controller implements HasMiddleware
         return Inertia::render('trips/index', [
             'trips' => $trips,
             'stats' => $stats,
+            'filterOptions' => [
+                'zones' => Zone::selectableBy()->map(fn ($z) => [
+                    'label' => $z->name,
+                    'value' => (string) $z->id,
+                ]),
+            ],
             'queryParams' => $request->only(['search', 'filters', 'date_from', 'date_to', 'vehicle_id', 'sort', 'direction', 'per_page']),
         ]);
     }
@@ -283,45 +300,45 @@ class TripController extends Controller implements HasMiddleware
             ->select(['id', 'registration_number', 'brand', 'model', 'driver_id'])
             ->orderBy('registration_number')
             ->get()
-            ->map(fn($v) => [
+            ->map(fn ($v) => [
                 'value' => $v->id,
                 'label' => "{$v->registration_number} - {$v->brand} {$v->model}",
-                'driver' => $v->driver ? $v->driver->name : 'No driver assigned'
+                'driver' => $v->driver ? $v->driver->name : 'No driver assigned',
             ]);
 
         $routes = VehicleRoute::with('routeStops.stop')
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'value' => $r->id,
                 'label' => $r->name,
-                'stops' => $r->routeStops->map(fn($rs) => [
+                'stops' => $r->routeStops->map(fn ($rs) => [
                     'id' => $rs->stop->id,
                     'name' => $rs->stop->name,
-                    'order' => $rs->stop_order
-                ])
+                    'order' => $rs->stop_order,
+                ]),
             ]);
 
         $departments = Department::where('is_active', true)
             ->get()
-            ->map(fn($d) => ['value' => $d->id, 'label' => $d->name]);
+            ->map(fn ($d) => ['value' => $d->id, 'label' => $d->name]);
 
         $employees = User::with('department:id,name')
             ->where('status', 'active')
             ->select(['id', 'name', 'employee_id', 'department_id'])
             ->orderBy('name')
             ->get()
-            ->map(fn($u) => [
+            ->map(fn ($u) => [
                 'value' => $u->id,
                 'label' => $u->name,
                 'employee_id' => $u->employee_id,
-                'department' => $u->department?->name
+                'department' => $u->department?->name,
             ]);
 
-        $userGroups = \App\Models\UserGroup::with('users')
+        $userGroups = UserGroup::with('users')
             ->where('status', 'active')
             ->orderBy('name')
             ->get()
-            ->map(fn($g) => [
+            ->map(fn ($g) => [
                 'value' => $g->id,
                 'label' => $g->name,
                 'user_ids' => $g->users->pluck('id'),
@@ -336,15 +353,15 @@ class TripController extends Controller implements HasMiddleware
             'factories' => Factory::where('status', 'active')
                 ->orderBy('name')
                 ->get()
-                ->map(fn($f) => [
+                ->map(fn ($f) => [
                     'value' => $f->id,
                     'label' => "({$f->account_id}) {$f->name}",
-                    'city'  => $f->city,
+                    'city' => $f->city,
                 ]),
             'logistics' => Logistics::active()
                 ->orderBy('name')
                 ->get()
-                ->map(fn($l) => [
+                ->map(fn ($l) => [
                     'value' => $l->id,
                     'label' => $l->name,
                 ]),
@@ -408,28 +425,28 @@ class TripController extends Controller implements HasMiddleware
             $trip = Trip::create($tripData);
 
             // Add passengers if provided
-            if (!empty($validated['passengers'])) {
+            if (! empty($validated['passengers'])) {
                 foreach ($validated['passengers'] as $passenger) {
                     $trip->passengers()->create($passenger);
                 }
             }
 
             // Attach factories
-            if (!empty($validated['factory_ids'])) {
+            if (! empty($validated['factory_ids'])) {
                 $trip->factories()->sync($validated['factory_ids']);
             }
 
             // Attach department headcount slots
-            if (!empty($validated['department_slots'])) {
+            if (! empty($validated['department_slots'])) {
                 $syncData = collect($validated['department_slots'])
                     ->keyBy('department_id')
-                    ->map(fn($slot) => ['count' => $slot['count']])
+                    ->map(fn ($slot) => ['count' => $slot['count']])
                     ->toArray();
                 $trip->departments()->sync($syncData);
             }
 
             // Attach logistics
-            if (!empty($validated['logistics_ids'])) {
+            if (! empty($validated['logistics_ids'])) {
                 $trip->logistics()->sync($validated['logistics_ids']);
             }
 
@@ -482,8 +499,8 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
-        $start = \Carbon\Carbon::parse($validated['recurring_start_date']);
-        $end   = \Carbon\Carbon::parse($validated['recurring_end_date']);
+        $start = Carbon::parse($validated['recurring_start_date']);
+        $end = Carbon::parse($validated['recurring_end_date']);
         $dates = [];
         for ($d = $start->copy(); $d->lte($end); $d->addDay()) {
             $dates[] = $d->toDateString();
@@ -502,25 +519,25 @@ class TripController extends Controller implements HasMiddleware
         DB::beginTransaction();
         try {
             // Create recurring group
-            $group = \App\Models\TripRecurringGroup::create([
-                'group_name'  => $validated['group_name'] ?? null,
-                'created_by'  => auth()->id(),
-                'start_date'  => $validated['recurring_start_date'],
-                'end_date'    => $validated['recurring_end_date'],
+            $group = TripRecurringGroup::create([
+                'group_name' => $validated['group_name'] ?? null,
+                'created_by' => auth()->id(),
+                'start_date' => $validated['recurring_start_date'],
+                'end_date' => $validated['recurring_end_date'],
                 'total_trips' => count($dates),
-                'notes'       => $validated['notes'] ?? null,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             $tripBase = collect($validated)->except([
                 'passengers', 'factory_ids', 'department_slots', 'logistics_ids',
                 'recurring_start_date', 'recurring_end_date', 'group_name',
             ])->merge([
-                'requested_by'        => auth()->id(),
-                'status'              => 'pending',
-                'is_recurring'        => true,
-                'recurring_group_id'  => $group->id,
+                'requested_by' => auth()->id(),
+                'status' => 'pending',
+                'is_recurring' => true,
+                'recurring_group_id' => $group->id,
                 'recurring_start_date' => $validated['recurring_start_date'],
-                'recurring_end_date'   => $validated['recurring_end_date'],
+                'recurring_end_date' => $validated['recurring_end_date'],
             ])->toArray();
 
             $firstTrip = null;
@@ -528,24 +545,26 @@ class TripController extends Controller implements HasMiddleware
                 $tripData = array_merge($tripBase, ['scheduled_date' => $date]);
                 $trip = Trip::create($tripData);
 
-                if ($firstTrip === null) $firstTrip = $trip;
+                if ($firstTrip === null) {
+                    $firstTrip = $trip;
+                }
 
-                if (!empty($validated['passengers'])) {
+                if (! empty($validated['passengers'])) {
                     foreach ($validated['passengers'] as $passenger) {
                         $trip->passengers()->create($passenger);
                     }
                 }
-                if (!empty($validated['factory_ids'])) {
+                if (! empty($validated['factory_ids'])) {
                     $trip->factories()->sync($validated['factory_ids']);
                 }
-                if (!empty($validated['department_slots'])) {
+                if (! empty($validated['department_slots'])) {
                     $syncData = collect($validated['department_slots'])
                         ->keyBy('department_id')
-                        ->map(fn($slot) => ['count' => $slot['count']])
+                        ->map(fn ($slot) => ['count' => $slot['count']])
                         ->toArray();
                     $trip->departments()->sync($syncData);
                 }
-                if (!empty($validated['logistics_ids'])) {
+                if (! empty($validated['logistics_ids'])) {
                     $trip->logistics()->sync($validated['logistics_ids']);
                 }
             }
@@ -554,7 +573,7 @@ class TripController extends Controller implements HasMiddleware
 
             return redirect()
                 ->route('trips.index')
-                ->with('success', count($dates) . ' recurring trips created successfully!');
+                ->with('success', count($dates).' recurring trips created successfully!');
         } catch (\Exception $e) {
             DB::rollBack();
             Log::error('Failed to create recurring trips.', ['error' => $e->getMessage(), 'user_id' => auth()->id()]);
@@ -613,10 +632,10 @@ class TripController extends Controller implements HasMiddleware
             ->select(['id', 'registration_number', 'brand', 'model', 'driver_id'])
             ->orderBy('registration_number')
             ->get()
-            ->map(fn($v) => [
+            ->map(fn ($v) => [
                 'value' => $v->id,
                 'label' => "{$v->registration_number} - {$v->brand} {$v->model}",
-                'driver' => $v->driver ? $v->driver->name : 'No driver assigned'
+                'driver' => $v->driver ? $v->driver->name : 'No driver assigned',
             ]);
 
         return Inertia::render('trips/show', [
@@ -634,7 +653,7 @@ class TripController extends Controller implements HasMiddleware
     public function edit(Trip $trip)
     {
         // Can only edit pending or approved trips
-        if (!in_array($trip->status, ['pending', 'approved'])) {
+        if (! in_array($trip->status, ['pending', 'approved'])) {
             return back()->with('error', 'Cannot edit trip in current status.');
         }
 
@@ -645,44 +664,44 @@ class TripController extends Controller implements HasMiddleware
             ->select(['id', 'registration_number', 'brand', 'model', 'driver_id'])
             ->orderBy('registration_number')
             ->get()
-            ->map(fn($v) => [
+            ->map(fn ($v) => [
                 'value' => $v->id,
                 'label' => "{$v->registration_number} - {$v->brand} {$v->model}",
-                'driver' => $v->driver ? $v->driver->name : 'No driver assigned'
+                'driver' => $v->driver ? $v->driver->name : 'No driver assigned',
             ]);
 
         $routes = VehicleRoute::with('routeStops.stop')
             ->get()
-            ->map(fn($r) => [
+            ->map(fn ($r) => [
                 'value' => $r->id,
                 'label' => $r->name,
-                'stops' => $r->routeStops->map(fn($rs) => [
+                'stops' => $r->routeStops->map(fn ($rs) => [
                     'id' => $rs->stop->id,
                     'name' => $rs->stop->name,
-                    'order' => $rs->stop_order
-                ])
+                    'order' => $rs->stop_order,
+                ]),
             ]);
 
         $departments = Department::where('is_active', true)
             ->get()
-            ->map(fn($d) => ['value' => $d->id, 'label' => $d->name]);
+            ->map(fn ($d) => ['value' => $d->id, 'label' => $d->name]);
 
         $employees = User::with('department:id,name')
             ->where('status', 'active')
             ->select(['id', 'name', 'employee_id', 'department_id'])
             ->orderBy('name')
             ->get()
-            ->map(fn($u) => [
+            ->map(fn ($u) => [
                 'value' => $u->id,
                 'label' => $u->name,
                 'employee_id' => $u->employee_id,
-                'department' => $u->department?->name
+                'department' => $u->department?->name,
             ]);
 
         $factories = Factory::where('status', 'active')
             ->orderBy('name')
             ->get()
-            ->map(fn($f) => [
+            ->map(fn ($f) => [
                 'value' => $f->id,
                 'label' => "({$f->account_id}) {$f->name}",
             ]);
@@ -690,7 +709,7 @@ class TripController extends Controller implements HasMiddleware
         $logistics = Logistics::active()
             ->orderBy('name')
             ->get()
-            ->map(fn($l) => [
+            ->map(fn ($l) => [
                 'value' => $l->id,
                 'label' => $l->name,
             ]);
@@ -712,7 +731,7 @@ class TripController extends Controller implements HasMiddleware
     public function update(Request $request, Trip $trip)
     {
         // Can only update pending or approved trips
-        if (!in_array($trip->status, ['pending', 'approved'])) {
+        if (! in_array($trip->status, ['pending', 'approved'])) {
             return back()->with('error', 'Cannot update trip in current status.');
         }
 
@@ -776,10 +795,10 @@ class TripController extends Controller implements HasMiddleware
             $trip->factories()->sync($validated['factory_ids'] ?? []);
 
             // Sync department headcount slots
-            if (!empty($validated['department_slots'])) {
+            if (! empty($validated['department_slots'])) {
                 $syncData = collect($validated['department_slots'])
                     ->keyBy('department_id')
-                    ->map(fn($slot) => ['count' => $slot['count']])
+                    ->map(fn ($slot) => ['count' => $slot['count']])
                     ->toArray();
                 $trip->departments()->sync($syncData);
             } else {
@@ -822,7 +841,7 @@ class TripController extends Controller implements HasMiddleware
         // Keep the recurring group's count in sync with its surviving trips —
         // it was set once at creation and otherwise never updated.
         if ($trip->recurring_group_id) {
-            \App\Models\TripRecurringGroup::whereKey($trip->recurring_group_id)->decrement('total_trips');
+            TripRecurringGroup::whereKey($trip->recurring_group_id)->decrement('total_trips');
         }
 
         return redirect()
@@ -836,7 +855,7 @@ class TripController extends Controller implements HasMiddleware
     public function reassignVehicle(Request $request, Trip $trip)
     {
         // Can reassign vehicle during any active status
-        if (!in_array($trip->status, ['pending', 'approved', 'assigned', 'in_progress'])) {
+        if (! in_array($trip->status, ['pending', 'approved', 'assigned', 'in_progress'])) {
             return back()->with('error', 'Cannot reassign vehicle for completed or cancelled trips.');
         }
 

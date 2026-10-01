@@ -41,6 +41,7 @@ interface VehiclesPageProps {
         rental_types: Array<{ label: string; value: string }>;
         fuel_types: Array<{ label: string; value: string }>;
         vendors: Array<{ label: string; value: string }>;
+        zones: Array<{ label: string; value: string }>;
         statuses: Array<{ label: string; value: boolean }>;
         conditions: Array<{ label: string; value: string }>;
     };
@@ -216,6 +217,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     </span>
                 );
             },
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            render: (_, vehicle) => (
+                <span className="text-muted-foreground">
+                    {vehicle.zone?.name || 'N/A'}
+                </span>
+            ),
         },
         {
             key: 'driver',
@@ -433,6 +443,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             options: filterOptions.vendors.map((vendor) => ({
                 label: vendor.label,
                 value: vendor.value,
+            })),
+        },
+        {
+            key: 'zone_id',
+            label: 'Zone',
+            type: 'multiselect',
+            options: filterOptions.zones.map((zone) => ({
+                label: zone.label,
+                value: zone.value,
             })),
         },
         {

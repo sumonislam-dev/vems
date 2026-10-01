@@ -10,6 +10,7 @@ import { ReorderButtons } from '@/components/ui/reorder-buttons';
 import {
   BaseForm,
   FormField,
+  FormSelect,
   FormTextarea
 } from '@/base-components/base-form';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +23,7 @@ interface Stop {
     description: string | null;
     latitude: number | null;
     longitude: number | null;
+    zone_id?: number | null;
 }
 
 interface RouteStop {
@@ -39,6 +41,7 @@ interface VehicleRoute {
     name: string;
     description: string | null;
     remarks: string | null;
+    zone_id: number | null;
     route_stops: RouteStop[];
 }
 
@@ -48,16 +51,23 @@ interface RouteStopForm {
     departure_time: string;
 }
 
+interface Zone {
+    id: number;
+    name: string;
+}
+
 interface EditRouteProps {
     route: VehicleRoute;
     stops: Stop[];
+    zones: Zone[];
 }
 
-export default function EditRoute({ route, stops: initialStops }: EditRouteProps) {
+export default function EditRoute({ route, stops: initialStops, zones }: EditRouteProps) {
     const { data, setData, put, processing, errors } = useForm({
         name: route.name,
         description: route.description || '',
         remarks: route.remarks || '',
+        zone_id: route.zone_id?.toString() || '',
         stops: [],
     });
 
@@ -149,7 +159,7 @@ export default function EditRoute({ route, stops: initialStops }: EditRouteProps
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
                 },
-                body: JSON.stringify(stopData)
+                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null })
             });
 
             if (response.ok) {
@@ -245,6 +255,16 @@ export default function EditRoute({ route, stops: initialStops }: EditRouteProps
                                         error={errors.remarks}
                                         placeholder="Enter any additional remarks..."
                                         rows={2}
+                                    />
+
+                                    <FormSelect
+                                        label="Zone"
+                                        name="zone_id"
+                                        value={data.zone_id as string}
+                                        onChange={(value) => setData('zone_id', value)}
+                                        error={errors.zone_id}
+                                        options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                        placeholder="Select zone..."
                                     />
                                 </BaseForm>
                             </CardContent>

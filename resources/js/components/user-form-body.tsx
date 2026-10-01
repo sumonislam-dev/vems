@@ -1,15 +1,7 @@
-import React from 'react';
-import {
-    BaseForm,
-    FormDatePicker,
-    FormField,
-    FormFileUpload,
-    FormMultiSelect,
-    FormSelect,
-    FormTextarea,
-} from '@/base-components/base-form';
+import { BaseForm, FormDatePicker, FormField, FormFileUpload, FormMultiSelect, FormSelect, FormTextarea } from '@/base-components/base-form';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ZoneAccessSelect } from '@/components/zone-access-select';
 import { Car, CheckCircle, Plus, Settings, Shield, User, Users } from 'lucide-react';
 
 export type UserForm = {
@@ -19,6 +11,8 @@ export type UserForm = {
     email: string;
     user_type: string;
     department_id: string;
+    zone_access: 'all' | 'specific';
+    zone_ids: string[];
     vendor_id: string;
     roles: string[];
     official_phone: string;
@@ -96,6 +90,7 @@ interface UserFormBodyProps {
     licenseClasses: Array<{ value: string; label: string }>;
     bloodGroups: Array<{ value: string; label: string }>;
     departmentOptions: Array<{ label: string; value: string }>;
+    zoneOptions: Array<{ label: string; value: string }>;
     statusOptions: Array<{ label: string; value: string }>;
     driverStatusOptions: Array<{ label: string; value: string }>;
 }
@@ -119,6 +114,7 @@ export function UserFormBody({
     licenseClasses,
     bloodGroups,
     departmentOptions,
+    zoneOptions,
     statusOptions,
     driverStatusOptions,
     onSubmit,
@@ -132,10 +128,10 @@ export function UserFormBody({
         <BaseForm onSubmit={handleSubmit} processing={processing}>
             {/* Basic Information */}
             <Card className="shadow-sm">
-                <CardHeader className="pb-3 px-4 sm:px-6">
+                <CardHeader className="px-4 pb-3 sm:px-6">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-primary/10 rounded-md">
+                            <div className="rounded-md bg-primary/10 p-1.5">
                                 <Users className="h-4 w-4 text-primary" />
                             </div>
                             <div>
@@ -146,11 +142,9 @@ export function UserFormBody({
                         {/* Compact Progress */}
                         <div className="flex items-center gap-2">
                             {formCompletion === 100 && <CheckCircle className="h-4 w-4 text-green-500" />}
-                            <div className="w-12 bg-muted rounded-full h-1.5">
+                            <div className="h-1.5 w-12 rounded-full bg-muted">
                                 <div
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${
-                                        formCompletion === 100 ? 'bg-green-500' : 'bg-primary'
-                                    }`}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${formCompletion === 100 ? 'bg-green-500' : 'bg-primary'}`}
                                     style={{ width: `${formCompletion}%` }}
                                 />
                             </div>
@@ -159,7 +153,7 @@ export function UserFormBody({
                 </CardHeader>
 
                 <CardContent className="space-y-4 px-4 sm:px-6">
-                    <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                         <FormField
                             label="Full Name"
                             name="name"
@@ -191,7 +185,7 @@ export function UserFormBody({
                         />
                     </div>
 
-                    <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                         <FormField
                             label="Email Address"
                             name="email"
@@ -224,6 +218,17 @@ export function UserFormBody({
                             placeholder="Select department..."
                         />
 
+                        <ZoneAccessSelect
+                            zoneAccess={data.zone_access}
+                            zoneIds={data.zone_ids}
+                            onChange={(zoneAccess, zoneIds) => {
+                                setData('zone_access', zoneAccess);
+                                setData('zone_ids', zoneIds);
+                            }}
+                            zoneOptions={zoneOptions}
+                            error={getFieldError('zone_ids')}
+                        />
+
                         {!hideUserTypeAndRoles && (
                             <FormMultiSelect
                                 label="Roles"
@@ -241,14 +246,12 @@ export function UserFormBody({
 
                     {/* User Type Preview - Compact */}
                     {data.user_type && (
-                        <div className="p-3 rounded-md bg-muted/30 border-l-2 border-primary">
+                        <div className="rounded-md border-l-2 border-primary bg-muted/30 p-3">
                             <div className="flex items-center gap-2 text-sm">
                                 {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.icon}
-                                <span className="font-medium">
-                                    {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.label}
-                                </span>
+                                <span className="font-medium">{enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.label}</span>
                                 <span className="text-muted-foreground">-</span>
-                                <span className="text-muted-foreground text-xs">
+                                <span className="text-xs text-muted-foreground">
                                     {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.description}
                                 </span>
                             </div>
@@ -260,9 +263,9 @@ export function UserFormBody({
             {/* Driver Information (conditional) - placed right after Basic Info since it's the required, driver-specific data */}
             {showDriverFields && (
                 <Card className="shadow-sm">
-                    <CardHeader className="pb-3 px-4 sm:px-6">
+                    <CardHeader className="px-4 pb-3 sm:px-6">
                         <div className="flex items-center gap-2">
-                            <div className="p-1.5 bg-green-100 rounded-md">
+                            <div className="rounded-md bg-green-100 p-1.5">
                                 <Car className="h-4 w-4 text-green-600" />
                             </div>
                             <div>
@@ -273,7 +276,7 @@ export function UserFormBody({
                     </CardHeader>
 
                     <CardContent className="space-y-4 px-4 sm:px-6">
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormSelect
                                 label="Vendor"
                                 name="vendor_id"
@@ -317,7 +320,7 @@ export function UserFormBody({
                             />
                         </div>
 
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormDatePicker
                                 label="License Issue Date"
                                 name="license_issue_date"
@@ -350,7 +353,7 @@ export function UserFormBody({
 
             {/* Additional Details */}
             <Card className="shadow-sm">
-                <CardHeader className="pb-3 px-4 sm:px-6">
+                <CardHeader className="px-4 pb-3 sm:px-6">
                     <CardTitle className="text-lg">Additional Details</CardTitle>
                     <CardDescription className="text-sm">Contact, identity, and personal information</CardDescription>
                 </CardHeader>
@@ -359,7 +362,7 @@ export function UserFormBody({
                     {/* Contact Information */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Contact Information</h4>
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormField
                                 label="Official Phone"
                                 name="official_phone"
@@ -392,7 +395,7 @@ export function UserFormBody({
                     {/* Identity Documents */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Identity Documents</h4>
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:gap-5">
                             <FormField
                                 label="National ID Number"
                                 name="nid_number"
@@ -426,7 +429,7 @@ export function UserFormBody({
                     {/* Personal Information */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Personal Information</h4>
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormSelect
                                 label="Blood Group"
                                 name="blood_group"
@@ -460,7 +463,7 @@ export function UserFormBody({
                     {/* Emergency Contact */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Emergency Contact</h4>
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormField
                                 label="Contact Name"
                                 name="emergency_contact_name"
@@ -493,7 +496,7 @@ export function UserFormBody({
                     {/* Addresses - Compact Layout */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Address Information</h4>
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-3">
+                        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormField
                                 label="Area/Location"
                                 name="area"
@@ -529,14 +532,14 @@ export function UserFormBody({
 
             {/* File Uploads & Security - Compact */}
             <Card className="shadow-sm">
-                <CardHeader className="pb-3 px-4 sm:px-6">
+                <CardHeader className="px-4 pb-3 sm:px-6">
                     <CardTitle className="text-lg">Files & Security</CardTitle>
                     <CardDescription className="text-sm">Upload images and set account password</CardDescription>
                 </CardHeader>
 
                 <CardContent className="space-y-4 px-4 sm:px-6">
                     {/* File Uploads - Compact */}
-                    <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:gap-5">
                         <FormFileUpload
                             label="Profile Image"
                             name="image"
@@ -560,7 +563,7 @@ export function UserFormBody({
 
                     {/* Password Section - Compact */}
                     <div className="border-t pt-4">
-                        <div className="grid gap-3 sm:gap-4 lg:gap-5 grid-cols-1 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-2 lg:gap-5">
                             <FormField
                                 label="Password"
                                 name="password"

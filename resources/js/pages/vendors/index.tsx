@@ -92,6 +92,13 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
             ),
         },
         {
+            key: 'zone',
+            label: 'Zone',
+            render: (value) => (
+                <span className="text-sm">{value?.name || 'No Zone'}</span>
+            ),
+        },
+        {
             key: 'actions',
             label: 'Actions',
             render: (_, vendor) => (

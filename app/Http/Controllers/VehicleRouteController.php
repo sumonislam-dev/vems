@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\RouteStop;
 use App\Models\Stop;
 use App\Models\VehicleRoute;
+use App\Models\Zone;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -33,14 +34,37 @@ class VehicleRouteController extends Controller implements HasMiddleware
         $dLat = deg2rad($lat2 - $lat1);
         $dLon = deg2rad($lon2 - $lon1);
 
-        $a = sin($dLat/2) * sin($dLat/2) +
+        $a = sin($dLat / 2) * sin($dLat / 2) +
              cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
-             sin($dLon/2) * sin($dLon/2);
+             sin($dLon / 2) * sin($dLon / 2);
 
-        $c = 2 * atan2(sqrt($a), sqrt(1-$a));
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
         $distance = $earthRadius * $c;
 
         return round($distance, 2);
+    }
+
+    /**
+     * A route's zone and its stops' zones must agree — a stop that's already
+     * assigned to a different zone can't be attached to this route. Stops
+     * with no zone yet (not backfilled) are allowed on any route.
+     */
+    private function stopsZoneMismatchError(array $validated): ?string
+    {
+        if (empty($validated['zone_id']) || empty($validated['stops'])) {
+            return null;
+        }
+
+        $stopIds = collect($validated['stops'])->pluck('stop_id');
+
+        $mismatched = Stop::whereIn('id', $stopIds)
+            ->whereNotNull('zone_id')
+            ->where('zone_id', '!=', $validated['zone_id'])
+            ->exists();
+
+        return $mismatched
+            ? 'One or more selected stops belong to a different zone than this route.'
+            : null;
     }
 
     /**
@@ -104,7 +128,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
      */
     public function index(Request $request)
     {
-        $query = VehicleRoute::with(['routeStops.stop'])->withCount('routeStops');
+        $query = VehicleRoute::with(['routeStops.stop', 'zone'])->withCount('routeStops');
 
         // Apply search
         if ($request->filled('search')) {
@@ -128,7 +152,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
 
         // Get stats with reduced query duplication
         $routeStats = VehicleRoute::selectRaw(
-            'COUNT(*) as total, ' .
+            'COUNT(*) as total, '.
             'SUM(CASE WHEN EXISTS (SELECT 1 FROM route_stops rs WHERE rs.vehicle_route_id = vehicle_routes.id) THEN 1 ELSE 0 END) as routes_with_stops'
         )->first();
         $totalStops = Stop::count();
@@ -155,9 +179,12 @@ class VehicleRouteController extends Controller implements HasMiddleware
     {
         // Get all available stops
         $stops = Stop::orderBy('name')->get();
+        $zones = Zone::selectableBy();
 
         return Inertia::render('routes/create', [
             'stops' => $stops,
+            'zones' => $zones,
+            'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
 
@@ -170,6 +197,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'remarks' => 'nullable|string',
+            'zone_id' => Zone::validationRule(),
             'stops' => 'nullable|array',
             'stops.*.stop_id' => 'required|exists:stops,id',
             'stops.*.arrival_time' => 'nullable|date_format:H:i',
@@ -177,15 +205,20 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'stops.*.manual_distance' => 'nullable|numeric|min:0',
         ]);
 
+        if ($error = $this->stopsZoneMismatchError($validated)) {
+            return back()->withInput()->withErrors(['zone_id' => $error]);
+        }
+
         try {
             DB::transaction(function () use ($validated) {
                 $route = VehicleRoute::create([
                     'name' => $validated['name'],
                     'description' => $validated['description'] ?? null,
                     'remarks' => $validated['remarks'] ?? null,
+                    'zone_id' => $validated['zone_id'] ?? null,
                 ]);
 
-                if (!empty($validated['stops'])) {
+                if (! empty($validated['stops'])) {
                     $totalDistance = $this->calculateRouteDistances($route->id, $validated['stops']);
                     $route->update(['total_distance' => $totalDistance]);
                 }
@@ -217,10 +250,12 @@ class VehicleRouteController extends Controller implements HasMiddleware
     {
         $route->load(['routeStops.stop']);
         $stops = Stop::orderBy('name')->get();
+        $zones = Zone::selectableBy(auth()->user(), $route->zone_id);
 
         return Inertia::render('routes/edit', [
             'route' => $route,
             'stops' => $stops,
+            'zones' => $zones,
         ]);
     }
 
@@ -233,6 +268,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'remarks' => 'nullable|string',
+            'zone_id' => Zone::validationRule(),
             'stops' => 'nullable|array',
             'stops.*.stop_id' => 'required|exists:stops,id',
             'stops.*.arrival_time' => 'nullable|date_format:H:i',
@@ -240,17 +276,22 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'stops.*.manual_distance' => 'nullable|numeric|min:0',
         ]);
 
+        if ($error = $this->stopsZoneMismatchError($validated)) {
+            return back()->withInput()->withErrors(['zone_id' => $error]);
+        }
+
         try {
             DB::transaction(function () use ($validated, $route) {
                 $route->update([
                     'name' => $validated['name'],
                     'description' => $validated['description'] ?? null,
                     'remarks' => $validated['remarks'] ?? null,
+                    'zone_id' => $validated['zone_id'] ?? null,
                 ]);
 
                 $route->routeStops()->delete();
 
-                if (!empty($validated['stops'])) {
+                if (! empty($validated['stops'])) {
                     $totalDistance = $this->calculateRouteDistances($route->id, $validated['stops']);
                     $route->update(['total_distance' => $totalDistance]);
                 } else {
@@ -272,6 +313,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
     {
         try {
             $route->delete();
+
             return redirect()->route('routes.index')
                 ->with('success', 'Route deleted successfully!');
         } catch (\Exception $e) {
