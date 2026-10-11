@@ -258,7 +258,10 @@ it('resolves, closes, and reopens a complaint through its status lifecycle', fun
 
     $this->actingAs($manager)->post("/complaints/{$feedback->id}/reopen")->assertRedirect();
     $feedback->refresh();
-    expect($feedback->status)->toBe('in_review');
+    // Reopened = no longer resolved, so reports don't count it as resolved
+    expect($feedback->status)->toBe('in_review')
+        ->and($feedback->resolved_at)->toBeNull()
+        ->and($feedback->resolved_by)->toBeNull();
 
     $this->actingAs($manager)->post("/complaints/{$feedback->id}/resolve", [
         'resolution_notes' => 'Repaired and verified.',
@@ -266,7 +269,8 @@ it('resolves, closes, and reopens a complaint through its status lifecycle', fun
 
     $this->actingAs($manager)->post("/complaints/{$feedback->id}/close")->assertRedirect();
     $feedback->refresh();
-    expect($feedback->status)->toBe('closed');
+    expect($feedback->status)->toBe('closed')
+        ->and($feedback->closed_at)->not->toBeNull();
 });
 
 it('refuses to resolve an already-closed complaint', function () {

@@ -63,7 +63,7 @@ class TripFeedbackStateController extends Controller implements HasMiddleware
      */
     public function close(Request $request, TripFeedback $complaint)
     {
-        if (!$complaint->transitionTo('closed')) {
+        if (!$complaint->transitionTo('closed', ['closed_at' => now()])) {
             return back()->with('error', 'Complaint cannot be closed in its current status.');
         }
 
@@ -75,7 +75,9 @@ class TripFeedbackStateController extends Controller implements HasMiddleware
      */
     public function reopen(Request $request, TripFeedback $complaint)
     {
-        if (!$complaint->transitionTo('in_review')) {
+        // No longer resolved, so the old resolution time no longer applies —
+        // reports would otherwise count it as resolved (see MonthlyVehicleReport).
+        if (!$complaint->transitionTo('in_review', ['resolved_at' => null, 'resolved_by' => null])) {
             return back()->with('error', 'Complaint cannot be reopened from its current status.');
         }
 

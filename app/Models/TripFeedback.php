@@ -28,6 +28,7 @@ class TripFeedback extends Model
         'resolution_notes',
         'resolved_at',
         'resolved_by',
+        'closed_at',
         'is_anonymous',
     ];
 
@@ -37,6 +38,7 @@ class TripFeedback extends Model
             'driver_rating' => 'integer',
             'vehicle_rating' => 'integer',
             'resolved_at' => 'datetime',
+            'closed_at' => 'datetime',
             'is_anonymous' => 'boolean',
         ];
     }

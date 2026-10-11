@@ -272,4 +272,3 @@ it('counts complaints as open at period end by when they were raised, resolved a
     expect($service['complaints']['current'])->toBe(5)
         ->and($service['complaints_open']['current'])->toBe(2);
 });
-
