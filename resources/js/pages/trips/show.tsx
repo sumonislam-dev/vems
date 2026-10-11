@@ -713,6 +713,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         <div>
                                             <label className="text-xs font-medium text-gray-600">Approved By</label>
                                             <p className="mt-1 text-sm font-medium">{trip.approver.name}</p>
+                                            {trip.approved_at && (
+                                                <p className="text-xs text-gray-500">{new Date(trip.approved_at).toLocaleString()}</p>
+                                            )}
                                         </div>
                                     </>
                                 )}

@@ -365,6 +365,21 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
             render: (value) => getStatusBadge(value as Trip['status']),
         },
         {
+            key: 'approved_by',
+            label: 'Approved By',
+            render: (_, row) =>
+                row.approver ? (
+                    <div className="flex flex-col">
+                        <span className="text-sm font-medium">{row.approver.name}</span>
+                        {row.approved_at && (
+                            <span className="text-xs text-gray-500">{formatDate(row.approved_at)}</span>
+                        )}
+                    </div>
+                ) : (
+                    <span className="text-sm text-gray-400 italic">-</span>
+                ),
+        },
+        {
             key: 'priority',
             label: 'Priority',
             render: (value) => getPriorityBadge(value as Trip['priority']),

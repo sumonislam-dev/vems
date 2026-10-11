@@ -12,6 +12,7 @@ export interface Trip {
     department_id?: number;
     requested_by: number;
     approved_by?: number;
+    approved_at?: string;
     purpose: string;
     trip_type?: 'inspection' | 'pick-up' | 'drop-off' | 'training' | 'complaints' | 'CVV' | 'Incident Inspection' | 'officials' | 'Assigned';
     remarks?: string;
@@ -78,6 +79,7 @@ export interface Trip {
     // Relationships
     requester?: User;
     approver?: User;
+    cancelled_by_user?: User;
     vehicle?: Vehicle;
     driver?: User;
     department?: Department;

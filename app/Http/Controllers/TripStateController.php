@@ -44,7 +44,7 @@ class TripStateController extends Controller implements HasMiddleware
                 return back()->with('error', 'Trip cannot be approved in current status.');
             }
 
-            $trip->transitionTo('approved', ['approved_by' => auth()->id()]);
+            $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()]);
             $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
 
             return back()->with('success', 'Trip approved successfully!');
@@ -71,7 +71,7 @@ class TripStateController extends Controller implements HasMiddleware
             $trips = Trip::whereIn('id', $validated['trip_ids'])->lockForUpdate()->get();
 
             foreach ($trips as $trip) {
-                if ($trip->transitionTo('approved', ['approved_by' => auth()->id()])) {
+                if ($trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()])) {
                     $approvedCount++;
                     $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
                 }

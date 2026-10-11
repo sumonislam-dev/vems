@@ -68,7 +68,8 @@ it('approves a pending trip and records the approver', function () {
 
     $trip->refresh();
     expect($trip->status)->toBe('approved')
-        ->and($trip->approved_by)->toBe($manager->id);
+        ->and($trip->approved_by)->toBe($manager->id)
+        ->and($trip->approved_at)->not->toBeNull();
 });
 
 it('rejects a pending trip and records the rejection reason', function () {
@@ -156,8 +157,10 @@ it('bulk-approves every pending trip in the given list and records the approver 
     $tripB->refresh();
     expect($tripA->status)->toBe('approved')
         ->and($tripA->approved_by)->toBe($manager->id)
+        ->and($tripA->approved_at)->not->toBeNull()
         ->and($tripB->status)->toBe('approved')
-        ->and($tripB->approved_by)->toBe($manager->id);
+        ->and($tripB->approved_by)->toBe($manager->id)
+        ->and($tripB->approved_at)->not->toBeNull();
 
     $this->assertDatabaseHas('trip_audit_logs', ['trip_id' => $tripA->id, 'action' => 'status_changed']);
     $this->assertDatabaseHas('trip_audit_logs', ['trip_id' => $tripB->id, 'action' => 'status_changed']);
