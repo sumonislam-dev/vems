@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,7 +87,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
                 <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3 text-gray-400" />
                     <span className="text-sm">
-                        {row.users?.length || 0} users
+                        {row.users_count ?? 0} users
                     </span>
                 </div>
             ),
@@ -138,9 +139,9 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Are you sure you want to delete role "${row.name}"?`)) {
+                                if (await confirmDelete(`Are you sure you want to delete role "${row.name}"?`)) {
                                     router.delete(route('roles.destroy', row.id), {
                                         preserveScroll: true,
                                     });

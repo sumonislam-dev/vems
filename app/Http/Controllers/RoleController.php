@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -27,7 +28,7 @@ class RoleController extends Controller implements HasMiddleware
      */
     public function index(Request $request)
     {
-        $query = Role::with(['permissions', 'users']);
+        $query = Role::with('permissions')->withCount('users');
 
         // Apply search
         if ($request->filled('search')) {
@@ -39,8 +40,8 @@ class RoleController extends Controller implements HasMiddleware
         }
 
         // Apply sorting
-        $sortColumn = $request->get('sort', 'name');
-        $sortDirection = $request->get('direction', 'asc');
+        $sortColumn = in_array($request->get('sort'), ['name', 'guard_name', 'created_at'], true) ? $request->get('sort') : 'name';
+        $sortDirection = $request->get('direction') === 'desc' ? 'desc' : 'asc';
         $query->orderBy($sortColumn, $sortDirection);
 
         // Get pagination data
@@ -87,30 +88,33 @@ class RoleController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name',
-            'guard_name' => 'nullable|string|max:255',
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,id',
-        ]);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request) {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:roles,name',
+                'guard_name' => 'nullable|string|max:255',
+                'permissions' => 'nullable|array',
+                'permissions.*' => 'exists:permissions,id',
+            ]);
 
-        $validated['guard_name'] = $validated['guard_name'] ?? 'web';
+            $validated['guard_name'] = $validated['guard_name'] ?? 'web';
 
-        $role = Role::create($validated);
+            $role = Role::create($validated);
 
-        if (! empty($validated['permissions'])) {
-            $role->permissions()->sync($validated['permissions']);
-        }
+            if (! empty($validated['permissions'])) {
+                $role->permissions()->sync($validated['permissions']);
+            }
 
-        activity('roles')
-            ->causedBy($request->user())
-            ->withProperties(['new' => ['name' => $role->name, 'permissions' => $role->permissions()->pluck('name')->all()]])
-            ->event('created')
-            ->log("Role \"{$role->name}\" created");
+            activity('roles')
+                ->causedBy($request->user())
+                ->withProperties(['new' => ['name' => $role->name, 'permissions' => $role->permissions()->pluck('name')->all()]])
+                ->event('created')
+                ->log("Role \"{$role->name}\" created");
 
-        return redirect()
-            ->route('roles.index')
-            ->with('success', 'Role created successfully!');
+            return redirect()
+                ->route('roles.index')
+                ->with('success', 'Role created successfully!');
+        });
     }
 
     /**
@@ -144,38 +148,41 @@ class RoleController extends Controller implements HasMiddleware
      */
     public function update(Request $request, Role $role)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255|unique:roles,name,'.$role->id,
-            'guard_name' => 'nullable|string|max:255',
-            'permissions' => 'nullable|array',
-            'permissions.*' => 'exists:permissions,id',
-        ]);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request, $role) {
+            $validated = $request->validate([
+                'name' => 'required|string|max:255|unique:roles,name,'.$role->id,
+                'guard_name' => 'nullable|string|max:255',
+                'permissions' => 'nullable|array',
+                'permissions.*' => 'exists:permissions,id',
+            ]);
 
-        $validated['guard_name'] = $validated['guard_name'] ?? 'web';
+            $validated['guard_name'] = $validated['guard_name'] ?? 'web';
 
-        $oldPermissionNames = $role->permissions()->pluck('name')->all();
+            $oldPermissionNames = $role->permissions()->pluck('name')->all();
 
-        $role->update($validated);
+            $role->update($validated);
 
-        if (isset($validated['permissions'])) {
-            $role->permissions()->sync($validated['permissions']);
-        }
+            if (isset($validated['permissions'])) {
+                $role->permissions()->sync($validated['permissions']);
+            }
 
-        $newPermissionNames = $role->permissions()->pluck('name')->all();
-        sort($oldPermissionNames);
-        sort($newPermissionNames);
+            $newPermissionNames = $role->permissions()->pluck('name')->all();
+            sort($oldPermissionNames);
+            sort($newPermissionNames);
 
-        if ($oldPermissionNames !== $newPermissionNames) {
-            activity('roles')
-                ->causedBy($request->user())
-                ->withProperties(['old' => ['permissions' => $oldPermissionNames], 'new' => ['permissions' => $newPermissionNames]])
-                ->event('permissions_changed')
-                ->log("Permissions updated for role \"{$role->name}\"");
-        }
+            if ($oldPermissionNames !== $newPermissionNames) {
+                activity('roles')
+                    ->causedBy($request->user())
+                    ->withProperties(['old' => ['permissions' => $oldPermissionNames], 'new' => ['permissions' => $newPermissionNames]])
+                    ->event('permissions_changed')
+                    ->log("Permissions updated for role \"{$role->name}\"");
+            }
 
-        return redirect()
-            ->route('roles.index')
-            ->with('success', 'Role updated successfully!');
+            return redirect()
+                ->route('roles.index')
+                ->with('success', 'Role updated successfully!');
+        });
     }
 
     /**

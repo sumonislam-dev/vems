@@ -4,10 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Models\UserGroup;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,7 +34,7 @@ class UserGroupController extends Controller implements HasMiddleware
 
         // Search
         if ($request->filled('search')) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where('name', 'like', '%'.$request->search.'%');
         }
 
         // Status filter
@@ -43,7 +45,7 @@ class UserGroupController extends Controller implements HasMiddleware
         $groups = $query->withCount('users')
             ->latest()
             ->paginate(15)
-            ->through(fn($group) => [
+            ->through(fn ($group) => [
                 'id' => $group->id,
                 'name' => $group->name,
                 'description' => $group->description,
@@ -57,8 +59,8 @@ class UserGroupController extends Controller implements HasMiddleware
             ]);
 
         $groupStats = UserGroup::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive',
             ['active', 'inactive']
         )->first();
@@ -85,7 +87,7 @@ class UserGroupController extends Controller implements HasMiddleware
             ->select('id', 'name', 'email', 'user_type', 'employee_id', 'department_id')
             ->orderBy('name')
             ->get()
-            ->map(fn($user) => [
+            ->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -118,10 +120,13 @@ class UserGroupController extends Controller implements HasMiddleware
         unset($validated['user_ids']);
 
         try {
-            $group = UserGroup::create($validated);
-            if (!empty($userIds)) {
-                $group->syncMembers($userIds);
-            }
+            DB::transaction(function () use ($validated, $userIds) {
+                $group = UserGroup::create($validated);
+                if (! empty($userIds)) {
+                    $group->syncMembers($userIds);
+                }
+            });
+
             return redirect()->route('user-groups.index')
                 ->with('success', 'User group created successfully.');
         } catch (\Exception $e) {
@@ -150,7 +155,7 @@ class UserGroupController extends Controller implements HasMiddleware
                     'name' => $userGroup->creator->name,
                 ] : null,
                 'created_at' => $userGroup->created_at->format('Y-m-d H:i'),
-                'members' => $userGroup->users->map(fn($user) => [
+                'members' => $userGroup->users->map(fn ($user) => [
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
@@ -177,7 +182,7 @@ class UserGroupController extends Controller implements HasMiddleware
             ->select('id', 'name', 'email', 'user_type', 'employee_id', 'department_id')
             ->orderBy('name')
             ->get()
-            ->map(fn($user) => [
+            ->map(fn ($user) => [
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
@@ -204,7 +209,7 @@ class UserGroupController extends Controller implements HasMiddleware
     public function update(Request $request, UserGroup $userGroup): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255', 'unique:user_groups,name,' . $userGroup->id],
+            'name' => ['required', 'string', 'max:255', 'unique:user_groups,name,'.$userGroup->id],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
             'user_ids' => ['nullable', 'array'],
@@ -215,10 +220,11 @@ class UserGroupController extends Controller implements HasMiddleware
         unset($validated['user_ids']);
 
         try {
-            $userGroup->update($validated);
-            if (isset($userIds)) {
+            DB::transaction(function () use ($userGroup, $validated, $userIds) {
+                $userGroup->update($validated);
                 $userGroup->syncMembers($userIds);
-            }
+            });
+
             return redirect()->route('user-groups.index')
                 ->with('success', 'User group updated successfully.');
         } catch (\Exception $e) {
@@ -233,6 +239,7 @@ class UserGroupController extends Controller implements HasMiddleware
     {
         try {
             $userGroup->delete();
+
             return redirect()->route('user-groups.index')
                 ->with('success', 'User group deleted successfully.');
         } catch (\Exception $e) {
@@ -278,7 +285,7 @@ class UserGroupController extends Controller implements HasMiddleware
     /**
      * Get available users to add to group.
      */
-    public function availableUsers(Request $request, UserGroup $userGroup): \Illuminate\Http\JsonResponse
+    public function availableUsers(Request $request, UserGroup $userGroup): JsonResponse
     {
         $search = $request->get('search', '');
 
@@ -288,9 +295,9 @@ class UserGroupController extends Controller implements HasMiddleware
             ->whereNotIn('id', $userGroup->users()->pluck('users.id'))
             ->when($search, function ($query, $search) {
                 $query->where(function ($q) use ($search) {
-                    $q->where('name', 'like', '%' . $search . '%')
-                      ->orWhere('email', 'like', '%' . $search . '%')
-                      ->orWhere('employee_id', 'like', '%' . $search . '%');
+                    $q->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%')
+                        ->orWhere('employee_id', 'like', '%'.$search.'%');
                 });
             })
             ->select('id', 'name', 'email', 'employee_id', 'user_type')

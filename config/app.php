@@ -65,11 +65,12 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Everyone works in Bangladesh; timestamps are stored and shown in local time
+    'timezone' => env('APP_TIMEZONE', 'Asia/Dhaka'),
 
     // Where the users are: trip schedules (date + time) are entered in this
     // timezone, and daily jobs run on its clock.
-    'local_timezone' => env('APP_LOCAL_TIMEZONE', 'Asia/Dhaka'),
+    'local_timezone' => env('APP_LOCAL_TIMEZONE', env('APP_TIMEZONE', 'Asia/Dhaka')),
 
     /*
     |--------------------------------------------------------------------------

@@ -17,6 +17,7 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -246,54 +247,57 @@ class UserController extends Controller implements HasMiddleware
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
-        $zoneAccess = $validated['zone_access'] ?? null;
-        $zoneIds = $validated['zone_ids'] ?? [];
-        unset($validated['zone_access'], $validated['zone_ids']);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request) {
+            $validated = $request->validated();
+            $zoneAccess = $validated['zone_access'] ?? null;
+            $zoneIds = $validated['zone_ids'] ?? [];
+            unset($validated['zone_access'], $validated['zone_ids']);
 
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
-
-        if ($request->hasFile('photo')) {
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
-
-        // NID/licence scans are private (see DocumentController)
-        foreach (['driving_license_file', 'nid_file'] as $field) {
-            if ($request->hasFile($field)) {
-                $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+            // Handle file uploads
+            if ($request->hasFile('image')) {
+                $validated['image'] = $request->file('image')->store('users/images', 'public');
             }
-        }
 
-        // Hash password
-        $validated['password'] = Hash::make($validated['password']);
+            if ($request->hasFile('photo')) {
+                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
+            }
 
-        // Accounts provisioned by an admin are trusted without an email-click loop.
-        $validated['email_verified_at'] = now();
+            // NID/licence scans are private (see DocumentController)
+            foreach (['driving_license_file', 'nid_file'] as $field) {
+                if ($request->hasFile($field)) {
+                    $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+                }
+            }
 
-        $user = User::create($validated);
+            // Hash password
+            $validated['password'] = Hash::make($validated['password']);
 
-        // Choosing roles needs manage-user-roles; otherwise the new user gets
-        // the default role for their user type (never admin — see below).
-        if ($request->user()->can('manage-user-roles') && ! empty($validated['roles']) && is_array($validated['roles'])) {
-            // Convert role IDs to role names/objects and assign
-            $roles = $this->assignableRoles($validated['roles']);
-            $user->assignRole($roles);
-        } else {
-            // This shouldn't happen due to validation, but fallback to automatic role assignment
-            $this->assignRoleByUserType($user, $validated['user_type']);
-        }
+            // Accounts provisioned by an admin are trusted without an email-click loop.
+            $validated['email_verified_at'] = now();
 
-        $this->logRoleChange($user, []);
+            $user = User::create($validated);
 
-        if ($request->has('zone_access')) {
-            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
-        }
+            // Choosing roles needs manage-user-roles; otherwise the new user gets
+            // the default role for their user type (never admin — see below).
+            if ($request->user()->can('manage-user-roles') && ! empty($validated['roles']) && is_array($validated['roles'])) {
+                // Convert role IDs to role names/objects and assign
+                $roles = $this->assignableRoles($validated['roles']);
+                $user->assignRole($roles);
+            } else {
+                // This shouldn't happen due to validation, but fallback to automatic role assignment
+                $this->assignRoleByUserType($user, $validated['user_type']);
+            }
 
-        return redirect()->route('users.index')
-            ->with('success', 'User created successfully.');
+            $this->logRoleChange($user, []);
+
+            if ($request->has('zone_access')) {
+                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
+            }
+
+            return redirect()->route('users.index')
+                ->with('success', 'User created successfully.');
+        });
     }
 
     /**
@@ -399,70 +403,73 @@ class UserController extends Controller implements HasMiddleware
      */
     public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $validated = $request->validated();
-        $zoneAccess = $validated['zone_access'] ?? null;
-        $zoneIds = $validated['zone_ids'] ?? [];
-        unset($validated['zone_access'], $validated['zone_ids']);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request, $user) {
+            $validated = $request->validated();
+            $zoneAccess = $validated['zone_access'] ?? null;
+            $zoneIds = $validated['zone_ids'] ?? [];
+            unset($validated['zone_access'], $validated['zone_ids']);
 
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            if ($user->image) {
-                Storage::disk('public')->delete($user->image);
+            // Handle file uploads
+            if ($request->hasFile('image')) {
+                if ($user->image) {
+                    Storage::disk('public')->delete($user->image);
+                }
+                $validated['image'] = $request->file('image')->store('users/images', 'public');
             }
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
 
-        if ($request->hasFile('photo')) {
-            if ($user->photo) {
-                Storage::disk('public')->delete($user->photo);
+            if ($request->hasFile('photo')) {
+                if ($user->photo) {
+                    Storage::disk('public')->delete($user->photo);
+                }
+                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
             }
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
 
-        foreach (['driving_license_file', 'nid_file'] as $field) {
-            if ($request->hasFile($field)) {
-                $validated[$field] = PrivateDocument::replace($user->{$field}, $request->file($field), 'driver_documents');
+            foreach (['driving_license_file', 'nid_file'] as $field) {
+                if ($request->hasFile($field)) {
+                    $validated[$field] = PrivateDocument::replace($user->{$field}, $request->file($field), 'driver_documents');
+                }
             }
-        }
 
-        // Hash password if provided
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
-
-        $oldRoleNames = $user->roles->pluck('name')->all();
-
-        $user->update($validated);
-
-        // A plain user editing their own profile (see UpdateUserRequest's
-        // self-edit branch) never has 'roles'/'user_type' in $validated at
-        // all — leave roles untouched rather than falling into the "no
-        // roles submitted" branch below and wiping them.
-        // Roles only change for editors allowed to manage them — anyone else
-        // (including edit-users without manage-user-roles) leaves them as-is.
-        if ($request->isPrivilegedEditor() && $request->user()->can('manage-user-roles')) {
-            // Handle role assignments - roles are now required
-            if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
-                // Convert role IDs to role objects and assign
-                $roles = $this->assignableRoles($validated['roles'], $user);
-                $user->syncRoles($roles);
+            // Hash password if provided
+            if (! empty($validated['password'])) {
+                $validated['password'] = Hash::make($validated['password']);
             } else {
-                // This shouldn't happen due to validation, but fallback to automatic role assignment
-                $user->syncRoles([]); // Remove all roles
-                $this->assignRoleByUserType($user, $validated['user_type']);
+                unset($validated['password']);
             }
 
-            $this->logRoleChange($user, $oldRoleNames);
-        }
+            $oldRoleNames = $user->roles->pluck('name')->all();
 
-        if ($request->has('zone_access')) {
-            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
-        }
+            $user->update($validated);
 
-        return redirect()->route('users.index')
-            ->with('success', 'User updated successfully.');
+            // A plain user editing their own profile (see UpdateUserRequest's
+            // self-edit branch) never has 'roles'/'user_type' in $validated at
+            // all — leave roles untouched rather than falling into the "no
+            // roles submitted" branch below and wiping them.
+            // Roles only change for editors allowed to manage them — anyone else
+            // (including edit-users without manage-user-roles) leaves them as-is.
+            if ($request->isPrivilegedEditor() && $request->user()->can('manage-user-roles')) {
+                // Handle role assignments - roles are now required
+                if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
+                    // Convert role IDs to role objects and assign
+                    $roles = $this->assignableRoles($validated['roles'], $user);
+                    $user->syncRoles($roles);
+                } else {
+                    // This shouldn't happen due to validation, but fallback to automatic role assignment
+                    $user->syncRoles([]); // Remove all roles
+                    $this->assignRoleByUserType($user, $validated['user_type']);
+                }
+
+                $this->logRoleChange($user, $oldRoleNames);
+            }
+
+            if ($request->has('zone_access')) {
+                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
+            }
+
+            return redirect()->route('users.index')
+                ->with('success', 'User updated successfully.');
+        });
     }
 
     /**

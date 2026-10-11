@@ -147,9 +147,9 @@ it('credits each trip to whoever drove the vehicle that day, and checks on-time 
     VehicleDriverAssignment::create(['vehicle_id' => $vehicle->id, 'driver_id' => $karim->id, 'started_at' => '2026-03-01 00:00:00', 'ended_at' => '2026-03-05 23:59:59', 'is_current' => false]);
     VehicleDriverAssignment::create(['vehicle_id' => $vehicle->id, 'driver_id' => $rahim->id, 'started_at' => '2026-03-06 00:00:00', 'is_current' => true]);
 
-    // 08:00 Dhaka is 02:00 UTC: 02:10 UTC is on time, 03:00 UTC is late
-    analyticsTrip(['vehicle_id' => $vehicle->id, 'scheduled_date' => '2026-03-03', 'actual_start_time' => '2026-03-03 02:10:00', 'odometer_start' => 1000, 'odometer_end' => 1040]);
-    analyticsTrip(['vehicle_id' => $vehicle->id, 'scheduled_date' => '2026-03-08', 'actual_start_time' => '2026-03-08 03:00:00']);
+    // Scheduled 08:00: 08:10 is on time, 09:00 is late
+    analyticsTrip(['vehicle_id' => $vehicle->id, 'scheduled_date' => '2026-03-03', 'actual_start_time' => '2026-03-03 08:10:00', 'odometer_start' => 1000, 'odometer_end' => 1040]);
+    analyticsTrip(['vehicle_id' => $vehicle->id, 'scheduled_date' => '2026-03-08', 'actual_start_time' => '2026-03-08 09:00:00']);
     analyticsTrip(['vehicle_id' => $vehicle->id, 'scheduled_date' => '2026-03-09', 'status' => 'cancelled', 'cancellation_reason' => 'driver_unavailable']);
 
     $report = $this->actingAs(analyticsUser())->get('/reports/driver-performance?from=2026-03-01&to=2026-03-31')

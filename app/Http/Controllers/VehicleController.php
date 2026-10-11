@@ -225,6 +225,7 @@ class VehicleController extends Controller implements HasMiddleware
         // Get pagination data
         $vehicles = $query->paginate($validated['per_page'])
             ->withQueryString(); // Preserve query parameters in pagination links
+        $vehicles->getCollection()->each->append('expiring_documents');
 
         // Get filter options for the frontend
         $filterOptions = [
@@ -602,7 +603,7 @@ class VehicleController extends Controller implements HasMiddleware
         $canManageDowntime = auth()->user()->can('manage-vehicle-downtime');
 
         return Inertia::render('vehicles/show', [
-            'vehicle' => $vehicle,
+            'vehicle' => $vehicle->append('expiring_documents'),
             'assignments' => $assignments,
             'assignableDrivers' => $canAssignVehicles ? $this->assignableDrivers($vehicle->driver_id) : [],
             'downtimes' => $vehicle->downtimes()

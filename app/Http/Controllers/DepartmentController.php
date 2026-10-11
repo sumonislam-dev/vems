@@ -37,7 +37,7 @@ class DepartmentController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
 
-        $query = Department::with(['users', 'head']);
+        $query = Department::with('head')->withCount('users');
 
         // Apply search
         if (!empty($validated['search'])) {
@@ -92,7 +92,7 @@ class DepartmentController extends Controller implements HasMiddleware
                 'email' => $department->email,
                 'is_active' => $department->is_active,
                 'status' => $department->is_active ? 'active' : 'inactive',
-                'users_count' => $department->users->count(),
+                'users_count' => $department->users_count,
                 'head' => $department->head ? [
                     'id' => $department->head->id,
                     'name' => $department->head->name,

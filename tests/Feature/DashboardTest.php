@@ -396,3 +396,33 @@ test('the management dashboard trip-based stats respect the navbar active zone s
     $this->actingAs($admin)->get('/dashboard')
         ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 2));
 });
+
+test('the monthly and route performance charts and the expiring-documents count are computed correctly', function () {
+    seedDashboardPermissions();
+    $admin = makeDashboardUser('charts-admin');
+    $admin->givePermissionTo('view-trips');
+    $requester = makeDashboardUser('charts-requester');
+    $route = VehicleRoute::create(['name' => 'Gazipur Loop']);
+    $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-1', 'is_active' => true]);
+    Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-2', 'is_active' => true, 'tax_token_last_date' => today()->addDays(10), 'alert_days_before' => 30]);
+    Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-3', 'is_active' => true, 'tax_token_last_date' => today()->addDays(200), 'alert_days_before' => 30]);
+
+    $base = ['requested_by' => $requester->id, 'priority' => 'medium', 'scheduled_date' => today()->toDateString(), 'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00', 'vehicle_route_id' => $route->id, 'vehicle_id' => $vehicle->id];
+    $completed = Trip::create([...$base, 'status' => 'completed']);
+    Trip::create([...$base, 'status' => 'completed']);
+    Trip::create([...$base, 'status' => 'cancelled']);
+    TripFeedback::create(['trip_id' => $completed->id, 'submitted_by' => $requester->id, 'type' => 'feedback', 'category' => 'other', 'subject' => 'Good', 'description' => 'Fine', 'driver_rating' => 4, 'vehicle_rating' => 5, 'priority' => 'low', 'status' => 'open']);
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page
+            ->where('chartData.monthlyPerformance.5.completionRate', 66.7)
+            ->where('chartData.monthlyPerformance.5.satisfaction', 4.5)
+            ->where('chartData.monthlyPerformance.5.utilization', 33.3)
+            ->where('chartData.routePerformance.0.route', 'Gazipur Loop')
+            ->where('chartData.routePerformance.0.trips', 3)
+            ->where('chartData.routePerformance.0.completionRate', 66.7)
+            ->where('chartData.routePerformance.0.rating', 4.5)
+            ->where('moduleStats.vehicleAlerts.expiring_documents', 1)
+            ->etc()
+        );
+});

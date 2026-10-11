@@ -8,6 +8,8 @@ use App\Support\PrivateDocument;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
@@ -126,7 +128,8 @@ class VendorController extends Controller implements HasMiddleware
             'contact_persons.*.notes' => 'nullable|string',
         ]);
 
-        $data = $request->except(self::DOCUMENT_FIELDS);
+        // Only validated fields; files and contacts are handled separately
+        $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
 
         foreach (self::DOCUMENT_FIELDS as $field) {
             if ($request->hasFile($field)) {
@@ -135,13 +138,14 @@ class VendorController extends Controller implements HasMiddleware
         }
 
         try {
-            $vendor = Vendor::create($data);
+            // The vendor and its contacts are saved together or not at all
+            DB::transaction(function () use ($data, $validated) {
+                $vendor = Vendor::create($data);
 
-            if (isset($validated['contact_persons'])) {
-                foreach ($validated['contact_persons'] as $contactData) {
+                foreach ($validated['contact_persons'] ?? [] as $contactData) {
                     $vendor->contactPersons()->create($contactData);
                 }
-            }
+            });
 
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor created successfully!');
@@ -188,7 +192,6 @@ class VendorController extends Controller implements HasMiddleware
      */
     public function update(Request $request, Vendor $vendor)
     {
-
         // Get existing contact persons count
         $existingContactsCount = $vendor->contactPersons()->count();
         $submittedContactsCount = count($request->input('contact_persons', []));
@@ -228,7 +231,8 @@ class VendorController extends Controller implements HasMiddleware
         ]);
 
         try {
-            $data = $request->except(self::DOCUMENT_FIELDS);
+            // Only validated fields; files and contacts are handled separately
+            $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
 
             foreach (self::DOCUMENT_FIELDS as $field) {
                 if ($request->hasFile($field)) {
@@ -236,33 +240,36 @@ class VendorController extends Controller implements HasMiddleware
                 }
             }
 
-            $vendor->update($data);
+            // The vendor and its contacts are saved together or not at all
+            DB::transaction(function () use ($vendor, $data, $validated) {
+                $vendor->update($data);
 
-            // Update contact persons
-            if (isset($validated['contact_persons'])) {
-                // Get existing contact person IDs
-                $existingIds = $vendor->contactPersons->pluck('id')->toArray();
-                $submittedIds = collect($validated['contact_persons'])
-                    ->pluck('id')
-                    ->filter()
-                    ->toArray();
+                // Update contact persons
+                if (isset($validated['contact_persons'])) {
+                    // Get existing contact person IDs
+                    $existingIds = $vendor->contactPersons->pluck('id')->toArray();
+                    $submittedIds = collect($validated['contact_persons'])
+                        ->pluck('id')
+                        ->filter()
+                        ->toArray();
 
-                // Delete removed contact persons
-                $toDelete = array_diff($existingIds, $submittedIds);
-                $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
+                    // Delete removed contact persons
+                    $toDelete = array_diff($existingIds, $submittedIds);
+                    $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
 
-                // Update or create contact persons
-                foreach ($validated['contact_persons'] as $contactData) {
-                    if (isset($contactData['id'])) {
-                        // Update existing (scoped to this vendor)
-                        $vendor->contactPersons()->where('id', $contactData['id'])
-                            ->update(\Arr::except($contactData, ['id']));
-                    } else {
-                        // Create new
-                        $vendor->contactPersons()->create($contactData);
+                    // Update or create contact persons
+                    foreach ($validated['contact_persons'] as $contactData) {
+                        if (isset($contactData['id'])) {
+                            // Update existing (scoped to this vendor)
+                            $vendor->contactPersons()->where('id', $contactData['id'])
+                                ->update(Arr::except($contactData, ['id']));
+                        } else {
+                            // Create new
+                            $vendor->contactPersons()->create($contactData);
+                        }
                     }
                 }
-            }
+            });
 
             return redirect()
                 ->route('vendors.index')

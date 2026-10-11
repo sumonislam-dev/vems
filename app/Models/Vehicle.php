@@ -41,7 +41,8 @@ class Vehicle extends Model
     /** Statuses that mean the vehicle is out of service (see VehicleObserver::syncDowntime()) */
     public const DOWN_STATUSES = ['maintenance', 'out_of_service'];
 
-    protected $appends = ['expiring_documents', 'is_placeholder'];
+    // expiring_documents is appended only where shown (vehicles list and page)
+    protected $appends = ['is_placeholder'];
 
     public function getExpiringDocumentsAttribute(): array
     {

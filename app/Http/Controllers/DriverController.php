@@ -19,6 +19,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -393,69 +394,72 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function store(StoreUserRequest $request): RedirectResponse
     {
-        $validated = $request->validated();
-        $zoneAccess = $validated['zone_access'] ?? null;
-        $zoneIds = $validated['zone_ids'] ?? [];
-        unset($validated['zone_access'], $validated['zone_ids']);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request) {
+            $validated = $request->validated();
+            $zoneAccess = $validated['zone_access'] ?? null;
+            $zoneIds = $validated['zone_ids'] ?? [];
+            unset($validated['zone_access'], $validated['zone_ids']);
 
-        // Driver module is fixed to driver user type
-        $validated['user_type'] = 'driver';
+            // Driver module is fixed to driver user type
+            $validated['user_type'] = 'driver';
 
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
-
-        if ($request->hasFile('photo')) {
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
-
-        // NID/licence scans are private (see DocumentController)
-        foreach (['driving_license_file', 'nid_file'] as $field) {
-            if ($request->hasFile($field)) {
-                $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+            // Handle file uploads
+            if ($request->hasFile('image')) {
+                $validated['image'] = $request->file('image')->store('users/images', 'public');
             }
-        }
 
-        // Auto-generate password if not provided
-        $generatedPassword = null;
-        if (empty($validated['password'])) {
-            // Generate strong password: 12 characters with letters, numbers, and symbols
-            $generatedPassword = Str::random(12);
-            $validated['password'] = Hash::make($generatedPassword);
-        } else {
-            $validated['password'] = Hash::make($validated['password']);
-        }
+            if ($request->hasFile('photo')) {
+                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
+            }
 
-        // Set default driver status
-        if (empty($validated['driver_status'])) {
-            $validated['driver_status'] = 'available';
-        }
+            // NID/licence scans are private (see DocumentController)
+            foreach (['driving_license_file', 'nid_file'] as $field) {
+                if ($request->hasFile($field)) {
+                    $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+                }
+            }
 
-        // Set default department if not provided
-        if (empty($validated['department_id'])) {
-            $defaultDepartment = Department::active()->first();
-            $validated['department_id'] = $defaultDepartment?->id;
-        }
+            // Auto-generate password if not provided
+            $generatedPassword = null;
+            if (empty($validated['password'])) {
+                // Generate strong password: 12 characters with letters, numbers, and symbols
+                $generatedPassword = Str::random(12);
+                $validated['password'] = Hash::make($generatedPassword);
+            } else {
+                $validated['password'] = Hash::make($validated['password']);
+            }
 
-        // Accounts provisioned by an admin are trusted without an email-click loop.
-        $validated['email_verified_at'] = now();
+            // Set default driver status
+            if (empty($validated['driver_status'])) {
+                $validated['driver_status'] = 'available';
+            }
 
-        $user = User::create($validated);
+            // Set default department if not provided
+            if (empty($validated['department_id'])) {
+                $defaultDepartment = Department::active()->first();
+                $validated['department_id'] = $defaultDepartment?->id;
+            }
 
-        // Driver module is fixed to Driver role
-        $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
-        if ($driverRole) {
-            $user->syncRoles([$driverRole->id]);
-        }
+            // Accounts provisioned by an admin are trusted without an email-click loop.
+            $validated['email_verified_at'] = now();
 
-        if ($request->has('zone_access')) {
-            Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
-        }
+            $user = User::create($validated);
 
-        return redirect()->route('drivers.index')->with('success', $generatedPassword
-            ? "Driver created successfully! Generated Password: {$generatedPassword} (Save this, it won't be shown again)"
-            : 'Driver created successfully.');
+            // Driver module is fixed to Driver role
+            $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
+            if ($driverRole) {
+                $user->syncRoles([$driverRole->id]);
+            }
+
+            if ($request->has('zone_access')) {
+                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
+            }
+
+            return redirect()->route('drivers.index')->with('success', $generatedPassword
+                ? "Driver created successfully! Generated Password: {$generatedPassword} (Save this, it won't be shown again)"
+                : 'Driver created successfully.');
+        });
     }
 
     /**
@@ -557,59 +561,62 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function update(UpdateUserRequest $request, User $driver): RedirectResponse
     {
-        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
-            abort(404, 'Driver not found');
-        }
-
-        $validated = $request->validated();
-        $zoneAccess = $validated['zone_access'] ?? null;
-        $zoneIds = $validated['zone_ids'] ?? [];
-        unset($validated['zone_access'], $validated['zone_ids']);
-
-        // Driver module is fixed to driver user type
-        $validated['user_type'] = 'driver';
-
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            if ($driver->image) {
-                Storage::disk('public')->delete($driver->image);
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request, $driver) {
+            if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+                abort(404, 'Driver not found');
             }
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
 
-        if ($request->hasFile('photo')) {
-            if ($driver->photo) {
-                Storage::disk('public')->delete($driver->photo);
+            $validated = $request->validated();
+            $zoneAccess = $validated['zone_access'] ?? null;
+            $zoneIds = $validated['zone_ids'] ?? [];
+            unset($validated['zone_access'], $validated['zone_ids']);
+
+            // Driver module is fixed to driver user type
+            $validated['user_type'] = 'driver';
+
+            // Handle file uploads
+            if ($request->hasFile('image')) {
+                if ($driver->image) {
+                    Storage::disk('public')->delete($driver->image);
+                }
+                $validated['image'] = $request->file('image')->store('users/images', 'public');
             }
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
 
-        foreach (['driving_license_file', 'nid_file'] as $field) {
-            if ($request->hasFile($field)) {
-                $validated[$field] = PrivateDocument::replace($driver->{$field}, $request->file($field), 'driver_documents');
+            if ($request->hasFile('photo')) {
+                if ($driver->photo) {
+                    Storage::disk('public')->delete($driver->photo);
+                }
+                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
             }
-        }
 
-        // Hash password if provided
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
+            foreach (['driving_license_file', 'nid_file'] as $field) {
+                if ($request->hasFile($field)) {
+                    $validated[$field] = PrivateDocument::replace($driver->{$field}, $request->file($field), 'driver_documents');
+                }
+            }
 
-        $driver->update($validated);
+            // Hash password if provided
+            if (! empty($validated['password'])) {
+                $validated['password'] = Hash::make($validated['password']);
+            } else {
+                unset($validated['password']);
+            }
 
-        // Driver module is fixed to Driver role
-        $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
-        if ($driverRole) {
-            $driver->syncRoles([$driverRole->id]);
-        }
+            $driver->update($validated);
 
-        if ($request->has('zone_access')) {
-            Zone::applyAccess($driver, $zoneAccess ?? 'specific', $zoneIds);
-        }
+            // Driver module is fixed to Driver role
+            $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
+            if ($driverRole) {
+                $driver->syncRoles([$driverRole->id]);
+            }
 
-        return redirect()->route('drivers.index')->with('success', 'Driver updated successfully.');
+            if ($request->has('zone_access')) {
+                Zone::applyAccess($driver, $zoneAccess ?? 'specific', $zoneIds);
+            }
+
+            return redirect()->route('drivers.index')->with('success', 'Driver updated successfully.');
+        });
     }
 
     /**
