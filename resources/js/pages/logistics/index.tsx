@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { confirmAction, confirmDelete } from '@/components/confirm-dialog';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,14 +69,16 @@ export default function LogisticsIndex({ logistics, departments, filters, stats 
     router.get(route('logistics.index'), { ...filters, [key]: value }, { preserveState: true });
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this logistics?')) {
+  const handleDelete = async (id: number) => {
+    if (await confirmDelete('Are you sure you want to delete this logistics?')) {
       router.delete(route('logistics.destroy', id));
     }
   };
 
-  const handleToggleLock = (id: number) => {
-    router.patch(route('logistics.toggle-lock', id));
+  const handleToggleLock = async (id: number) => {
+    if (await confirmAction({ title: 'Change the lock on this logistics entry?', confirmLabel: 'Yes, change it' })) {
+      router.patch(route('logistics.toggle-lock', id));
+    }
   };
 
   const columns = [

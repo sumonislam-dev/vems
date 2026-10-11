@@ -1,4 +1,5 @@
 import React from 'react';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
@@ -60,8 +61,8 @@ interface Props {
 
 export default function DepartmentShow({ department, stats }: Props) {
     const can = useCan();
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${department.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${department.name}?`)) {
             router.delete(`/departments/${department.id}`);
         }
     };

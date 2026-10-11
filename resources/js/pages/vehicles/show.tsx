@@ -1,4 +1,5 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,8 +100,8 @@ export default function ShowVehicle({
         });
     };
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${vehicle.brand} ${vehicle.model}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${vehicle.brand} ${vehicle.model}?`)) {
             router.delete(route('vehicles.destroy', vehicle.id));
         }
     };
@@ -169,7 +170,7 @@ export default function ShowVehicle({
                             <CardTitle>Basic Vehicle Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Brand</label>
                                     <p className="text-sm font-medium">{vehicle.brand}</p>
@@ -241,7 +242,7 @@ export default function ShowVehicle({
                             <CardTitle>Additional Vehicle Details</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Manufacture Year</label>
                                     <p className="text-sm">{vehicle.manufacture_year || 'N/A'}</p>

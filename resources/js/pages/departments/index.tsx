@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
@@ -177,9 +178,9 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this department?')) {
+                                if (await confirmDelete('Are you sure you want to delete this department?')) {
                                     router.delete(`/departments/${department.id}`);
                                 }
                             }}

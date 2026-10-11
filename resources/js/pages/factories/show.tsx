@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -34,8 +35,8 @@ export default function ShowFactory({ factory }: ShowFactoryProps) {
         { title: factory.name, href: `/factories/${factory.id}` },
     ];
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${factory.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${factory.name}?`)) {
             router.delete(route('factories.destroy', factory.id));
         }
     };
@@ -140,7 +141,7 @@ export default function ShowFactory({ factory }: ShowFactoryProps) {
                             )}
 
                             {factory.latitude && factory.longitude && (
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Latitude</label>
                                         <p className="font-mono">{factory.latitude}</p>

@@ -109,7 +109,7 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <h3 className="font-medium">Created</h3>
                                         <p className="text-muted-foreground">

@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -384,9 +385,9 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
+                                if (await confirmDelete(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
                                     router.delete(route('vehicles.destroy', row.id), {
                                         preserveScroll: true,
                                     });

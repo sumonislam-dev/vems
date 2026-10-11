@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { useCan } from '@/lib/permissions';
@@ -315,9 +316,9 @@ export default function UsersIndex({
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                                if (await confirmDelete(`Are you sure you want to delete ${row.name}?`)) {
                                     router.delete(route('users.destroy', row.id), {
                                         preserveScroll: true,
                                     });

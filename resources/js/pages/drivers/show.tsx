@@ -1,4 +1,5 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -136,8 +137,8 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
         });
     };
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('drivers.destroy', user.id));
         }
     };

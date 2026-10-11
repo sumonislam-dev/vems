@@ -1,4 +1,5 @@
 import { SearchableSelect } from '@/components/searchable-select';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,8 +93,8 @@ export function VehicleDowntimeCard({ vehicleId, downtimes, reasons, replacement
     const endNow = (downtime: VehicleDowntime) =>
         router.post(route('vehicles.downtimes.end', [vehicleId, downtime.id]), {}, { preserveScroll: true });
 
-    const remove = (downtime: VehicleDowntime) => {
-        if (confirm('Delete this downtime record?')) {
+    const remove = async (downtime: VehicleDowntime) => {
+        if (await confirmDelete('Delete this downtime record?')) {
             router.delete(route('vehicles.downtimes.destroy', [vehicleId, downtime.id]), { preserveScroll: true });
         }
     };

@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -139,8 +140,8 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
         },
     ];
 
-    const handleDelete = (vendor: Vendor) => {
-        if (confirm(`Are you sure you want to delete ${vendor.name}?`)) {
+    const handleDelete = async (vendor: Vendor) => {
+        if (await confirmDelete(`Are you sure you want to delete ${vendor.name}?`)) {
             router.delete(route('vendors.destroy', vendor.id));
         }
     };

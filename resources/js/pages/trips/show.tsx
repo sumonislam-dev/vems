@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { confirmAction } from '@/components/confirm-dialog';
 import { AttendanceHistoryCard } from '@/components/trip-attendance-history';
 import { TripActionButtons } from '@/components/trip-action-buttons';
 import { TripAssignVehicleDialog, type AssignableVehicleOption } from '@/components/trip-assign-vehicle-dialog';
@@ -769,7 +770,7 @@ export default function ShowTrip({
                                 </CardHeader>
                                 <CardContent className="space-y-2">
                                     {showApprove && (
-                                        <Button onClick={() => router.post(route('trips.approve', trip.id))} className="w-full bg-green-600 hover:bg-green-700">
+                                        <Button onClick={async () => (await confirmAction({ title: `Approve trip ${trip.trip_number}?`, confirmLabel: 'Approve' })) && router.post(route('trips.approve', trip.id))} className="w-full bg-green-600 hover:bg-green-700">
                                             <CheckCircle className="mr-2 h-4 w-4" />
                                             Approve Trip
                                         </Button>
@@ -1017,7 +1018,7 @@ export default function ShowTrip({
                             />
                             <InputError message={completeTripErrors.odometer_end} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="fuel_consumed">Fuel consumed</Label>
                                 <Input

@@ -1,4 +1,5 @@
 import { BaseForm, FormField, FormSelect } from '@/base-components/base-form';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -47,8 +48,8 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
         put(route('roles.update', role.id));
     };
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete the role "${role.name}"?`)) {
             router.delete(route('roles.destroy', role.id));
         }
     };

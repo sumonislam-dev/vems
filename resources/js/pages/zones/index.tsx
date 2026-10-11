@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import { confirmDelete } from '@/components/confirm-dialog';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
 import { ServerSideDataTable } from '@/base-components/base-data-table';
@@ -98,9 +99,9 @@ export default function ZonesIndex({ zones, filterOptions, queryParams }: Props)
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm('Are you sure you want to delete this zone?')) {
+                                if (await confirmDelete('Are you sure you want to delete this zone?')) {
                                     router.delete(`/zones/${zone.id}`);
                                 }
                             }}

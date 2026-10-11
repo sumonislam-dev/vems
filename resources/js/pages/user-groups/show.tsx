@@ -1,4 +1,5 @@
 import { Head, router } from '@inertiajs/react';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -115,8 +116,8 @@ export default function ShowUserGroup({ group }: ShowUserGroupProps) {
     );
   };
 
-  const handleRemoveMember = (userId: number) => {
-    if (confirm('Are you sure you want to remove this member from the group?')) {
+  const handleRemoveMember = async (userId: number) => {
+    if (await confirmDelete('Are you sure you want to remove this member from the group?', 'Remove')) {
       router.delete(route('user-groups.remove-member', [group.id, userId]), {
         preserveScroll: true,
       });

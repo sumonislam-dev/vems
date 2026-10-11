@@ -1,4 +1,5 @@
 import InputError from '@/components/input-error';
+import { confirmAction } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -67,8 +68,16 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
         router.post(route('complaints.assign', item.id), { assigned_to: currentUserId });
     };
 
-    const close = () => router.post(route('complaints.close', item.id));
-    const reopen = () => router.post(route('complaints.reopen', item.id));
+    const close = async () => {
+        if (await confirmAction({ title: 'Close this complaint?', description: 'A closed complaint counts as finished in the reports.', confirmLabel: 'Close' })) {
+            router.post(route('complaints.close', item.id));
+        }
+    };
+    const reopen = async () => {
+        if (await confirmAction({ title: 'Reopen this complaint?', confirmLabel: 'Reopen' })) {
+            router.post(route('complaints.reopen', item.id));
+        }
+    };
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
@@ -106,7 +115,7 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
                                 </div>
 
                                 {(item.driver_rating || item.vehicle_rating) && (
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         {item.driver_rating && (
                                             <div>
                                                 <Label className="text-xs text-gray-600">Driver Rating</Label>

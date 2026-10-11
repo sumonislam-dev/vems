@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmAction } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -431,7 +432,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     {canApproveRow && (
-                                        <DropdownMenuItem onClick={() => router.post(route('trips.approve', row.id), {}, { preserveScroll: true })}>
+                                        <DropdownMenuItem onClick={async () => (await confirmAction({ title: `Approve trip ${row.trip_number}?`, confirmLabel: 'Approve' })) && router.post(route('trips.approve', row.id), {}, { preserveScroll: true })}>
                                             <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
                                             Approve Trip
                                         </DropdownMenuItem>
@@ -767,7 +768,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                             />
                             <InputError message={completeErrors.odometer_end} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="index_fuel_consumed">Fuel consumed</Label>
                                 <Input

@@ -1,4 +1,5 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -65,8 +66,8 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
     const canEdit = can('edit-vendors');
     const canDelete = can('delete-vendors');
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${vendor.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${vendor.name}?`)) {
             router.delete(route('vendors.destroy', vendor.id));
         }
     };
@@ -108,7 +109,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="border rounded-lg overflow-hidden">
+                            <div className="border rounded-lg overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <tbody className="divide-y">
                                         <tr>
@@ -187,7 +188,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                 </div>
                             </div>
 
-                            <div className="border rounded-lg overflow-hidden">
+                            <div className="border rounded-lg overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <tbody className="divide-y">
                                         <tr>
@@ -230,7 +231,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="border rounded-lg overflow-hidden">
+                                <div className="border rounded-lg overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead className="bg-muted/50">
                                             <tr>
@@ -290,7 +291,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <div className="border rounded-lg overflow-hidden">
+                                <div className="border rounded-lg overflow-x-auto">
                                     <table className="w-full text-sm">
                                         <thead className="bg-muted/50">
                                             <tr>
@@ -343,7 +344,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                     </CardHeader>
                     <CardContent>
                         {/* Compact Documents Table */}
-                        <div className="border rounded-lg overflow-hidden">
+                        <div className="border rounded-lg overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead className="bg-muted/50">
                                     <tr>

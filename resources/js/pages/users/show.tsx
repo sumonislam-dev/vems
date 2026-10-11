@@ -1,4 +1,5 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,8 +41,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 export default function ShowUser({ user }: ShowUserProps) {
     const can = useCan();
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('users.destroy', user.id));
         }
     };

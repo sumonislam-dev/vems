@@ -1,4 +1,5 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -175,9 +176,9 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                         <Button
                             variant="ghost"
                             size="sm"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                                 e.stopPropagation();
-                                if (confirm(`Are you sure you want to delete the route "${row.name}"?`)) {
+                                if (await confirmDelete(`Are you sure you want to delete the route "${row.name}"?`)) {
                                     // Delete functionality would go here
                                     alert(`Delete route: ${row.name}`);
                                 }
