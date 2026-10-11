@@ -88,6 +88,7 @@ class Vehicle extends Model
         'capacity',
         'vendor_id',
         'driver_id',
+        'default_route_id',
         'zone_id',
         'is_active',
         'status',
@@ -157,6 +158,14 @@ class Vehicle extends Model
     public function driver()
     {
         return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    /**
+     * The staff pick-and-drop route this vehicle normally runs
+     */
+    public function defaultRoute()
+    {
+        return $this->belongsTo(VehicleRoute::class, 'default_route_id');
     }
 
     /**

@@ -235,6 +235,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             ),
         },
         {
+            key: 'default_route',
+            label: 'Pick & Drop Route',
+            render: (_, vehicle) => (
+                <span className="text-muted-foreground">
+                    {vehicle.default_route?.name || '-'}
+                </span>
+            ),
+        },
+        {
             key: 'driver',
             label: 'Driver',
             sortable: true,

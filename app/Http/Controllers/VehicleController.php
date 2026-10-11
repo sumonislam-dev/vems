@@ -6,6 +6,7 @@ use App\Exports\VehiclesExport;
 use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -14,6 +15,7 @@ use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -145,7 +147,7 @@ class VehicleController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
 
-        $query = Vehicle::with(['vendor', 'driver', 'zone']);
+        $query = Vehicle::with(['vendor', 'driver', 'zone', 'defaultRoute:id,name']);
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -453,6 +455,7 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
+            'routes' => $this->routeOptions(),
             'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
@@ -469,6 +472,7 @@ class VehicleController extends Controller implements HasMiddleware
         $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
         $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
         $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
+        $data['default_route_id'] = ($data['default_route_id'] ?? null) === 'none' ? null : ($data['default_route_id'] ?? null);
 
         // Merge transformed data back to request
         $request->merge($data);
@@ -495,6 +499,8 @@ class VehicleController extends Controller implements HasMiddleware
             'vendor_id' => "{$identityRule}|exists:vendors,id", // Required service provider (except ad-hoc)
             'driver_id' => "{$identityRule}|exists:users,id", // Required driver (except ad-hoc)
             'zone_id' => Zone::validationRule(),
+            // Only routes the user can see (VehicleRoute is zone-scoped)
+            'default_route_id' => ['nullable', Rule::in(VehicleRoute::pluck('id')->all())],
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
@@ -577,6 +583,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         $vehicle->load([
             'vendor.contactPersons',
+            'defaultRoute:id,name',
             $canViewDriverDetails ? 'driver' : 'driver:id,name,status,employee_id,user_type',
         ]);
 
@@ -614,6 +621,7 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
+            'routes' => $this->routeOptions(),
         ]);
     }
 
@@ -629,6 +637,7 @@ class VehicleController extends Controller implements HasMiddleware
         $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
         $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
         $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
+        $data['default_route_id'] = ($data['default_route_id'] ?? null) === 'none' ? null : ($data['default_route_id'] ?? null);
 
         // Merge transformed data back to request
         $request->merge($data);
@@ -655,6 +664,9 @@ class VehicleController extends Controller implements HasMiddleware
             'vendor_id' => 'nullable|exists:vendors,id',
             'driver_id' => 'nullable|exists:users,id',
             'zone_id' => Zone::validationRule(),
+            // Only routes the user can see (VehicleRoute is zone-scoped)
+            // ...plus whatever it already has, so an unrelated edit doesn't fail
+            'default_route_id' => ['nullable', Rule::in([...VehicleRoute::pluck('id')->all(), $vehicle->default_route_id])],
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token
@@ -718,6 +730,14 @@ class VehicleController extends Controller implements HasMiddleware
         return redirect()
             ->route('vehicles.index')
             ->with('success', 'Vehicle updated successfully!');
+    }
+
+    /**
+     * Routes offered in the vehicle form's "Regular Pick & Drop Route" picker.
+     */
+    private function routeOptions()
+    {
+        return VehicleRoute::select('id', 'name')->orderBy('name')->get();
     }
 
     /**

@@ -13,6 +13,7 @@ interface EditVehicleProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
+    routes: { id: number; name: string }[];
 }
 
 type VehicleForm = {
@@ -27,6 +28,7 @@ type VehicleForm = {
     vendor_id: string;
     driver_id: string;
     zone_id: string;
+    default_route_id: string;
     is_active: boolean;
     status: string;
     // Parking Location
@@ -73,7 +75,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Edit Vehicle', href: '#' },
 ];
 
-export default function EditVehicle({ vehicle, vendors, drivers = [], zones = [] }: EditVehicleProps) {
+export default function EditVehicle({ vehicle, vendors, drivers = [], zones = [], routes = [] }: EditVehicleProps) {
     const vendorValue = typeof vehicle.vendor === 'object' && vehicle.vendor !== null
         ? vehicle.vendor.name
         : (vehicle.vendor || '');
@@ -90,6 +92,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
         vendor_id: vehicle.vendor_id?.toString() || 'none',
         driver_id: vehicle.driver_id?.toString() || 'none',
         zone_id: vehicle.zone_id?.toString() || 'none',
+        default_route_id: vehicle.default_route_id?.toString() || 'none',
         is_active: vehicle.is_active ?? true,
         status: vehicle.status || 'available',
         // Parking Location
@@ -205,6 +208,14 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
         ...vendors.map(vendor => ({
             label: vendor.name,
             value: vendor.id.toString()
+        }))
+    ];
+
+    const routeOptions = [
+        { label: 'No Regular Route', value: 'none' },
+        ...(routes || []).map(r => ({
+            label: r.name,
+            value: r.id.toString()
         }))
     ];
 
@@ -341,6 +352,16 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                         options={zoneOptions}
                                         error={errors.zone_id || undefined}
                                         placeholder="Select zone..."
+                                    />
+
+                                    <SearchableSelect
+                                        label="Regular Pick & Drop Route"
+                                        name="default_route_id"
+                                        value={data.default_route_id}
+                                        onChange={(value) => setData('default_route_id', value)}
+                                        options={routeOptions}
+                                        error={errors.default_route_id || undefined}
+                                        placeholder="Select route..."
                                     />
                                 </div>
                             </div>

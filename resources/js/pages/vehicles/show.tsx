@@ -205,6 +205,10 @@ export default function ShowVehicle({ vehicle, assignments = [], assignableDrive
                                     </p>
                                 </div>
                                 <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Regular Pick &amp; Drop Route</label>
+                                    <p className="text-sm">{vehicle.default_route?.name || 'None'}</p>
+                                </div>
+                                <div>
                                     <label className="text-sm font-medium text-muted-foreground">Status</label>
                                     <div>
                                         <Badge variant={vehicle.is_active ? 'default' : 'secondary'}>

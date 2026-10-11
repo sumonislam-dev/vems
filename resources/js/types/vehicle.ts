@@ -57,6 +57,9 @@ export interface Vehicle {
     driver?: User;
     zone_id: number | null;
     zone?: { id: number; name: string } | null;
+    /** Regular staff pick-and-drop route (report "Remarks" column) */
+    default_route_id: number | null;
+    default_route?: { id: number; name: string } | null;
     is_active: boolean;
     status: 'available' | 'assigned' | 'in_transit' | 'maintenance' | 'out_of_service';
     parking_address: string | null;

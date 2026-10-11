@@ -12,6 +12,7 @@ interface CreateVehicleProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
+    routes: { id: number; name: string }[];
     defaultZoneId: number | null;
 }
 
@@ -27,6 +28,7 @@ type VehicleForm = {
     vendor_id: string;
     driver_id: string;
     zone_id: string;
+    default_route_id: string;
     is_active: boolean;
     status: string;
     // Parking Location
@@ -73,7 +75,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create Vehicle', href: '#' },
 ];
 
-export default function CreateVehicle({ vendors = [], drivers = [], zones = [], defaultZoneId = null }: CreateVehicleProps) {
+export default function CreateVehicle({ vendors = [], drivers = [], zones = [], routes = [], defaultZoneId = null }: CreateVehicleProps) {
     const { data, setData, post, processing, errors } = useForm<VehicleForm>({
         brand: '',
         model: '',
@@ -86,6 +88,7 @@ export default function CreateVehicle({ vendors = [], drivers = [], zones = [], 
         vendor_id: 'none',
         driver_id: 'none',
         zone_id: defaultZoneId?.toString() || 'none',
+        default_route_id: 'none',
         is_active: true,
         status: 'available',
         // Parking Location
@@ -193,6 +196,14 @@ export default function CreateVehicle({ vendors = [], drivers = [], zones = [], 
         ...(vendors || []).map(vendor => ({
             label: vendor.name,
             value: vendor.id.toString()
+        }))
+    ];
+
+    const routeOptions = [
+        { label: 'No Regular Route', value: 'none' },
+        ...(routes || []).map(r => ({
+            label: r.name,
+            value: r.id.toString()
         }))
     ];
 
@@ -329,6 +340,16 @@ export default function CreateVehicle({ vendors = [], drivers = [], zones = [], 
                                         options={zoneOptions}
                                         error={errors.zone_id || undefined}
                                         placeholder="Select zone..."
+                                    />
+
+                                    <SearchableSelect
+                                        label="Regular Pick & Drop Route"
+                                        name="default_route_id"
+                                        value={data.default_route_id}
+                                        onChange={(value) => setData('default_route_id', value)}
+                                        options={routeOptions}
+                                        error={errors.default_route_id || undefined}
+                                        placeholder="Select route..."
                                     />
 
                                     <FormSelect
