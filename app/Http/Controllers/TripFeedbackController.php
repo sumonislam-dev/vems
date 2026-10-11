@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
+use App\Services\TripNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -124,7 +125,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
     /**
      * Store a newly submitted feedback/complaint.
      */
-    public function store(Request $request)
+    public function store(Request $request, TripNotifier $notifier)
     {
         $validated = $request->validate([
             'trip_id' => 'required|exists:trips,id',
@@ -157,6 +158,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
             'priority' => $validated['priority'] ?? 'low',
             'status' => 'open',
         ]);
+        $notifier->complaintSubmitted($feedback);
 
         return redirect()->route('complaints.show', $feedback)
             ->with('success', $validated['type'] === 'complaint' ? 'Complaint submitted successfully.' : 'Feedback submitted successfully.');

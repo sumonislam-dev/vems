@@ -43,6 +43,9 @@ type VehicleForm = {
     fitness_certificate_last_date: string;
     fitness_certificate_number: string;
     fitness_certificate_file: File | null;
+    route_permit_number: string;
+    route_permit_last_date: string;
+    route_permit_file: File | null;
     // Insurance
     insurance_type: string;
     insurance_last_date: string;
@@ -66,6 +69,7 @@ type VehicleForm = {
     tax_token_alert_enabled: boolean;
     fitness_alert_enabled: boolean;
     insurance_alert_enabled: boolean;
+    route_permit_alert_enabled: boolean;
     alert_days_before: string;
 };
 
@@ -107,6 +111,9 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
         fitness_certificate_last_date: vehicle.fitness_certificate_last_date || '',
         fitness_certificate_number: vehicle.fitness_certificate_number || '',
         fitness_certificate_file: null,
+        route_permit_number: vehicle.route_permit_number || '',
+        route_permit_last_date: vehicle.route_permit_last_date || '',
+        route_permit_file: null,
         // Insurance
         insurance_type: vehicle.insurance_type || 'none',
         insurance_last_date: vehicle.insurance_last_date || '',
@@ -130,6 +137,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
         tax_token_alert_enabled: vehicle.tax_token_alert_enabled ?? true,
         fitness_alert_enabled: vehicle.fitness_alert_enabled ?? true,
         insurance_alert_enabled: vehicle.insurance_alert_enabled ?? true,
+        route_permit_alert_enabled: vehicle.route_permit_alert_enabled ?? true,
         alert_days_before: vehicle.alert_days_before?.toString() || '30',
     });
 
@@ -612,6 +620,47 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                 </div>
                             </div>
 
+                            {/* Route Permit */}
+                            <div>
+                                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Route Permit</h3>
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                    <FormField
+                                        label="Route Permit Number"
+                                        name="route_permit_number"
+                                        value={data.route_permit_number}
+                                        onChange={(value) => setData('route_permit_number', value)}
+                                        error={errors.route_permit_number || undefined}
+                                        placeholder="Route permit number"
+                                    />
+
+                                    <FormDateField
+                                        label="Route Permit Expiry"
+                                        name="route_permit_last_date"
+                                        value={data.route_permit_last_date}
+                                        onChange={(value) => setData('route_permit_last_date', value)}
+                                        error={errors.route_permit_last_date || undefined}
+                                        placeholder="Select expiry date"
+                                    />
+
+                                    <div className="space-y-1">
+                                        <FormFileUpload
+                                            label="Route Permit File"
+                                            name="route_permit_file"
+                                            value={data.route_permit_file}
+                                            onChange={(file) => setData('route_permit_file', file)}
+                                            error={errors.route_permit_file}
+                                            accept="image/*,.pdf"
+                                            maxSize={2 * 1024 * 1024}
+                                        />
+                                        {vehicle.route_permit_file && (
+                                            <a href={route('vehicles.document', [vehicle.id, 'route_permit_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                View current file
+                                            </a>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
                             {/* Registration & Owner */}
                             <div>
                                 <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">Registration & Owner</h3>
@@ -744,6 +793,19 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                         />
                                         <label htmlFor="insurance_alert_enabled" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                             Insurance Alerts
+                                        </label>
+                                    </div>
+
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="route_permit_alert_enabled"
+                                            checked={data.route_permit_alert_enabled}
+                                            onChange={(e) => setData('route_permit_alert_enabled', e.target.checked)}
+                                            className="rounded border-gray-300 dark:border-gray-600 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-800 dark:focus:ring-indigo-500"
+                                        />
+                                        <label htmlFor="route_permit_alert_enabled" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                            Route Permit Alerts
                                         </label>
                                     </div>
                                 </div>

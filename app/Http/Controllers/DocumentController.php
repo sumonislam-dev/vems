@@ -18,7 +18,7 @@ class DocumentController extends Controller
 {
     public const USER_FIELDS = ['nid_file', 'driving_license_file'];
 
-    public const VEHICLE_FIELDS = ['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'];
+    public const VEHICLE_FIELDS = Vehicle::DOCUMENT_FILES;
 
     public const VENDOR_FIELDS = ['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'];
 

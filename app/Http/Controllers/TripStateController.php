@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Trip;
 use App\Models\TripRecurringGroup;
 use App\Notifications\TripStatusUpdated;
+use App\Services\TripNotifier;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -43,7 +44,7 @@ class TripStateController extends Controller implements HasMiddleware
     /**
      * Approve a trip
      */
-    public function approve(Request $request, Trip $trip)
+    public function approve(Request $request, Trip $trip, TripNotifier $notifier)
     {
         abort_unless($request->user()->canApproveTrip($trip), 403);
 
@@ -54,6 +55,7 @@ class TripStateController extends Controller implements HasMiddleware
 
             $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()]);
             $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
+            $notifier->needVehicles(collect([$trip]));
 
             return back()->with('success', 'Trip approved successfully!');
         } catch (\Exception $e) {
@@ -66,26 +68,29 @@ class TripStateController extends Controller implements HasMiddleware
      * approved/rejected/etc by someone else since the page loaded are
      * silently skipped (Trip::transitionTo() just returns false for those).
      */
-    public function bulkApprove(Request $request)
+    public function bulkApprove(Request $request, TripNotifier $notifier)
     {
         $validated = $request->validate([
             'trip_ids' => 'required|array|min:1|max:100',
             'trip_ids.*' => 'integer|exists:trips,id',
         ]);
 
-        $approvedCount = 0;
+        $approved = collect();
 
-        DB::transaction(function () use ($validated, &$approvedCount, $request) {
+        DB::transaction(function () use ($validated, $approved, $request) {
             $trips = Trip::whereIn('id', $validated['trip_ids'])->lockForUpdate()->get();
 
             foreach ($trips as $trip) {
                 // A department head only approves their own departments' trips
                 if ($request->user()->canApproveTrip($trip) && $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()])) {
-                    $approvedCount++;
+                    $approved->push($trip);
                     $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
                 }
             }
         });
+
+        $approvedCount = $approved->count();
+        $notifier->needVehicles($approved);
 
         if ($approvedCount === 0) {
             return back()->with('error', 'No selected trips could be approved (already approved, rejected, or otherwise not pending).');
@@ -184,7 +189,7 @@ class TripStateController extends Controller implements HasMiddleware
     /**
      * Cancel a trip
      */
-    public function cancel(Request $request, Trip $trip)
+    public function cancel(Request $request, Trip $trip, TripNotifier $notifier)
     {
         try {
             if (!$trip->canTransitionTo('cancelled')) {
@@ -197,6 +202,7 @@ class TripStateController extends Controller implements HasMiddleware
             ]);
 
             $trip->cancel($validated['cancellation_reason'], $validated['cancellation_notes'] ?? null);
+            $notifier->cancelled(collect([$trip]));
 
             return back()->with('success', 'Trip cancelled.');
         } catch (ValidationException $e) {
@@ -211,24 +217,27 @@ class TripStateController extends Controller implements HasMiddleware
      * Trips already in_progress/completed/cancelled/rejected are left alone
      * (Trip::cancel() just returns false for those — no error, just skipped).
      */
-    public function cancelSeries(Request $request, TripRecurringGroup $group)
+    public function cancelSeries(Request $request, TripRecurringGroup $group, TripNotifier $notifier)
     {
         $validated = $request->validate([
             'cancellation_reason' => 'required|in:passenger_no_show,vehicle_breakdown,driver_unavailable,route_blocked,weather_conditions,emergency,other',
             'cancellation_notes' => 'nullable|string',
         ]);
 
-        $cancelledCount = 0;
+        $cancelled = collect();
 
-        DB::transaction(function () use ($group, $validated, &$cancelledCount) {
+        DB::transaction(function () use ($group, $validated, $cancelled) {
             $trips = $group->trips()->lockForUpdate()->get();
 
             foreach ($trips as $trip) {
                 if ($trip->cancel($validated['cancellation_reason'], $validated['cancellation_notes'] ?? null)) {
-                    $cancelledCount++;
+                    $cancelled->push($trip);
                 }
             }
         });
+
+        $cancelledCount = $cancelled->count();
+        $notifier->cancelled($cancelled);
 
         if ($cancelledCount === 0) {
             return back()->with('error', 'No trips in this series could be cancelled (already in progress, completed, rejected, or cancelled).');

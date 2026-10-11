@@ -844,6 +844,7 @@ class DashboardController extends Controller
                 'tax_token_last_date', 'tax_token_alert_enabled',
                 'fitness_certificate_last_date', 'fitness_alert_enabled',
                 'insurance_last_date', 'insurance_alert_enabled',
+                'route_permit_last_date', 'route_permit_alert_enabled',
                 'alert_days_before',
             ])
             ->filter(fn ($vehicle) => ! empty($vehicle->getExpiringDocuments()))

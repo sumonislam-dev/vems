@@ -349,6 +349,50 @@ export default function ShowVehicle({
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Route Permit */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Route Permit</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4">
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Route Permit Number</label>
+                                    <p className="text-sm font-mono">{vehicle.route_permit_number || 'N/A'}</p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Document</label>
+                                    <p className="text-sm">
+                                        {vehicle.route_permit_file ? (
+                                            <a href={route('vehicles.document', [vehicle.id, 'route_permit_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                                <ExternalLink className="h-3 w-3" /> View file
+                                            </a>
+                                        ) : 'N/A'}
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Route Permit Expiry</label>
+                                    <p className="text-sm">
+                                        {vehicle.route_permit_last_date
+                                            ? new Date(vehicle.route_permit_last_date).toLocaleDateString('en-US', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                            })
+                                            : 'N/A'
+                                        }
+                                    </p>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Alert Status</label>
+                                    <Badge variant={vehicle.route_permit_alert_enabled ? 'default' : 'secondary'}>
+                                        {vehicle.route_permit_alert_enabled ? 'Enabled' : 'Disabled'}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
                     {/* Insurance Information */}
                     <Card>
                         <CardHeader>

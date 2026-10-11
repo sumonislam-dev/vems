@@ -11,6 +11,9 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vehicle extends Model
 {
+    /** Columns holding private document paths (see DocumentController) */
+    public const DOCUMENT_FILES = ['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'route_permit_file', 'registration_certificate_file'];
+
     use BelongsToZone, HasFactory, LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
@@ -127,6 +130,10 @@ class Vehicle extends Model
         'tax_token_alert_enabled',
         'fitness_alert_enabled',
         'insurance_alert_enabled',
+        'route_permit_number',
+        'route_permit_last_date',
+        'route_permit_file',
+        'route_permit_alert_enabled',
         'alert_days_before',
         // Parking Location
         'parking_address',
@@ -142,6 +149,8 @@ class Vehicle extends Model
         'tax_token_alert_enabled' => 'boolean',
         'fitness_alert_enabled' => 'boolean',
         'insurance_alert_enabled' => 'boolean',
+        'route_permit_last_date' => 'date',
+        'route_permit_alert_enabled' => 'boolean',
         'manufacture_year' => 'integer',
         'alert_days_before' => 'integer',
         'parking_latitude' => 'decimal:8',
@@ -241,6 +250,18 @@ class Vehicle extends Model
     }
 
     /**
+     * Check if route permit is expired or expiring soon
+     */
+    public function isRoutePermitExpiring(): bool
+    {
+        if (! $this->route_permit_last_date || ! $this->route_permit_alert_enabled) {
+            return false;
+        }
+
+        return now()->diffInDays($this->route_permit_last_date, false) <= $this->alert_days_before;
+    }
+
+    /**
      * Get all expiring documents
      */
     public function getExpiringDocuments(): array
@@ -271,6 +292,15 @@ class Vehicle extends Model
                 'name' => 'Insurance',
                 'date' => $this->insurance_last_date,
                 'days_left' => $this->insurance_last_date ? (int) now()->diffInDays($this->insurance_last_date, false) : null,
+            ];
+        }
+
+        if ($this->isRoutePermitExpiring()) {
+            $expiring[] = [
+                'type' => 'route_permit',
+                'name' => 'Route Permit',
+                'date' => $this->route_permit_last_date,
+                'days_left' => (int) now()->diffInDays($this->route_permit_last_date, false),
             ];
         }
 

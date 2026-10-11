@@ -519,6 +519,10 @@ class VehicleController extends Controller implements HasMiddleware
             'insurance_policy_number' => 'nullable|string|max:255',
             'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'insurance_company' => 'nullable|string|max:255',
+            // Route Permit
+            'route_permit_number' => 'nullable|string|max:255',
+            'route_permit_last_date' => 'nullable|date',
+            'route_permit_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Registration Certificate & Owner Info
             'registration_certificate_number' => 'nullable|string|max:255',
             'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
@@ -536,10 +540,11 @@ class VehicleController extends Controller implements HasMiddleware
             'tax_token_alert_enabled' => 'sometimes|boolean',
             'fitness_alert_enabled' => 'sometimes|boolean',
             'insurance_alert_enabled' => 'sometimes|boolean',
+            'route_permit_alert_enabled' => 'sometimes|boolean',
             'alert_days_before' => 'nullable|numeric|min:1|max:365',
         ]);
 
-        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
+        foreach (Vehicle::DOCUMENT_FILES as $field) {
             if ($request->hasFile($field)) {
                 $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'vehicle_documents');
             }
@@ -549,6 +554,7 @@ class VehicleController extends Controller implements HasMiddleware
         $validated['tax_token_alert_enabled'] = $validated['tax_token_alert_enabled'] ?? true;
         $validated['fitness_alert_enabled'] = $validated['fitness_alert_enabled'] ?? true;
         $validated['insurance_alert_enabled'] = $validated['insurance_alert_enabled'] ?? true;
+        $validated['route_permit_alert_enabled'] = $validated['route_permit_alert_enabled'] ?? true;
         $validated['alert_days_before'] = $validated['alert_days_before'] ?? 30;
 
         if ($isAdhoc) {
@@ -693,6 +699,10 @@ class VehicleController extends Controller implements HasMiddleware
             'insurance_policy_number' => 'nullable|string|max:255',
             'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'insurance_company' => 'nullable|string|max:255',
+            // Route Permit
+            'route_permit_number' => 'nullable|string|max:255',
+            'route_permit_last_date' => 'nullable|date',
+            'route_permit_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             // Registration Certificate & Owner Info
             'registration_certificate_number' => 'nullable|string|max:255',
             'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
@@ -710,10 +720,11 @@ class VehicleController extends Controller implements HasMiddleware
             'tax_token_alert_enabled' => 'boolean',
             'fitness_alert_enabled' => 'boolean',
             'insurance_alert_enabled' => 'boolean',
+            'route_permit_alert_enabled' => 'boolean',
             'alert_days_before' => 'nullable|integer|min:1|max:365',
         ]);
 
-        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
+        foreach (Vehicle::DOCUMENT_FILES as $field) {
             if ($request->hasFile($field)) {
                 $validated[$field] = PrivateDocument::replace($vehicle->$field, $request->file($field), 'vehicle_documents');
             }

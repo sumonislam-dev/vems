@@ -76,6 +76,9 @@ export interface Vehicle {
     insurance_policy_number: string | null;
     insurance_policy_file: string | null;
     insurance_company: string | null;
+    route_permit_number: string | null;
+    route_permit_last_date: string | null;
+    route_permit_file: string | null;
     registration_certificate_number: string | null;
     registration_certificate_file: string | null;
     owner_name: string | null;
@@ -90,9 +93,10 @@ export interface Vehicle {
     tax_token_alert_enabled: boolean;
     fitness_alert_enabled: boolean;
     insurance_alert_enabled: boolean;
+    route_permit_alert_enabled: boolean;
     alert_days_before: number;
     expiring_documents?: Array<{
-        type: 'tax_token' | 'fitness' | 'insurance';
+        type: 'tax_token' | 'fitness' | 'insurance' | 'route_permit';
         name: string;
         date: string;
         days_left: number | null;

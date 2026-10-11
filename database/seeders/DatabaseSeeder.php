@@ -20,7 +20,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         if (app()->isProduction()) {
-            $this->command?->warn('Production: skipped demo data. Create the first user, then `php artisan setup:permissions` makes them super-admin.');
+            $this->command?->warn('Production: skipped demo data. Create the first admin with `php artisan vems:create-admin`.');
 
             return;
         }

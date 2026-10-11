@@ -13,6 +13,7 @@ use App\Models\UserGroup;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
 use App\Models\Zone;
+use App\Services\TripNotifier;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -459,7 +460,7 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Store a newly created trip
      */
-    public function store(Request $request)
+    public function store(Request $request, TripNotifier $notifier)
     {
         $validated = $request->validate([
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
@@ -543,6 +544,8 @@ class TripController extends Controller implements HasMiddleware
 
             DB::commit();
 
+            $notifier->requested($trip);
+
             return redirect()
                 ->route('trips.show', $trip)
                 ->with('success', 'Trip created successfully! Awaiting approval.');
@@ -559,7 +562,7 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Store multiple recurring trips
      */
-    public function storeRecurring(Request $request)
+    public function storeRecurring(Request $request, TripNotifier $notifier)
     {
         $validated = $request->validate([
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
@@ -664,6 +667,8 @@ class TripController extends Controller implements HasMiddleware
             }
 
             DB::commit();
+
+            $notifier->requested($firstTrip, count($dates));
 
             return redirect()
                 ->route('trips.index')
@@ -956,7 +961,7 @@ class TripController extends Controller implements HasMiddleware
      * Assign a vehicle to a trip requested without one, or reassign it
      * (damaged/breakdown scenarios). A first assignment needs no reason.
      */
-    public function reassignVehicle(Request $request, Trip $trip)
+    public function reassignVehicle(Request $request, Trip $trip, TripNotifier $notifier)
     {
         // Can reassign vehicle during any active status
         if (! in_array($trip->status, ['pending', 'approved', 'assigned', 'in_progress'])) {
@@ -964,6 +969,7 @@ class TripController extends Controller implements HasMiddleware
         }
 
         $isFirstAssignment = $trip->vehicle_id === null;
+        $previousVehicleId = $trip->vehicle_id;
 
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
@@ -996,6 +1002,10 @@ class TripController extends Controller implements HasMiddleware
                 'vehicle_id' => $validated['vehicle_id'],
             ]);
         });
+
+        if ((int) $validated['vehicle_id'] !== $previousVehicleId) {
+            $notifier->vehicleAssigned($trip->fresh());
+        }
 
         return back()->with('success', $isFirstAssignment ? 'Vehicle assigned.' : 'Vehicle reassigned successfully!');
     }

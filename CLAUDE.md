@@ -42,6 +42,10 @@ npm run types                   # tsc --noEmit
 ```bash
 php artisan setup:permissions
 ```
+**Fresh install / production:** `php artisan db:seed` creates only roles, permissions and zones in production (demo data is local-only); create the first admin with `php artisan vems:create-admin`. See `docs/DEPLOYMENT.md` (env, cron, queue worker, backups).
+
+**Scheduled jobs** (`routes/console.php`, times Asia/Dhaka; needs a `schedule:run` cron): `vems:expiry-reminders` (07:00, vehicle documents incl. route permit and driving licences, on milestone days only), `vems:trips-needing-attention` (07:30, overdue/long-running trips, notify only), and spatie/laravel-backup (`backup:clean`/`run`/`monitor`, nightly, to the `backups` disk).
+
 `setup:permissions` makes the database match `RolePermissionSeeder` exactly, so it deletes or revokes anything not listed. On a live database use the add-only `php artisan permissions:update` (`--dry-run` to preview): it adds new permissions and roles and grants seeded roles their newly listed permissions, but never deletes or revokes anything.
 ## Architecture
 
@@ -55,6 +59,9 @@ Every page is a Laravel route (`routes/web.php`, plus `routes/auth.php` / `route
 - `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `transport-manager`, `management`, `department-head`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`). Running it deletes any role or permission it doesn't list.
 - Authorization is permission-based: controllers declare `permission:*` middleware (`HasMiddleware`), and the frontend hides actions with `useCan()`.
 - Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `transport-manager` runs trips/fleet/drivers/vendors/reports without user, role or zone administration; `management` is read-only oversight; `department-head` approves/rejects only trips of departments they head (`departments.head_id`, permission `approve-department-trips`, see `User::canApproveTrip()`); `employee`/`driver` get a scoped-down subset for their day-to-day flows. Exports/imports have their own `export-*`/`import-*` permissions, and changing a user's roles needs `manage-user-roles`.
+
+### Notifications
+In-app (database channel, the navbar bell). Workflow events go through `App\Services\TripNotifier` (new request → approvers + department head, approved without vehicle → Logistics, vehicle assigned, cancelled, new complaint). Recipients come from `App\Support\NotificationRecipients::withPermission()`: active users with the permission who can see the record's zone. The actor is never notified. Generic messages use `App\Notifications\AlertNotification`.
 
 ### Users, drivers, vendors
 There is no separate `Driver` model — drivers are `User` rows with `user_type` (`driver`, `transport_manager`, `employee`, `admin`, ...) and a `driver_status` enum (`available`, `on_trip`, etc.). `User::isDriver()`, `scopeDrivers`, `scopeAvailableDrivers`, `canDrive()` encode the driver-specific rules (license expiry, status). `DriverController` is a thin, filtered view over the same `users` table/`UserController` logic (same Form Requests, same table) rather than a distinct resource.
