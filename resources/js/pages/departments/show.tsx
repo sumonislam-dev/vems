@@ -2,6 +2,7 @@ import React from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -58,6 +59,7 @@ interface Props {
 }
 
 export default function DepartmentShow({ department, stats }: Props) {
+    const can = useCan();
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${department.name}?`)) {
             router.delete(`/departments/${department.id}`);
@@ -83,6 +85,7 @@ export default function DepartmentShow({ department, stats }: Props) {
                             label: 'Edit Department',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: `/departments/${department.id}/edit`,
+                            permission: 'edit-departments',
                         },
                     ]}
                 />
@@ -237,25 +240,27 @@ export default function DepartmentShow({ department, stats }: Props) {
                 </div>
 
                 {/* Danger Zone */}
-                <Card className="border-destructive">
-                    <CardHeader>
-                        <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-medium">Delete Department</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Permanently delete this department. This action cannot be undone.
-                                </p>
+                {can('delete-departments') && (
+                    <Card className="border-destructive">
+                        <CardHeader>
+                            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-medium">Delete Department</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Permanently delete this department. This action cannot be undone.
+                                    </p>
+                                </div>
+                                <Button variant="destructive" onClick={handleDelete}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Department
+                                </Button>
                             </div>
-                            <Button variant="destructive" onClick={handleDelete}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Department
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppSidebarLayout>
     );

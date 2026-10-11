@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, User } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import {
@@ -37,6 +38,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ShowUser({ user }: ShowUserProps) {
+    const can = useCan();
+
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('users.destroy', user.id));
@@ -103,6 +106,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                             label: 'Edit User',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('users.edit', user.id),
+                            permission: 'edit-users',
                         },
                     ]}
                 />
@@ -577,21 +581,25 @@ export default function ShowUser({ user }: ShowUserProps) {
                 <Card>
                     <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                                onClick={() => router.visit(route('users.edit', user.id))}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Edit User
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete User
-                            </Button>
+                            {can('edit-users') && (
+                                <Button
+                                    onClick={() => router.visit(route('users.edit', user.id))}
+                                    className="flex items-center justify-center gap-2"
+                                >
+                                    <Edit className="h-4 w-4" />
+                                    Edit User
+                                </Button>
+                            )}
+                            {can('delete-users') && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    className="flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete User
+                                </Button>
+                            )}
                             <Button
                                 variant="outline"
                                 onClick={() => window.print()}

@@ -26,7 +26,8 @@ class VehicleController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-vehicles', only: ['index', 'show', 'getExpiringVehicles', 'export']),
+            new Middleware('permission:view-vehicles', only: ['index', 'show', 'getExpiringVehicles']),
+            new Middleware('permission:export-vehicles', only: ['export']),
             new Middleware('permission:create-vehicles', only: ['create', 'store']),
             new Middleware('permission:edit-vehicles', only: ['edit', 'update', 'bulkUpdateStatus']),
             new Middleware('permission:delete-vehicles', only: ['destroy']),
@@ -595,7 +596,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         $canAssignVehicles = auth()->user()->can('assign-vehicles');
 
-        $canEditVehicles = auth()->user()->can('edit-vehicles');
+        $canManageDowntime = auth()->user()->can('manage-vehicle-downtime');
 
         return Inertia::render('vehicles/show', [
             'vehicle' => $vehicle,
@@ -606,10 +607,10 @@ class VehicleController extends Controller implements HasMiddleware
                 ->get()
                 ->map(fn ($d) => [...$d->toArray(), 'reason_label' => $d->reason_label]),
             'downtimeReasons' => collect(VehicleDowntime::REASONS)->map(fn ($label, $value) => compact('value', 'label'))->values(),
-            'replacementVehicles' => $canEditVehicles
+            'replacementVehicles' => $canManageDowntime
                 ? Vehicle::whereKeyNot($vehicle->id)->where('is_active', true)->orderBy('registration_number')->get(['id', 'registration_number'])
                 : [],
-            'canEditVehicles' => $canEditVehicles,
+            'canManageDowntime' => $canManageDowntime,
         ]);
     }
 

@@ -15,13 +15,13 @@ use Spatie\Permission\PermissionRegistrar;
 function seedDowntimePermissions(): void
 {
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
-    foreach (['view-vehicles', 'edit-vehicles'] as $name) {
+    foreach (['view-vehicles', 'edit-vehicles', 'manage-vehicle-downtime'] as $name) {
         Permission::firstOrCreate(['name' => $name, 'guard_name' => 'web']);
     }
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
-function downtimeActor(array $permissions = ['view-vehicles', 'edit-vehicles']): User
+function downtimeActor(array $permissions = ['view-vehicles', 'edit-vehicles', 'manage-vehicle-downtime']): User
 {
     $user = User::create([
         'email_verified_at' => now(),
@@ -138,13 +138,13 @@ it('rejects overlapping periods and a vehicle replacing itself', function () {
     ])->assertSessionHasNoErrors();
 });
 
-it('requires edit-vehicles to record downtime, and 404s a downtime from another vehicle', function () {
+it('requires manage-vehicle-downtime to record downtime, and 404s a downtime from another vehicle', function () {
     seedDowntimePermissions();
     $vehicle = downtimeVehicle();
     $other = downtimeVehicle();
     $otherDowntime = VehicleDowntime::create(['vehicle_id' => $other->id, 'starts_on' => '2026-01-05', 'reason' => 'repair']);
 
-    $this->actingAs(downtimeActor(['view-vehicles']))
+    $this->actingAs(downtimeActor(['view-vehicles', 'edit-vehicles']))
         ->post("/vehicles/{$vehicle->id}/downtimes", ['starts_on' => '2026-01-05', 'reason' => 'repair'])
         ->assertForbidden();
 
@@ -162,6 +162,6 @@ it('shows downtime history on the vehicle page', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->where('downtimes.0.reason_label', 'Document renewal')
-            ->where('canEditVehicles', true)
+            ->where('canManageDowntime', true)
             ->has('downtimeReasons', 5));
 });

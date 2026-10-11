@@ -206,6 +206,35 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsToMany(Zone::class, 'user_zone')->withTimestamps();
     }
 
+    /**
+     * Departments this user is the head of (departments.head_id)
+     */
+    public function headedDepartments(): HasMany
+    {
+        return $this->hasMany(Department::class, 'head_id');
+    }
+
+    /**
+     * A department head (with approve-department-trips) deciding on a trip
+     * for a department they head.
+     */
+    public function headsDepartmentOf(Trip $trip): bool
+    {
+        return $trip->department_id !== null
+            && $this->can('approve-department-trips')
+            && $this->headedDepartments()->whereKey($trip->department_id)->exists();
+    }
+
+    public function canApproveTrip(Trip $trip): bool
+    {
+        return $this->can('approve-trips') || $this->headsDepartmentOf($trip);
+    }
+
+    public function canRejectTrip(Trip $trip): bool
+    {
+        return $this->can('reject-trips') || $this->headsDepartmentOf($trip);
+    }
+
     // Scopes
     public function scopeDrivers($query)
     {

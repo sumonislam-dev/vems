@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
 import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, DataTableColumn, Trip } from '@/types';
@@ -100,16 +101,18 @@ const getPriorityBadge = (priority: Trip['priority']) => {
     return <Badge variant="outline" className={className}>{label}</Badge>;
 };
 
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
-
 type TripActionType = 'reject' | 'start' | 'complete' | 'cancel';
 
 export default function TripsIndex({ trips, stats, filterOptions, queryParams }: TripsPageProps) {
-    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[] } };
-    const permissions = pageProps.auth?.permissions ?? [];
+    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number } } };
     const currentUserId = pageProps.auth?.user?.id;
-    const canApproveTrips = checkPermission('approve-trips', permissions);
-    const canEditTrips = checkPermission('edit-trips', permissions);
+    const can = useCan();
+    // Department heads approve only their departments' trips, so each row
+    // carries its own can_approve/can_reject (see TripController::index())
+    const canApproveTrips = can('approve-trips') || can('approve-department-trips');
+    const canEditTrips = can('edit-trips');
+    const canCheckInTrips = can('check-in-trips');
+    const canCheckOutTrips = can('check-out-trips');
 
     const [actionDialog, setActionDialog] = useState<{ type: TripActionType; trip: Trip } | null>(null);
 
@@ -234,7 +237,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
         setSelectedIds([]);
     }, [trips]);
 
-    const isTripBulkApprovable = useCallback((row: Trip) => canApproveTrips && row.status === 'pending', [canApproveTrips]);
+    const isTripBulkApprovable = useCallback((row: Trip) => !!row.can_approve && row.status === 'pending', []);
     const getTripRowId = useCallback((row: Trip) => row.id, []);
 
     const submitBulkApprove = () => {
@@ -324,6 +327,10 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                             </span>
                         </div>
                     </div>
+                ) : ['pending', 'approved', 'assigned'].includes(row.status) ? (
+                    <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                        Awaiting vehicle
+                    </Badge>
                 ) : (
                     <span className="text-sm text-gray-400 italic">Not assigned</span>
                 ),
@@ -388,10 +395,10 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
             key: 'id',
             label: 'Actions',
             render: (_, row) => {
-                const canApproveRow = row.status === 'pending' && canApproveTrips;
-                const canRejectRow = row.status === 'pending' && canApproveTrips;
-                const canStartRow = canStartTrip(row.status) && (canEditTrips || isAssignedDriver(row));
-                const canCompleteRow = canCompleteTrip(row.status) && (canEditTrips || isAssignedDriver(row));
+                const canApproveRow = row.status === 'pending' && !!row.can_approve;
+                const canRejectRow = row.status === 'pending' && !!row.can_reject;
+                const canStartRow = canStartTrip(row.status) && (canEditTrips || (isAssignedDriver(row) && canCheckInTrips));
+                const canCompleteRow = canCompleteTrip(row.status) && (canEditTrips || (isAssignedDriver(row) && canCheckOutTrips));
                 const canCancelRow = canCancelTrip(row.status) && canEditTrips;
                 const hasMenuActions = canApproveRow || canRejectRow || canStartRow || canCompleteRow || canCancelRow;
 
@@ -405,14 +412,16 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                         >
                             <Eye className="h-4 w-4" />
                         </Button>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.visit(route('trips.edit', row.id))}
-                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                        >
-                            <Edit className="h-4 w-4" />
-                        </Button>
+                        {canEditTrips && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.visit(route('trips.edit', row.id))}
+                                className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                            >
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                        )}
                         {hasMenuActions && (
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -461,7 +470,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                 );
             },
         },
-    ], [canApproveTrips, canEditTrips, isAssignedDriver, openActionDialog]);
+    ], [canEditTrips, canCheckInTrips, canCheckOutTrips, isAssignedDriver, openActionDialog]);
 
     const filters = useMemo(() => [
         {
@@ -610,6 +619,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                             label: 'Create Trip',
                             icon: <Plus className="h-4 w-4" />,
                             href: route('trips.create'),
+                            permission: 'create-trips',
                         },
                     ]}
                 />

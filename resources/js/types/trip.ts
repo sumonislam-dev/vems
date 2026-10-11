@@ -13,6 +13,9 @@ export interface Trip {
     requested_by: number;
     approved_by?: number;
     approved_at?: string;
+    /** Set on trips list rows: may the current user approve/reject this trip */
+    can_approve?: boolean;
+    can_reject?: boolean;
     purpose: string;
     trip_type?: 'inspection' | 'pick-up' | 'drop-off' | 'training' | 'complaints' | 'CVV' | 'Incident Inspection' | 'officials' | 'Assigned';
     remarks?: string;

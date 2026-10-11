@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Plus, Eye, Pencil, Trash2, Search, Lock, Unlock } from 'lucide-react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import type { BreadcrumbItem, PaginatedData } from '@/types';
 
 interface Department {
@@ -55,6 +56,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function LogisticsIndex({ logistics, departments, filters, stats }: LogisticsPageProps) {
+  const can = useCan();
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
   const handleSearch = (value: string) => {
@@ -154,37 +156,43 @@ export default function LogisticsIndex({ logistics, departments, filters, stats 
       label: 'Actions',
       render: (logistic: Logistic) => (
         <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-amber-50 hover:text-amber-600"
-            onClick={() => handleToggleLock(logistic.id)}
-            title={logistic.status === 'active' ? 'Deactivate' : 'Activate'}
-          >
-            {logistic.status === 'active' ? (
-              <Unlock className="h-3.5 w-3.5" />
-            ) : (
-              <Lock className="h-3.5 w-3.5" />
-            )}
-          </Button>
+          {can('edit-logistics') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-amber-50 hover:text-amber-600"
+              onClick={() => handleToggleLock(logistic.id)}
+              title={logistic.status === 'active' ? 'Deactivate' : 'Activate'}
+            >
+              {logistic.status === 'active' ? (
+                <Unlock className="h-3.5 w-3.5" />
+              ) : (
+                <Lock className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
           <Link href={route('logistics.show', logistic.id)}>
             <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600">
               <Eye className="h-3.5 w-3.5" />
             </Button>
           </Link>
-          <Link href={route('logistics.edit', logistic.id)}>
-            <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600">
-              <Pencil className="h-3.5 w-3.5" />
+          {can('edit-logistics') && (
+            <Link href={route('logistics.edit', logistic.id)}>
+              <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          )}
+          {can('delete-logistics') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+              onClick={() => handleDelete(logistic.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-            onClick={() => handleDelete(logistic.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          )}
         </div>
       ),
     },
@@ -203,6 +211,7 @@ export default function LogisticsIndex({ logistics, departments, filters, stats 
               label: 'Create Logistics',
               icon: <Plus className="h-4 w-4" />,
               href: route('logistics.create'),
+              permission: 'create-logistics',
             },
           ]}
           stats={[

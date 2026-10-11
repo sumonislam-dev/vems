@@ -42,6 +42,7 @@ npm run types                   # tsc --noEmit
 ```bash
 php artisan setup:permissions
 ```
+`setup:permissions` makes the database match `RolePermissionSeeder` exactly, so it deletes or revokes anything not listed. On a live database use the add-only `php artisan permissions:update` (`--dry-run` to preview): it adds new permissions and roles and grants seeded roles their newly listed permissions, but never deletes or revokes anything.
 Related one-off commands in `app/Console/Commands/`: `CheckUserPermissions`, `BackfillVehicleAssignments`, `ShowRouteData`.
 
 ## Architecture
@@ -53,9 +54,9 @@ Every page is a Laravel route (`routes/web.php`, plus `routes/auth.php` / `route
 
 ### Auth & permissions
 - Roles/permissions via `spatie/laravel-permission` (`Role`, `Permission` models, `HasRoles` trait on `User`).
-- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`).
+- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `transport-manager`, `management`, `department-head`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`). Running it deletes any role or permission it doesn't list.
 - Route-level role gating uses `Route::middleware('role:super-admin')->group(...)` (see the `/debug/auth` route).
-- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `employee`/`driver` get a scoped-down subset for their day-to-day flows.
+- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `transport-manager` runs trips/fleet/drivers/vendors/reports without user, role or zone administration; `management` is read-only oversight; `department-head` approves/rejects only trips of departments they head (`departments.head_id`, permission `approve-department-trips`, see `User::canApproveTrip()`); `employee`/`driver` get a scoped-down subset for their day-to-day flows. Exports/imports have their own `export-*`/`import-*` permissions, and changing a user's roles needs `manage-user-roles`.
 
 ### Users, drivers, vendors
 There is no separate `Driver` model — drivers are `User` rows with `user_type` (`driver`, `transport_manager`, `employee`, `admin`, ...) and a `driver_status` enum (`available`, `on_trip`, etc.). `User::isDriver()`, `scopeDrivers`, `scopeAvailableDrivers`, `canDrive()` encode the driver-specific rules (license expiry, status). `DriverController` is a thin, filtered view over the same `users` table/`UserController` logic (same Form Requests, same table) rather than a distinct resource.
@@ -73,6 +74,7 @@ There is no separate `Driver` model — drivers are `User` rows with `user_type`
 - `trip_audit_logs` — append-only change log. **Trip's `static::updating` boot hook auto-logs every dirty attribute on every save** (except `updated_at`), so any `$trip->update([...])` — even incidental ones — creates an audit row. Bear this in mind when writing bulk-update code or backfills.
 - `trip_recurring_groups` — a trip created with a date range creates one `Trip` row per day, all linked via `recurring_group_id` (see `recurring_start_date`/`recurring_end_date`). This is simpler than the "weekly pattern" design described in some of the `docs/` planning docs — the *actual* implementation is the date-range/group approach.
 - `trip_logistics`, `factory_trip`, `department_trip` — many-to-many pivots (logistics coordinators, factories visited, multi-department headcount split).
+- Trip requests are made **without a vehicle**: only users with `assign-vehicles` (Logistics) may pick one, at creation or later via the reassign-vehicle endpoint (a first assignment needs no reason). A trip can't be started until it has a vehicle.
 - Status lifecycle is `pending → approved → assigned → in_progress → completed`, with `rejected`/`cancelled` as terminal off-ramps — enforced by `Trip::canTransitionTo()`/`transitionTo()`. State-changing endpoints (`approve`, `reject`, `start`, `complete`, `cancel`) live in `TripStateController`, not `TripController`. `TripObserver` auto-sets `start_time`/`end_time` and flips `is_completed`/`status` together, so update those fields through the model methods (`startTrip()`, `completeTrip()`, `cancel()`) instead of raw attribute writes where possible.
 
 ### Routes, stops, vehicles

@@ -1,6 +1,7 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { useCan } from '@/lib/permissions';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -10,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
 import { AlertTriangle, Edit, Eye, Plus, Trash2, User, Mail, Car, CheckCircle } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
@@ -23,8 +24,6 @@ type AssignableVehicle = {
     current_driver_id: number | null;
     current_driver_name: string | null;
 };
-
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
 
 interface User {
     id: number;
@@ -101,9 +100,10 @@ export default function DriversIndex({
     stats = {},
     queryParams = {}
 }: UsersPageProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
-    const canEditDrivers = checkPermission('edit-drivers', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
+    const canEditDrivers = can('edit-drivers');
+    const canDeleteDrivers = can('delete-drivers');
 
     const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
     const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
@@ -360,18 +360,20 @@ export default function DriversIndex({
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('drivers.edit', row.id));
-                        }}
-                        title="Edit driver"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
+                    {canEditDrivers && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('drivers.edit', row.id));
+                            }}
+                            title="Edit driver"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
                     {canAssignVehicles && (
                         <Button
                             variant="ghost"
@@ -386,26 +388,28 @@ export default function DriversIndex({
                             <Car className="h-4 w-4" />
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-                                router.delete(route('drivers.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete driver"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {canDeleteDrivers && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                                    router.delete(route('drivers.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete driver"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
-    ], [canAssignVehicles, openAssignVehicleDialog]);
+    ], [canAssignVehicles, canEditDrivers, canDeleteDrivers, openAssignVehicleDialog]);
 
     // Define filters
     const filters: ColumnFilter[] = useMemo(() => [
@@ -505,6 +509,7 @@ export default function DriversIndex({
                             label: 'Add Driver',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('drivers.create'),
+                            permission: 'create-drivers',
                         },
                     ]}
                     stats={[
@@ -550,7 +555,7 @@ export default function DriversIndex({
                         filterOptions={filterOptions}
                         filters={filters}
                         searchPlaceholder="Search drivers by name, email, license number, or department..."
-                        exportable={true}
+                        exportable={can('export-drivers')}
                         exportUrl="/drivers-export"
                         onRowClick={handleRowClick}
                         emptyMessage="No drivers found. Add your first driver to get started."

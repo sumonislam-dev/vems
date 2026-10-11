@@ -9,6 +9,7 @@ function seedVehicleExportPermissions(): void
 {
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-vehicles', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'export-vehicles', 'guard_name' => 'web']);
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
@@ -24,7 +25,7 @@ function makeVehicleExportViewer(): User
         'password' => Hash::make('password'),
     ]);
 
-    $user->givePermissionTo('view-vehicles');
+    $user->givePermissionTo(['view-vehicles', 'export-vehicles']);
 
     return $user;
 }

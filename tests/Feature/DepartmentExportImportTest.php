@@ -20,6 +20,8 @@ function seedDepartmentExportImportPermissions(): void
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-departments', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'create-departments', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'export-departments', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'import-departments', 'guard_name' => 'web']);
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
@@ -46,7 +48,7 @@ function makeDepartmentExportImportActor(array $permissions = []): User
 
 it('downloads a real CSV file (not a JSON stub) when exporting departments', function () {
     seedDepartmentExportImportPermissions();
-    $actor = makeDepartmentExportImportActor(['view-departments']);
+    $actor = makeDepartmentExportImportActor(['view-departments', 'export-departments']);
     Department::create(['name' => 'Engineering', 'code' => 'ENG-'.uniqid()]);
 
     $response = $this->actingAs($actor)->get(route('departments.export'));
@@ -86,7 +88,7 @@ function shortDeptCode(string $prefix = ''): string
 
 it('creates departments from an uploaded csv file', function () {
     seedDepartmentExportImportPermissions();
-    $actor = makeDepartmentExportImportActor(['create-departments']);
+    $actor = makeDepartmentExportImportActor(['create-departments', 'import-departments']);
 
     $codeOne = shortDeptCode('A');
     $codeTwo = shortDeptCode('B');
@@ -114,7 +116,7 @@ it('creates departments from an uploaded csv file', function () {
 
 it('skips invalid rows and reports them instead of failing the whole import', function () {
     seedDepartmentExportImportPermissions();
-    $actor = makeDepartmentExportImportActor(['create-departments']);
+    $actor = makeDepartmentExportImportActor(['create-departments', 'import-departments']);
     $existing = Department::create(['name' => 'Existing Dept', 'code' => shortDeptCode('E')]);
     $missingNameCode = shortDeptCode('M');
 

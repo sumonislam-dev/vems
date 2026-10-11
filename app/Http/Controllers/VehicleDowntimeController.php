@@ -20,7 +20,7 @@ class VehicleDowntimeController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:edit-vehicles'),
+            new Middleware('permission:manage-vehicle-downtime'),
         ];
     }
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Eye, Edit, Trash2, Plus, Upload } from 'lucide-react';
+import { useCan } from '@/lib/permissions';
 
 interface Department {
     id: number;
@@ -56,6 +57,7 @@ interface Props {
 }
 
 export default function DepartmentsIndex({ departments, filterOptions, queryParams }: Props) {
+    const can = useCan();
     const [importOpen, setImportOpen] = useState(false);
     const [importFile, setImportFile] = useState<File | null>(null);
     const [importProcessing, setImportProcessing] = useState(false);
@@ -157,32 +159,36 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(`/departments/${department.id}/edit`);
-                        }}
-                        title="Edit department"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Are you sure you want to delete this department?')) {
-                                router.delete(`/departments/${department.id}`);
-                            }
-                        }}
-                        title="Delete department"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-departments') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(`/departments/${department.id}/edit`);
+                            }}
+                            title="Edit department"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-departments') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this department?')) {
+                                    router.delete(`/departments/${department.id}`);
+                                }
+                            }}
+                            title="Delete department"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -213,17 +219,20 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                             label: 'Export Departments',
                             variant: 'outline',
                             href: route('departments.export'),
+                            permission: 'export-departments',
                         },
                         {
                             label: 'Import Departments',
                             variant: 'outline',
                             icon: <Upload className="mr-2 h-4 w-4" />,
                             onClick: () => setImportOpen(true),
+                            permission: 'import-departments',
                         },
                         {
                             label: 'Add Department',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: '/departments/create',
+                            permission: 'create-departments',
                         },
                     ]}
                 />

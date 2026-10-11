@@ -2,6 +2,7 @@ import { BaseForm, FormDatePicker, FormField, FormFileUpload, FormMultiSelect, F
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ZoneAccessSelect } from '@/components/zone-access-select';
+import { useCan } from '@/lib/permissions';
 import { Car, CheckCircle, Plus, Settings, Shield, User, Users } from 'lucide-react';
 
 export type UserForm = {
@@ -120,6 +121,9 @@ export function UserFormBody({
     onSubmit,
     onReset,
 }: UserFormBodyProps) {
+    // Roles can only be chosen with manage-user-roles; the server ignores them otherwise
+    const canManageRoles = useCan()('manage-user-roles');
+
     const handleSubmit = () => {
         onSubmit();
     };
@@ -229,7 +233,7 @@ export function UserFormBody({
                             error={getFieldError('zone_ids')}
                         />
 
-                        {!hideUserTypeAndRoles && (
+                        {!hideUserTypeAndRoles && canManageRoles && (
                             <FormMultiSelect
                                 label="Roles"
                                 name="roles"

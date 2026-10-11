@@ -19,6 +19,8 @@ function seedUserExportImportPermissions(): void
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-users', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'create-users', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'export-users', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'import-users', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'employee', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'web']);
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -47,7 +49,7 @@ function makeUserExportImportActor(array $permissions = []): User
 
 it('downloads a real CSV file (not a JSON stub) when exporting users', function () {
     seedUserExportImportPermissions();
-    $actor = makeUserExportImportActor(['view-users']);
+    $actor = makeUserExportImportActor(['view-users', 'export-users']);
     $department = Department::create(['name' => 'Engineering', 'code' => 'ENG-'.uniqid()]);
     $employee = User::create([
         'email_verified_at' => now(),
@@ -73,7 +75,7 @@ it('downloads a real CSV file (not a JSON stub) when exporting users', function 
 
 it('excludes drivers from the users export (mirrors the index scope)', function () {
     seedUserExportImportPermissions();
-    $actor = makeUserExportImportActor(['view-users']);
+    $actor = makeUserExportImportActor(['view-users', 'export-users']);
     User::create([
         'email_verified_at' => now(),
         'name' => 'Should Not Appear Driver',
@@ -108,7 +110,7 @@ function makeUsersImportCsv(string $contents): UploadedFile
 
 it('creates users from an uploaded csv file', function () {
     seedUserExportImportPermissions();
-    $actor = makeUserExportImportActor(['create-users']);
+    $actor = makeUserExportImportActor(['create-users', 'import-users']);
 
     $csv = "name,username,email,personal_phone,role,status\n".
         'Imported One,imported_one_'.uniqid().',imported_one_'.uniqid()."@example.com,01711111111,employee,active\n".
@@ -134,7 +136,7 @@ it('creates users from an uploaded csv file', function () {
 
 it('skips invalid rows and reports them instead of failing the whole import', function () {
     seedUserExportImportPermissions();
-    $actor = makeUserExportImportActor(['create-users']);
+    $actor = makeUserExportImportActor(['create-users', 'import-users']);
     $existing = User::create([
         'email_verified_at' => now(),
         'name' => 'Existing User',

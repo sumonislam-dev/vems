@@ -41,8 +41,10 @@ class DashboardController extends Controller
 
         // Drivers get their own variant: trips they're assigned via their
         // vehicle (see Trip::getDriverAttribute()/scopeVisibleTo()), not the
-        // requester/passenger-oriented "my trips" list employees get.
-        if ($user && $user->hasRole('driver')) {
+        // requester/passenger-oriented "my trips" list employees get. Chosen
+        // by permission, not role: someone who runs trips (check-in) but
+        // doesn't manage them (view-trips).
+        if ($user && $user->can('check-in-trips') && ! $user->can('view-trips')) {
             return Inertia::render('dashboard', [
                 'variant' => 'driver',
                 'attendanceStatus' => $this->buildAttendanceStatus($user),

@@ -8,8 +8,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, User } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
 import {
     ArrowLeft,
@@ -75,8 +76,6 @@ type AssignableVehicle = {
     current_driver_name: string | null;
 };
 
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Users', href: '/users' },
@@ -84,8 +83,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ShowUser({ user, vehicleAssignments = [], driverStats, recentTrips = [] }: ShowUserProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
 
     const [assignVehicleOpen, setAssignVehicleOpen] = useState(false);
     const [assignableVehicles, setAssignableVehicles] = useState<AssignableVehicle[]>([]);
@@ -200,9 +199,10 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             variant: 'outline',
                         },
                         {
-                            label: 'Edit User',
+                            label: 'Edit Driver',
                             icon: <Edit className="mr-2 h-4 w-4" />,
-                            href: route('users.edit', user.id),
+                            href: route('drivers.edit', user.id),
+                            permission: 'edit-drivers',
                         },
                         ...(canAssignVehicles
                             ? [
@@ -869,21 +869,25 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                 <Card>
                     <CardContent className="p-4">
                         <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                                onClick={() => router.visit(route('drivers.edit', user.id))}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Edit User
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete User
-                            </Button>
+                            {can('edit-drivers') && (
+                                <Button
+                                    onClick={() => router.visit(route('drivers.edit', user.id))}
+                                    className="flex items-center justify-center gap-2"
+                                >
+                                    <Edit className="h-4 w-4" />
+                                    Edit User
+                                </Button>
+                            )}
+                            {can('delete-drivers') && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    className="flex items-center justify-center gap-2"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete User
+                                </Button>
+                            )}
                             <Button
                                 variant="outline"
                                 onClick={() => window.print()}

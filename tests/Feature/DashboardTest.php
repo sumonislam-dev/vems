@@ -26,7 +26,7 @@ beforeEach(function () {
 function seedDashboardPermissions(): void
 {
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
-    foreach (['view-trips', 'view-own-trips', 'create-trips', 'view-complaints', 'view-own-complaints', 'create-complaints'] as $permission) {
+    foreach (['view-trips', 'view-own-trips', 'create-trips', 'view-complaints', 'view-own-complaints', 'create-complaints', 'check-in-trips'] as $permission) {
         Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
     }
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -300,7 +300,7 @@ test('a driver gets the driver dashboard scoped to trips assigned via their vehi
 
     $driver = makeDashboardUser('driver-1');
     $driver->assignRole('driver');
-    $driver->givePermissionTo(['view-own-trips', 'view-own-complaints', 'create-complaints']);
+    $driver->givePermissionTo(['view-own-trips', 'view-own-complaints', 'create-complaints', 'check-in-trips']);
     $vehicle = makeDashboardVehicleWithDriver($driver);
 
     $otherDriver = makeDashboardUser('driver-2');

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { BarChart3, Download, Filter, Route, TrendingUp, Users } from 'lucide-react';
@@ -103,6 +104,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 const STATUS_COLORS = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2'];
 
 export default function ReportsIndex({ report }: ReportPageProps) {
+    const can = useCan();
     const [filters, setFilters] = useState({
         from: report.filters.from,
         to: report.filters.to,
@@ -293,21 +295,23 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                 value={filters.search}
                                 onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
                             />
-                            <Select
-                                value={filters.export_format}
-                                onValueChange={(value: 'csv' | 'excel' | 'pdf') =>
-                                    setFilters((prev) => ({ ...prev, export_format: value }))
-                                }
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Export Format" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="csv">CSV</SelectItem>
-                                    <SelectItem value="excel">Excel</SelectItem>
-                                    <SelectItem value="pdf">PDF</SelectItem>
-                                </SelectContent>
-                            </Select>
+                            {can('export-reports') && (
+                                <Select
+                                    value={filters.export_format}
+                                    onValueChange={(value: 'csv' | 'excel' | 'pdf') =>
+                                        setFilters((prev) => ({ ...prev, export_format: value }))
+                                    }
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Export Format" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="csv">CSV</SelectItem>
+                                        <SelectItem value="excel">Excel</SelectItem>
+                                        <SelectItem value="pdf">PDF</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
                             <Select
                                 value={String(filters.per_page)}
                                 onValueChange={(value) => setFilters((prev) => ({ ...prev, per_page: Number(value) }))}
@@ -325,10 +329,12 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                 <Filter className="h-4 w-4" />
                                 Apply Filters
                             </Button>
-                            <Button onClick={handleExport} variant="outline" className="gap-2">
-                                <Download className="h-4 w-4" />
-                                Export
-                            </Button>
+                            {can('export-reports') && (
+                                <Button onClick={handleExport} variant="outline" className="gap-2">
+                                    <Download className="h-4 w-4" />
+                                    Export
+                                </Button>
+                            )}
                         </div>
                     </CardContent>
                 </Card>

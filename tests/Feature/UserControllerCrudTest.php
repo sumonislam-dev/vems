@@ -24,6 +24,7 @@ function seedUserCrudPermissions(): void
     Permission::firstOrCreate(['name' => 'create-users', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'delete-users', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'manage-user-roles', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'employee', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
@@ -178,7 +179,7 @@ it('denies creating a user to someone without create-users permission', function
 
 it('updates a user\'s fields and syncs roles when authorized', function () {
     seedUserCrudPermissions();
-    $actor = makeUserCrudActor(['edit-users']);
+    $actor = makeUserCrudActor(['edit-users', 'manage-user-roles']);
     $target = makeUserCrudTarget();
     $driverRole = Role::where('name', 'driver')->first();
 

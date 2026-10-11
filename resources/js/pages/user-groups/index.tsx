@@ -14,6 +14,7 @@ import { Card } from '@/components/ui/card';
 import { Users, Plus, Eye, Pencil, Trash2, Search } from 'lucide-react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import type { BreadcrumbItem, PaginatedData } from '@/types';
 
 interface UserGroup {
@@ -48,6 +49,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function UserGroupsIndex({ groups, filters, stats }: UserGroupsIndexProps) {
+  const can = useCan();
   const [searchTerm, setSearchTerm] = useState(filters.search || '');
 
   const handleSearch = (value: string) => {
@@ -151,19 +153,23 @@ export default function UserGroupsIndex({ groups, filters, stats }: UserGroupsIn
               <Eye className="h-3.5 w-3.5" />
             </Button>
           </Link>
-          <Link href={route('user-groups.edit', group.id)}>
-            <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600">
-              <Pencil className="h-3.5 w-3.5" />
+          {can('edit-user-groups') && (
+            <Link href={route('user-groups.edit', group.id)}>
+              <Button variant="ghost" size="sm" className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600">
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+          )}
+          {can('delete-user-groups') && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+              onClick={() => handleDelete(group.id)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
             </Button>
-          </Link>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 w-7 cursor-pointer p-0 transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-            onClick={() => handleDelete(group.id)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+          )}
         </div>
       ),
     },
@@ -183,6 +189,7 @@ export default function UserGroupsIndex({ groups, filters, stats }: UserGroupsIn
               label: 'Create Group',
               icon: <Plus className="h-4 w-4" />,
               href: route('user-groups.create'),
+              permission: 'create-user-groups',
             },
           ]}
           stats={[

@@ -11,6 +11,7 @@ function seedUserSelfEditPermissions(): void
 {
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'manage-user-roles', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'employee', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
@@ -75,7 +76,9 @@ it('still lets a privileged editor manage roles/status normally', function () {
     Route::put('/test-only-users/{user}', [UserController::class, 'update'])
         ->middleware('web')->withoutMiddleware('permission:edit-users');
 
+    // Privilege comes from permissions, not the 'admin' user_type
     $admin = makeSelfEditUser('privileged-editor', 'admin');
+    $admin->givePermissionTo(['edit-users', 'manage-user-roles']);
     $target = makeSelfEditUser('managed-user');
     $target->assignRole('employee');
     $employeeRole = Role::where('name', 'employee')->first();

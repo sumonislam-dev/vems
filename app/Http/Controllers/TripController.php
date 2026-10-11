@@ -30,7 +30,8 @@ class TripController extends Controller implements HasMiddleware
             new Middleware('permission:view-trips', only: ['passengerEvents']),
             new Middleware('permission:view-trips|view-own-trips', only: ['index', 'show']),
             new Middleware('permission:create-trips', only: ['create', 'store', 'storeRecurring']),
-            new Middleware('permission:edit-trips', only: ['edit', 'update', 'reassignVehicle']),
+            new Middleware('permission:edit-trips', only: ['edit', 'update']),
+            new Middleware('permission:assign-vehicles', only: ['reassignVehicle']),
             new Middleware('permission:delete-trips', only: ['destroy']),
         ];
     }
@@ -58,6 +59,18 @@ class TripController extends Controller implements HasMiddleware
                 'vehicle_id' => "This vehicle is already booked on an overlapping trip on {$date}.",
             ]);
         }
+    }
+
+    /**
+     * The vehicle a new trip request may carry: only people who assign
+     * vehicles (Logistics) pick one up front; anyone else's request is saved
+     * without a vehicle for Logistics to assign after approval.
+     */
+    private function requestedVehicle(array $validated): ?int
+    {
+        return auth()->user()->can('assign-vehicles') && ! empty($validated['vehicle_id'])
+            ? (int) $validated['vehicle_id']
+            : null;
     }
 
     /**
@@ -267,6 +280,21 @@ class TripController extends Controller implements HasMiddleware
         $trips = $query->paginate($request->get('per_page', 15))
             ->withQueryString();
 
+        // Per-row approve/reject: global permission, or a department head
+        // deciding on their own departments' trips (see User::canApproveTrip())
+        $user = $request->user();
+        $headedDepartmentIds = $user->can('approve-department-trips')
+            ? $user->headedDepartments()->pluck('id')->all()
+            : [];
+        $canApproveAll = $user->can('approve-trips');
+        $canRejectAll = $user->can('reject-trips');
+        $trips->through(function (Trip $trip) use ($headedDepartmentIds, $canApproveAll, $canRejectAll) {
+            $headsDepartment = in_array($trip->department_id, $headedDepartmentIds, true);
+
+            return $trip->setAttribute('can_approve', $canApproveAll || $headsDepartment)
+                ->setAttribute('can_reject', $canRejectAll || $headsDepartment);
+        });
+
         // Get stats with a single aggregate query
         $tripStats = Trip::visibleTo($request->user())->selectRaw(
             'COUNT(*) as total, '.
@@ -388,7 +416,7 @@ class TripController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'department_id' => 'nullable|exists:departments,id',
             'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
             'team_number' => 'nullable|string|max:100',
@@ -419,13 +447,16 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
-        $this->assertVehicleAvailable(
-            $validated['vehicle_id'],
-            $validated['scheduled_date'],
-            $validated['scheduled_start_time'],
-            $validated['scheduled_end_time']
-        );
-        $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+        $validated['vehicle_id'] = $this->requestedVehicle($validated);
+        if ($validated['vehicle_id']) {
+            $this->assertVehicleAvailable(
+                $validated['vehicle_id'],
+                $validated['scheduled_date'],
+                $validated['scheduled_start_time'],
+                $validated['scheduled_end_time']
+            );
+            $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+        }
 
         DB::beginTransaction();
         try {
@@ -485,7 +516,7 @@ class TripController extends Controller implements HasMiddleware
     {
         $validated = $request->validate([
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'department_id' => 'nullable|exists:departments,id',
             'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
             'team_number' => 'nullable|string|max:100',
@@ -519,14 +550,17 @@ class TripController extends Controller implements HasMiddleware
             $dates[] = $d->toDateString();
         }
 
-        $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
-        foreach ($dates as $date) {
-            $this->assertVehicleAvailable(
-                $validated['vehicle_id'],
-                $date,
-                $validated['scheduled_start_time'],
-                $validated['scheduled_end_time']
-            );
+        $validated['vehicle_id'] = $this->requestedVehicle($validated);
+        if ($validated['vehicle_id']) {
+            $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+            foreach ($dates as $date) {
+                $this->assertVehicleAvailable(
+                    $validated['vehicle_id'],
+                    $date,
+                    $validated['scheduled_start_time'],
+                    $validated['scheduled_end_time']
+                );
+            }
         }
 
         DB::beginTransaction();
@@ -657,6 +691,8 @@ class TripController extends Controller implements HasMiddleware
             'routeAssignments' => $routeAssignments,
             'auditLogs' => $auditLogs,
             'availableVehicles' => $availableVehicles,
+            'canApprove' => auth()->user()->canApproveTrip($trip),
+            'canReject' => auth()->user()->canRejectTrip($trip),
         ]);
     }
 
@@ -750,7 +786,7 @@ class TripController extends Controller implements HasMiddleware
 
         $validated = $request->validate([
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'required|exists:vehicles,id',
+            'vehicle_id' => 'nullable|exists:vehicles,id',
             'department_id' => 'nullable|exists:departments,id',
             'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
             'team_number' => 'nullable|string|max:100',
@@ -777,17 +813,24 @@ class TripController extends Controller implements HasMiddleware
             'logistics_ids.*' => 'exists:logistics,id',
         ]);
 
-        $this->assertVehicleAvailable(
-            $validated['vehicle_id'],
-            $validated['scheduled_date'],
-            $validated['scheduled_start_time'],
-            $validated['scheduled_end_time'],
-            $trip->id
-        );
-        $passengerCount = array_key_exists('passengers', $validated)
-            ? count($validated['passengers'] ?? [])
-            : $trip->passengers()->count();
-        $this->assertVehicleCapacity($validated['vehicle_id'], $passengerCount);
+        // Only vehicle assigners (Logistics) may change the vehicle
+        if (! auth()->user()->can('assign-vehicles')) {
+            $validated['vehicle_id'] = $trip->vehicle_id;
+        }
+
+        if (! empty($validated['vehicle_id'])) {
+            $this->assertVehicleAvailable(
+                $validated['vehicle_id'],
+                $validated['scheduled_date'],
+                $validated['scheduled_start_time'],
+                $validated['scheduled_end_time'],
+                $trip->id
+            );
+            $passengerCount = array_key_exists('passengers', $validated)
+                ? count($validated['passengers'] ?? [])
+                : $trip->passengers()->count();
+            $this->assertVehicleCapacity($validated['vehicle_id'], $passengerCount);
+        }
 
         DB::beginTransaction();
         try {
@@ -863,7 +906,8 @@ class TripController extends Controller implements HasMiddleware
     }
 
     /**
-     * Reassign vehicle to a trip (for damaged/breakdown scenarios)
+     * Assign a vehicle to a trip requested without one, or reassign it
+     * (damaged/breakdown scenarios). A first assignment needs no reason.
      */
     public function reassignVehicle(Request $request, Trip $trip)
     {
@@ -872,11 +916,14 @@ class TripController extends Controller implements HasMiddleware
             return back()->with('error', 'Cannot reassign vehicle for completed or cancelled trips.');
         }
 
+        $isFirstAssignment = $trip->vehicle_id === null;
+
         $validated = $request->validate([
             'vehicle_id' => 'required|exists:vehicles,id',
-            'reason' => 'required|in:damaged,maintenance,breakdown,replacement,other',
+            'reason' => [$isFirstAssignment ? 'nullable' : 'required', 'in:damaged,maintenance,breakdown,replacement,other'],
             'notes' => 'nullable|string|max:500',
         ]);
+        $validated['reason'] ??= 'initial';
 
         $this->assertVehicleAvailable(
             $validated['vehicle_id'],
@@ -903,7 +950,7 @@ class TripController extends Controller implements HasMiddleware
             ]);
         });
 
-        return back()->with('success', 'Vehicle reassigned successfully!');
+        return back()->with('success', $isFirstAssignment ? 'Vehicle assigned.' : 'Vehicle reassigned successfully!');
     }
 
     /**
@@ -921,6 +968,6 @@ class TripController extends Controller implements HasMiddleware
         $isPassenger = $trip->passengers()->where('user_id', $user->id)->exists();
         $isDriver = $trip->vehicle && $trip->vehicle->driver_id === $user->id;
 
-        abort_unless($isRequester || $isPassenger || $isDriver, 403);
+        abort_unless($isRequester || $isPassenger || $isDriver || $user->headsDepartmentOf($trip), 403);
     }
 }

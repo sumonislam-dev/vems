@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Building2, MapPin, Edit, Trash2, Navigation } from 'lucide-react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem } from '@/types';
 
 interface Factory {
@@ -26,6 +27,7 @@ interface ShowFactoryProps {
 }
 
 export default function ShowFactory({ factory }: ShowFactoryProps) {
+    const can = useCan();
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Factories', href: '/factories' },
@@ -63,6 +65,7 @@ export default function ShowFactory({ factory }: ShowFactoryProps) {
                             label: 'Edit',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('factories.edit', factory.id),
+                            permission: 'edit-factories',
                         },
                     ]}
                 />
@@ -187,18 +190,20 @@ export default function ShowFactory({ factory }: ShowFactoryProps) {
                 </div>
 
                 {/* Actions */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Danger Zone</CardTitle>
-                        <CardDescription>Irreversible actions for this factory</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Button variant="destructive" onClick={handleDelete}>
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Factory
-                        </Button>
-                    </CardContent>
-                </Card>
+                {can('delete-factories') && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Danger Zone</CardTitle>
+                            <CardDescription>Irreversible actions for this factory</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <Button variant="destructive" onClick={handleDelete}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete Factory
+                            </Button>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppSidebarLayout>
     );

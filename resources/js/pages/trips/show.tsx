@@ -1,6 +1,7 @@
 import InputError from '@/components/input-error';
 import { AttendanceHistoryCard } from '@/components/trip-attendance-history';
 import { TripActionButtons } from '@/components/trip-action-buttons';
+import { TripAssignVehicleDialog, type AssignableVehicleOption } from '@/components/trip-assign-vehicle-dialog';
 import { AttendanceTripPassenger, PassengerAttendanceCard } from '@/components/trip-passenger-attendance-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
 import { BreadcrumbItem, Trip, TripAuditLog, TripFeedback, TripPassengerEvent, TripRouteAssignment, TripVehicleAssignment, User as UserType } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -166,13 +168,6 @@ const getDefaultStopId = (mode: AttendanceMode, passenger: AttendanceTripPasseng
     return '';
 };
 
-/**
- * Check if the current user has a specific permission
- */
-const checkPermission = (permission: string, permissions: string[] = []): boolean => {
-    return permissions.includes(permission);
-};
-
 const buildFormDefaults = (mode: AttendanceMode, passenger: AttendanceTripPassenger, event?: TripPassengerEvent): AttendanceFormShape => ({
     event_type: (mode === 'correct' ? event?.event_type : mode) === 'check_out' ? 'check_out' : (mode === 'correct' ? event?.event_type : mode) === 'no_show' ? 'no_show' : 'check_in',
     event_time: toLocalDateTimeValue(event?.event_time),
@@ -191,21 +186,40 @@ type ShowTripProps = {
     vehicleAssignments?: TripVehicleAssignment[];
     routeAssignments?: TripRouteAssignment[];
     auditLogs?: TripAuditLog[];
+    availableVehicles?: AssignableVehicleOption[];
+    /** approve-trips, or a department head deciding on their own department's trip */
+    canApprove?: boolean;
+    canReject?: boolean;
 };
 
 const formatAuditAction = (action: string) => action.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignments = [], auditLogs = [] }: ShowTripProps) {
-    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[]; roles?: string[] } };
-    const permissions = pageProps.auth?.permissions ?? [];
+export default function ShowTrip({
+    trip,
+    vehicleAssignments = [],
+    routeAssignments = [],
+    auditLogs = [],
+    availableVehicles = [],
+    canApprove = false,
+    canReject = false,
+}: ShowTripProps) {
+    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number } } };
     const currentUserId = pageProps.auth?.user?.id;
+    const can = useCan();
     const passengers = (trip.passengers ?? []) as AttendanceTripPassenger[];
     const canManageAttendance = !['cancelled', 'rejected'].includes(trip.status);
-    const canCaptureAttendance = checkPermission('capture-passenger-attendance', permissions);
-    const canCorrectAttendance = checkPermission('correct-passenger-attendance', permissions);
-    const canCreateComplaint = checkPermission('create-complaints', permissions);
-    const canEditTrips = checkPermission('edit-trips', permissions);
+    const canCaptureAttendance = can('capture-passenger-attendance');
+    const canCorrectAttendance = can('correct-passenger-attendance');
+    const canCreateComplaint = can('create-complaints');
+    const canEditTrips = can('edit-trips');
     const isAssignedDriver = !!currentUserId && trip.vehicle?.driver_id === currentUserId;
+    const showApprove = trip.status === 'pending' && canApprove;
+    const showReject = trip.status === 'pending' && canReject;
+    // A trip can't start until Logistics has assigned a vehicle
+    const showStart = canStartTrip(trip.status) && !!trip.vehicle_id && (canEditTrips || (isAssignedDriver && can('check-in-trips')));
+    const canAssignVehicle = can('assign-vehicles') && ['pending', 'approved', 'assigned', 'in_progress'].includes(trip.status);
+    const showComplete = canCompleteTrip(trip.status) && (canEditTrips || (isAssignedDriver && can('check-out-trips')));
+    const showCancel = canCancelTrip(trip.status) && canEditTrips;
     const [dialogState, setDialogState] = useState<{
         mode: AttendanceMode;
         passenger: AttendanceTripPassenger;
@@ -398,7 +412,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         </div>
                         {trip.team_number && <p className="text-sm text-gray-600">Team: {trip.team_number}</p>}
                     </div>
-                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} />
+                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} canEdit={canEditTrips} canStart={showStart} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -544,11 +558,12 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         </Card>
 
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                                 <CardTitle className="flex items-center gap-2">
                                     <Car className="h-5 w-5" />
                                     Vehicle & Driver
                                 </CardTitle>
+                                {canAssignVehicle && <TripAssignVehicleDialog tripId={trip.id} hasVehicle={!!trip.vehicle} vehicles={availableVehicles} />}
                             </CardHeader>
                             <CardContent>
                                 {trip.vehicle ? (
@@ -583,6 +598,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                     <div className="py-8 text-center text-gray-500">
                                         <Car className="mx-auto mb-2 h-12 w-12 opacity-30" />
                                         <p className="text-sm">No vehicle assigned yet</p>
+                                        <p className="text-xs">Logistics assigns one after the request is approved.</p>
                                     </div>
                                 )}
                             </CardContent>
@@ -744,35 +760,36 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             </CardContent>
                         </Card>
 
-                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) && (
+                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) &&
+                            (showApprove || showReject || showStart || showComplete || showCancel) && (
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="text-base">Actions</CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-2">
-                                    {trip.status === 'pending' && (
-                                        <>
-                                            <Button onClick={() => router.post(route('trips.approve', trip.id))} className="w-full bg-green-600 hover:bg-green-700">
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                Approve Trip
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="w-full"
-                                                onClick={() => {
-                                                    const reason = prompt('Rejection reason:');
-                                                    if (reason) {
-                                                        router.post(route('trips.reject', trip.id), { rejection_reason: reason });
-                                                    }
-                                                }}
-                                            >
-                                                <XCircle className="mr-2 h-4 w-4" />
-                                                Reject Trip
-                                            </Button>
-                                        </>
+                                    {showApprove && (
+                                        <Button onClick={() => router.post(route('trips.approve', trip.id))} className="w-full bg-green-600 hover:bg-green-700">
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Approve Trip
+                                        </Button>
+                                    )}
+                                    {showReject && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full"
+                                            onClick={() => {
+                                                const reason = prompt('Rejection reason:');
+                                                if (reason) {
+                                                    router.post(route('trips.reject', trip.id), { rejection_reason: reason });
+                                                }
+                                            }}
+                                        >
+                                            <XCircle className="mr-2 h-4 w-4" />
+                                            Reject Trip
+                                        </Button>
                                     )}
 
-                                    {canStartTrip(trip.status) && (
+                                    {showStart && (
                                         <Button
                                             className="w-full bg-green-600 hover:bg-green-700"
                                             onClick={openStartTripDialog}
@@ -783,7 +800,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         </Button>
                                     )}
 
-                                    {canCompleteTrip(trip.status) && (canEditTrips || isAssignedDriver) && (
+                                    {showComplete && (
                                         <Button
                                             className="w-full bg-green-600 hover:bg-green-700"
                                             onClick={openCompleteTripDialog}
@@ -794,7 +811,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         </Button>
                                     )}
 
-                                    {canCancelTrip(trip.status) && canEditTrips && (
+                                    {showCancel && (
                                         <Button
                                             variant="outline"
                                             className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"

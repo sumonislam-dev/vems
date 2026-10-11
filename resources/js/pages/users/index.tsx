@@ -1,6 +1,7 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { useCan } from '@/lib/permissions';
 import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -76,6 +77,10 @@ export default function UsersIndex({
     stats,
     queryParams
 }: UsersPageProps) {
+    const can = useCan();
+    const canEdit = can('edit-users');
+    const canDelete = can('delete-users');
+
     const handleRowClick = (user: User) => {
         router.visit(route('users.show', user.id));
     };
@@ -265,19 +270,21 @@ export default function UsersIndex({
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('users.edit', row.id));
-                        }}
-                        title="Edit user"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    {row.status === 'active' ? (
+                    {canEdit && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('users.edit', row.id));
+                            }}
+                            title="Edit user"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {canEdit && (row.status === 'active' ? (
                         <Button
                             variant="ghost"
                             size="sm"
@@ -303,27 +310,29 @@ export default function UsersIndex({
                         >
                             <UserCheck className="h-4 w-4" />
                         </Button>
+                    ))}
+                    {canDelete && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                                    router.delete(route('users.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete user"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-                                router.delete(route('users.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete user"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
                 </div>
             ),
         },
-    ], []);
+    ], [canEdit, canDelete]);
 
     // Define filters
     const filters: ColumnFilter[] = useMemo(() => [
@@ -393,17 +402,20 @@ export default function UsersIndex({
                             label: 'Export Users',
                             variant: 'outline',
                             href: route('users.export'),
+                            permission: 'export-users',
                         },
                         {
                             label: 'Import Users',
                             variant: 'outline',
                             icon: <Upload className="mr-2 h-4 w-4" />,
                             onClick: () => setImportOpen(true),
+                            permission: 'import-users',
                         },
                         {
                             label: 'Add User',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('users.create'),
+                            permission: 'create-users',
                         },
                     ]}
                     stats={[

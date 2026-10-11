@@ -279,6 +279,11 @@ class Trip extends Model
             $q->where('requested_by', $user->id)
                 ->orWhereHas('passengers', fn ($pq) => $pq->where('user_id', $user->id))
                 ->orWhereHas('vehicle', fn ($vq) => $vq->where('driver_id', $user->id));
+
+            // Department heads also see their departments' trips, to approve them
+            if ($user->can('approve-department-trips')) {
+                $q->orWhereIn('department_id', $user->headedDepartments()->select('id'));
+            }
         });
     }
 

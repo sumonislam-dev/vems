@@ -8,8 +8,9 @@ import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, DataTableColumn, Vehicle } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle, Edit, Eye, Plus, Trash2, UserCog, XCircle } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 
@@ -19,8 +20,6 @@ type AssignableDriver = {
     email?: string
     official_phone?: string
 }
-
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
 
 interface PaginatedVehicles {
     data: Vehicle[];
@@ -67,9 +66,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function VehiclesIndex({ vehicles, filterOptions, stats, queryParams, assignableDrivers = [] }: VehiclesPageProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
-    const canEditVehicles = checkPermission('edit-vehicles', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
+    const canEditVehicles = can('edit-vehicles');
 
     const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
     const [bulkStatusProcessing, setBulkStatusProcessing] = useState(false);
@@ -353,18 +352,20 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('vehicles.edit', row.id));
-                        }}
-                        title="Edit vehicle"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
+                    {canEditVehicles && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('vehicles.edit', row.id));
+                            }}
+                            title="Edit vehicle"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
                     {canAssignVehicles && (
                         <Button
                             variant="ghost"
@@ -379,22 +380,24 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                             <UserCog className="h-4 w-4" />
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
-                                router.delete(route('vehicles.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete vehicle"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('delete-vehicles') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
+                                    router.delete(route('vehicles.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete vehicle"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -522,6 +525,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                             label: 'Add Vehicle',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('vehicles.create'),
+                            permission: 'create-vehicles',
                         },
                     ]}
                     stats={[
@@ -581,7 +585,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search vehicles..."
-                    exportable={true}
+                    exportable={can('export-vehicles')}
                     exportUrl="/vehicles-export"
                     onRowClick={handleRowClick}
                     emptyMessage="No vehicles found. Add your first vehicle to get started."

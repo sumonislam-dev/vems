@@ -21,8 +21,10 @@ class DepartmentController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-departments', only: ['index', 'show', 'export']),
-            new Middleware('permission:create-departments', only: ['create', 'store', 'import']),
+            new Middleware('permission:view-departments', only: ['index', 'show']),
+            new Middleware('permission:export-departments', only: ['export']),
+            new Middleware('permission:create-departments', only: ['create', 'store']),
+            new Middleware('permission:import-departments', only: ['import']),
             new Middleware('permission:edit-departments', only: ['edit', 'update', 'toggleStatus']),
             new Middleware('permission:delete-departments', only: ['destroy']),
         ];

@@ -2,6 +2,7 @@ import React from 'react';
 import { Head, router } from '@inertiajs/react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -45,6 +46,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function RoleShow({ role }: Props) {
+    const can = useCan();
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete the role "${role.name}"?`)) {
             router.delete(route('roles.destroy', role.id));
@@ -80,6 +82,7 @@ export default function RoleShow({ role }: Props) {
                             label: 'Edit Role',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('roles.edit', role.id),
+                            permission: 'edit-roles',
                         },
                     ]}
                 />
@@ -202,34 +205,36 @@ export default function RoleShow({ role }: Props) {
                 </div>
 
                 {/* Danger Zone */}
-                <Card className="border-destructive">
-                    <CardHeader>
-                        <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-medium">Delete Role</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Permanently delete this role. This action cannot be undone.
-                                    {role.users.length > 0 && (
-                                        <span className="text-red-600 block">
-                                            Cannot delete: This role has {role.users.length} user(s) assigned.
-                                        </span>
-                                    )}
-                                </p>
+                {can('delete-roles') && (
+                    <Card className="border-destructive">
+                        <CardHeader>
+                            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-medium">Delete Role</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                        Permanently delete this role. This action cannot be undone.
+                                        {role.users.length > 0 && (
+                                            <span className="text-red-600 block">
+                                                Cannot delete: This role has {role.users.length} user(s) assigned.
+                                            </span>
+                                        )}
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleDelete}
+                                    disabled={role.users.length > 0}
+                                >
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Role
+                                </Button>
                             </div>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                disabled={role.users.length > 0}
-                            >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Role
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppSidebarLayout>
     );

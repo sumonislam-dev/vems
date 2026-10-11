@@ -16,7 +16,10 @@ class TripStateController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:approve-trips', only: ['approve', 'reject', 'bulkApprove']),
+            // Department heads (approve-department-trips) may decide on their
+            // own departments' trips — checked per trip below
+            new Middleware('permission:approve-trips|approve-department-trips', only: ['approve', 'bulkApprove']),
+            new Middleware('permission:reject-trips|approve-department-trips', only: ['reject']),
             new Middleware('permission:edit-trips', only: ['cancel', 'cancelSeries']),
         ];
     }
@@ -30,8 +33,11 @@ class TripStateController extends Controller implements HasMiddleware
     {
         $user = $request->user();
         $isAssignedDriver = $trip->vehicle && $trip->vehicle->driver_id === $user->id;
+        // The assigned driver may start/complete their own trip if their
+        // role allows it; anyone with edit-trips may do it for any trip.
+        $driverPermission = $request->routeIs('trips.complete') ? 'check-out-trips' : 'check-in-trips';
 
-        abort_unless($user->can('edit-trips') || $isAssignedDriver, 403);
+        abort_unless($user->can('edit-trips') || ($isAssignedDriver && $user->can($driverPermission)), 403);
     }
 
     /**
@@ -39,6 +45,8 @@ class TripStateController extends Controller implements HasMiddleware
      */
     public function approve(Request $request, Trip $trip)
     {
+        abort_unless($request->user()->canApproveTrip($trip), 403);
+
         try {
             if (!$trip->canTransitionTo('approved')) {
                 return back()->with('error', 'Trip cannot be approved in current status.');
@@ -67,11 +75,12 @@ class TripStateController extends Controller implements HasMiddleware
 
         $approvedCount = 0;
 
-        DB::transaction(function () use ($validated, &$approvedCount) {
+        DB::transaction(function () use ($validated, &$approvedCount, $request) {
             $trips = Trip::whereIn('id', $validated['trip_ids'])->lockForUpdate()->get();
 
             foreach ($trips as $trip) {
-                if ($trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()])) {
+                // A department head only approves their own departments' trips
+                if ($request->user()->canApproveTrip($trip) && $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()])) {
                     $approvedCount++;
                     $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
                 }
@@ -90,6 +99,8 @@ class TripStateController extends Controller implements HasMiddleware
      */
     public function reject(Request $request, Trip $trip)
     {
+        abort_unless($request->user()->canRejectTrip($trip), 403);
+
         try {
             if (!$trip->canTransitionTo('rejected')) {
                 return back()->with('error', 'Trip cannot be rejected in current status.');
@@ -120,6 +131,10 @@ class TripStateController extends Controller implements HasMiddleware
         try {
             if (!$trip->canTransitionTo('in_progress')) {
                 return back()->with('error', 'Trip cannot be started in current status.');
+            }
+
+            if (! $trip->vehicle_id) {
+                return back()->with('error', 'Assign a vehicle before starting the trip.');
             }
 
             $validated = $request->validate([

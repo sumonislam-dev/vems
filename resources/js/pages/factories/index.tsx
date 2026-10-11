@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, DataTableColumn } from '@/types';
+import { useCan } from '@/lib/permissions';
 import { Head, router } from '@inertiajs/react';
 import { Edit, Eye, MapPin, Plus, Trash2 } from 'lucide-react';
 
@@ -60,6 +61,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function FactoriesIndex({ factories, filterOptions, stats, queryParams }: FactoriesPageProps) {
+    const can = useCan();
+
     // Define table columns
     const columns: DataTableColumn<Factory>[] = [
         {
@@ -163,34 +166,38 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
                             <MapPin className="h-4 w-4" />
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('factories.edit', row.id));
-                        }}
-                        title="Edit factory"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-                                router.delete(route('factories.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete factory"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-factories') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('factories.edit', row.id));
+                            }}
+                            title="Edit factory"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-factories') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                                    router.delete(route('factories.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete factory"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -209,6 +216,7 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
                             label: 'Add Factory',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('factories.create'),
+                            permission: 'create-factories',
                         },
                     ]}
                     stats={[

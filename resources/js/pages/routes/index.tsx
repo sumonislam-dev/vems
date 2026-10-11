@@ -3,6 +3,7 @@ import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { ColumnFilter, DataTableColumn } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Edit, Eye, Plus, Trash2, MapPin, Route as RouteIcon } from 'lucide-react';
@@ -65,6 +66,8 @@ interface RoutesPageProps {
 }
 
 export default function RoutesIndex({ routes, stats, queryParams }: RoutesPageProps) {
+    const can = useCan();
+
     // Define table columns
     const columns: DataTableColumn<VehicleRoute>[] = [
         {
@@ -154,33 +157,37 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            window.location.href = `/routes/${row.id}/edit`;
-                        }}
-                        title="Edit route"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete the route "${row.name}"?`)) {
-                                // Delete functionality would go here
-                                alert(`Delete route: ${row.name}`);
-                            }
-                        }}
-                        title="Delete route"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-routes') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                window.location.href = `/routes/${row.id}/edit`;
+                            }}
+                            title="Edit route"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-routes') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete the route "${row.name}"?`)) {
+                                    // Delete functionality would go here
+                                    alert(`Delete route: ${row.name}`);
+                                }
+                            }}
+                            title="Delete route"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
             className: 'w-32',
@@ -230,7 +237,8 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                         {
                             label: "Create Route",
                             icon: <Plus className="mr-2 h-4 w-4" />,
-                            href: "/routes/create"
+                            href: "/routes/create",
+                            permission: 'create-routes',
                         }
                     ]}
                 />

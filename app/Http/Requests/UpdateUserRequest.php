@@ -16,23 +16,12 @@ class UpdateUserRequest extends FormRequest
         $currentUser = auth()->user();
         $userBeingUpdated = $this->route('user') ?? $this->route('driver');
 
-        // Allow Super Admin role (via AppServiceProvider Gate)
-        if ($currentUser->hasRole('super-admin')) {
-            return true;
-        }
-
-        // Allow admin user type
-        if ($currentUser->user_type === 'admin') {
-            return true;
-        }
-
         // Allow users to edit their own profile (basic fields only)
         if ($userBeingUpdated && $userBeingUpdated->id === $currentUser->id) {
             return true;
         }
 
-        // Check for edit-users permission (if it exists)
-        return $currentUser->can('edit-users');
+        return $this->isPrivilegedEditor();
     }
 
     /**
@@ -46,9 +35,9 @@ class UpdateUserRequest extends FormRequest
     {
         $currentUser = auth()->user();
 
-        return $currentUser->hasRole('super-admin')
-            || $currentUser->user_type === 'admin'
-            || $currentUser->can('edit-users');
+        // Drivers are edited through DriverController with edit-drivers
+        return $currentUser->can('edit-users')
+            || ($this->route('driver') !== null && $currentUser->can('edit-drivers'));
     }
 
     /**

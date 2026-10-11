@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Link } from "@inertiajs/react"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useCan } from "@/lib/permissions"
 import { cn } from "@/lib/utils"
 
 /**
@@ -38,6 +39,8 @@ interface ActionButton {
   href?: string
   variant?: "default" | "outline" | "ghost" | "destructive" | "secondary"
   className?: string
+  /** Only show the button to users with this permission (any of, if an array) */
+  permission?: string | string[]
 }
 
 interface PageHeaderProps {
@@ -52,11 +55,14 @@ interface PageHeaderProps {
 export function PageHeader({
   title,
   description,
-  actions = [],
+  actions: allActions = [],
   stats = [],
   className,
   children,
 }: PageHeaderProps) {
+  const can = useCan()
+  const actions = allActions.filter((action) => can(action.permission))
+
   return (
     <div className={cn("space-y-6", className)}>
       {/* Header Section */}

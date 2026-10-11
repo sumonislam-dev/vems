@@ -5,10 +5,15 @@ use App\Models\TripFeedback;
 use App\Models\User;
 use App\Notifications\ComplaintAssigned;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function makeNotificationUser(string $username): User
 {
-    return User::create([
+    Permission::firstOrCreate(['name' => 'view-notifications', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    return tap(User::create([
         'email_verified_at' => now(),
         'name' => 'Notification User '.$username,
         'username' => $username,
@@ -16,7 +21,7 @@ function makeNotificationUser(string $username): User
         'user_type' => 'employee',
         'status' => 'active',
         'password' => Hash::make('password'),
-    ]);
+    ]), fn (User $user) => $user->givePermissionTo('view-notifications'));
 }
 
 function makeNotificationComplaint(User $submitter, string $subject): TripFeedback

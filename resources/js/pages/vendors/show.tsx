@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Building2, Car, Edit, ExternalLink, Mail, Phone, Trash2, User, Users } from 'lucide-react';
@@ -60,6 +61,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ShowVendor({ vendor }: ShowVendorProps) {
+    const can = useCan();
+    const canEdit = can('edit-vendors');
+    const canDelete = can('delete-vendors');
+
     const handleDelete = () => {
         if (confirm(`Are you sure you want to delete ${vendor.name}?`)) {
             router.delete(route('vendors.destroy', vendor.id));
@@ -87,6 +92,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                             icon: <Edit className="mr-1 h-4 w-4" />,
                             href: route('vendors.edit', vendor.id),
                             className: 'h-8 text-xs',
+                            permission: 'edit-vendors',
                         },
                     ]}
                     className="pb-4"
@@ -507,38 +513,44 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                 </Card>
 
                 {/* Actions */}
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-base">Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex space-x-2">
-                            <Button
-                                onClick={() => router.visit(route('vendors.edit', vendor.id))}
-                                className="flex items-center h-8 text-xs"
-                                size="sm"
-                            >
-                                <Edit className="mr-1 h-3 w-3" />
-                                Edit Vendor
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center h-8 text-xs"
-                                size="sm"
-                                disabled={vendor.vehicles && vendor.vehicles.length > 0}
-                            >
-                                <Trash2 className="mr-1 h-3 w-3" />
-                                Delete Vendor
-                            </Button>
-                        </div>
-                        {vendor.vehicles && vendor.vehicles.length > 0 && (
-                            <p className="text-xs text-muted-foreground mt-2">
-                                Cannot delete vendor with associated vehicles. Remove vehicle associations first.
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+                {(canEdit || canDelete) && (
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Actions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex space-x-2">
+                                {canEdit && (
+                                    <Button
+                                        onClick={() => router.visit(route('vendors.edit', vendor.id))}
+                                        className="flex items-center h-8 text-xs"
+                                        size="sm"
+                                    >
+                                        <Edit className="mr-1 h-3 w-3" />
+                                        Edit Vendor
+                                    </Button>
+                                )}
+                                {canDelete && (
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleDelete}
+                                        className="flex items-center h-8 text-xs"
+                                        size="sm"
+                                        disabled={vendor.vehicles && vendor.vehicles.length > 0}
+                                    >
+                                        <Trash2 className="mr-1 h-3 w-3" />
+                                        Delete Vendor
+                                    </Button>
+                                )}
+                            </div>
+                            {canDelete && vendor.vehicles && vendor.vehicles.length > 0 && (
+                                <p className="text-xs text-muted-foreground mt-2">
+                                    Cannot delete vendor with associated vehicles. Remove vehicle associations first.
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppSidebarLayout>
     );

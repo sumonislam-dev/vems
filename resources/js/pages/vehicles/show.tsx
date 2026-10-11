@@ -9,8 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, Vehicle } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, Edit, ExternalLink, Trash2, UserCog } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -37,10 +38,8 @@ interface ShowVehicleProps {
     downtimes?: VehicleDowntime[];
     downtimeReasons?: { value: string; label: string }[];
     replacementVehicles?: { id: number; registration_number: string }[];
-    canEditVehicles?: boolean;
+    canManageDowntime?: boolean;
 }
-
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
@@ -55,10 +54,12 @@ export default function ShowVehicle({
     downtimes = [],
     downtimeReasons = [],
     replacementVehicles = [],
-    canEditVehicles = false,
+    canManageDowntime = false,
 }: ShowVehicleProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
+    const canEdit = can('edit-vehicles');
+    const canDelete = can('delete-vehicles');
 
     const [assignDriverOpen, setAssignDriverOpen] = useState(false);
     const {
@@ -146,6 +147,7 @@ export default function ShowVehicle({
                             label: 'Edit Vehicle',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('vehicles.edit', vehicle.id),
+                            permission: 'edit-vehicles',
                         },
                         ...(canAssignVehicles
                             ? [
@@ -657,7 +659,7 @@ export default function ShowVehicle({
                     downtimes={downtimes}
                     reasons={downtimeReasons}
                     replacementVehicles={replacementVehicles}
-                    canEdit={canEditVehicles}
+                    canEdit={canManageDowntime}
                 />
 
                 {/* Driver Assignment History */}
@@ -700,30 +702,36 @@ export default function ShowVehicle({
                 )}
 
                 {/* Actions */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex space-x-4">
-                            <Button
-                                onClick={() => router.visit(route('vehicles.edit', vehicle.id))}
-                                className="flex items-center"
-                            >
-                                <Edit className="mr-2 h-4 w-4" />
-                                Edit Vehicle
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center"
-                            >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Vehicle
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                {(canEdit || canDelete) && (
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Actions</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex space-x-4">
+                                {canEdit && (
+                                    <Button
+                                        onClick={() => router.visit(route('vehicles.edit', vehicle.id))}
+                                        className="flex items-center"
+                                    >
+                                        <Edit className="mr-2 h-4 w-4" />
+                                        Edit Vehicle
+                                    </Button>
+                                )}
+                                {canDelete && (
+                                    <Button
+                                        variant="destructive"
+                                        onClick={handleDelete}
+                                        className="flex items-center"
+                                    >
+                                        <Trash2 className="mr-2 h-4 w-4" />
+                                        Delete Vehicle
+                                    </Button>
+                                )}
+                            </div>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
 
             <Dialog open={assignDriverOpen} onOpenChange={(open) => !open && closeAssignDriverDialog()}>

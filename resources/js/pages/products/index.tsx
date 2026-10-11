@@ -3,6 +3,7 @@ import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn, Product } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Edit, Eye, Plus, Trash2 } from 'lucide-react';
@@ -63,6 +64,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ProductsIndex({ products, filterOptions, stats, queryParams }: ProductsPageProps) {
+    const can = useCan();
+
     // Define table columns
     const columns: DataTableColumn<Product>[] = [
         {
@@ -139,32 +142,36 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            alert(`Edit product: ${row.name}`);
-                        }}
-                        title="Edit product"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.name}?`)) {
-                                alert(`Delete product: ${row.name}`);
-                            }
-                        }}
-                        title="Delete product"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-products') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                alert(`Edit product: ${row.name}`);
+                            }}
+                            title="Edit product"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-products') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm(`Are you sure you want to delete ${row.name}?`)) {
+                                    alert(`Delete product: ${row.name}`);
+                                }
+                            }}
+                            title="Delete product"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -205,6 +212,7 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
                             label: 'Add Product',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('products.create'),
+                            permission: 'create-products',
                         },
                     ]}
                     stats={[
@@ -235,7 +243,7 @@ export default function ProductsIndex({ products, filterOptions, stats, queryPar
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search products..."
-                    exportable={true}
+                    exportable={can('export-products')}
                     exportUrl="/products-export"
                     // onRowClick={handleRowClick}
                     emptyMessage="No products found. Add your first product to get started."

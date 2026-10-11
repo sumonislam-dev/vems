@@ -47,7 +47,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
-    notifications: { unread_count: number; items: NotificationItem[] };
+    /** null for users without view-notifications */
+    notifications: { unread_count: number; items: NotificationItem[] } | null;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
     flash: {

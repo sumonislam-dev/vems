@@ -51,7 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'availableZones' => $request->user() ? Zone::switcherOptions($request->user())->values() : [],
                 'activeZoneId' => $request->user() ? $request->session()->get('active_zone_id') : null,
             ],
-            'notifications' => $request->user() ? [
+            'notifications' => $request->user()?->can('view-notifications') ? [
                 'unread_count' => $request->user()->unreadNotifications()->count(),
                 'items' => $request->user()->notifications()->latest()->take(10)->get()->map(fn ($notification) => [
                     'id' => $notification->id,
@@ -60,7 +60,7 @@ class HandleInertiaRequests extends Middleware
                     'read' => $notification->read_at !== null,
                     'time' => $notification->created_at->diffForHumans(),
                 ]),
-            ] : ['unread_count' => 0, 'items' => []],
+            ] : null,
             'ziggy' => fn (): array => [
                 ...(new Ziggy)->toArray(),
                 'location' => $request->url(),

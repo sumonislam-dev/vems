@@ -5,6 +5,7 @@ import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { DataTableColumn, ColumnFilter } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useCan } from '@/lib/permissions';
 import { Edit, Trash2, Plus } from 'lucide-react';
 
 interface Zone {
@@ -44,6 +45,8 @@ interface Props {
 }
 
 export default function ZonesIndex({ zones, filterOptions, queryParams }: Props) {
+    const can = useCan();
+
     const columns: DataTableColumn<Zone>[] = [
         {
             key: 'name',
@@ -77,32 +80,36 @@ export default function ZonesIndex({ zones, filterOptions, queryParams }: Props)
             label: 'Actions',
             render: (_, zone) => (
                 <div className="flex items-center space-x-1">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(`/zones/${zone.id}/edit`);
-                        }}
-                        title="Edit zone"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm('Are you sure you want to delete this zone?')) {
-                                router.delete(`/zones/${zone.id}`);
-                            }
-                        }}
-                        title="Delete zone"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-zones') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(`/zones/${zone.id}/edit`);
+                            }}
+                            title="Edit zone"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-zones') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (confirm('Are you sure you want to delete this zone?')) {
+                                    router.delete(`/zones/${zone.id}`);
+                                }
+                            }}
+                            title="Delete zone"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -133,6 +140,7 @@ export default function ZonesIndex({ zones, filterOptions, queryParams }: Props)
                             label: 'Add Zone',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: '/zones/create',
+                            permission: 'create-zones',
                         },
                     ]}
                 />

@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Checkbox } from '@/components/ui/checkbox';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem } from '@/types';
+import { useCan } from '@/lib/permissions';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, X, Calendar, MapPin, User, CalendarDays, Info, Building2, Plus, Minus, Users } from 'lucide-react';
 import { useState, useMemo } from 'react';
@@ -94,6 +95,8 @@ export default function CreateTrip({ vehicles, routes, departments, employees, f
     });
 
     const selectedVehicle = vehicles?.find((v) => String(v.value) === String(data.vehicle_id));
+    // Only Logistics picks a vehicle up front; other requests get one after approval
+    const canAssignVehicle = useCan()('assign-vehicles');
 
     // Calculate days count for recurring trips
     const daysCount = useMemo(() => {
@@ -210,15 +213,15 @@ export default function CreateTrip({ vehicles, routes, departments, employees, f
                         <CardContent className="px-4 pb-4 space-y-3">
                             {/* Vehicle & Route */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {canAssignVehicle ? (
                                 <div className="space-y-1">
                                     <SearchableSelect
-                                        label="Vehicle"
+                                        label="Vehicle (optional)"
                                         name="vehicle_id"
                                         value={data.vehicle_id}
                                         onChange={(value) => setData('vehicle_id', value)}
                                         options={vehicles?.map((v) => ({ label: v.label, value: v.value })) || []}
                                         placeholder="Search vehicle..."
-                                        required
                                         error={errors.vehicle_id}
                                     />
                                     {selectedVehicle && (
@@ -228,6 +231,15 @@ export default function CreateTrip({ vehicles, routes, departments, employees, f
                                         </div>
                                     )}
                                 </div>
+                                ) : (
+                                    <div className="space-y-1">
+                                        <span className="text-sm font-medium">Vehicle</span>
+                                        <div className="flex items-start gap-1.5 rounded border border-dashed px-3 py-2 text-xs text-muted-foreground">
+                                            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                                            Logistics will assign a vehicle after the request is approved.
+                                        </div>
+                                    </div>
+                                )}
                                 <SearchableSelect
                                     label="Route (Optional)"
                                     name="vehicle_route_id"

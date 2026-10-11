@@ -28,8 +28,10 @@ class UserController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-users', only: ['index', 'show', 'export']),
-            new Middleware('permission:create-users', only: ['create', 'store', 'import']),
+            new Middleware('permission:view-users', only: ['index', 'show']),
+            new Middleware('permission:export-users', only: ['export']),
+            new Middleware('permission:create-users', only: ['create', 'store']),
+            new Middleware('permission:import-users', only: ['import']),
             new Middleware('permission:edit-users', only: ['edit', 'update', 'deactivate', 'activate']),
             new Middleware('permission:delete-users', only: ['destroy']),
         ];
@@ -265,8 +267,9 @@ class UserController extends Controller implements HasMiddleware
 
         $user = User::create($validated);
 
-        // Handle role assignments - roles are now required
-        if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
+        // Choosing roles needs manage-user-roles; otherwise the new user gets
+        // the default role for their user type (never admin — see below).
+        if ($request->user()->can('manage-user-roles') && ! empty($validated['roles']) && is_array($validated['roles'])) {
             // Convert role IDs to role names/objects and assign
             $roles = $this->assignableRoles($validated['roles']);
             $user->assignRole($roles);
@@ -423,7 +426,9 @@ class UserController extends Controller implements HasMiddleware
         // self-edit branch) never has 'roles'/'user_type' in $validated at
         // all — leave roles untouched rather than falling into the "no
         // roles submitted" branch below and wiping them.
-        if ($request->isPrivilegedEditor()) {
+        // Roles only change for editors allowed to manage them — anyone else
+        // (including edit-users without manage-user-roles) leaves them as-is.
+        if ($request->isPrivilegedEditor() && $request->user()->can('manage-user-roles')) {
             // Handle role assignments - roles are now required
             if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
                 // Convert role IDs to role objects and assign
@@ -582,8 +587,15 @@ class UserController extends Controller implements HasMiddleware
         $roleMapping = [
             'employee' => 'employee',
             'driver' => 'driver',
+            'transport_manager' => 'transport-manager',
             'admin' => 'admin',
         ];
+
+        // Handing out a management role (admin, transport-manager) is itself
+        // role management; without it the user starts as a plain employee
+        if (! in_array($userType, ['employee', 'driver'], true) && ! auth()->user()?->can('manage-user-roles')) {
+            $userType = 'employee';
+        }
 
         if (isset($roleMapping[$userType])) {
             try {

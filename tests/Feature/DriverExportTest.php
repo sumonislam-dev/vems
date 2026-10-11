@@ -8,6 +8,7 @@ function seedDriverExportPermissions(): void
 {
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-drivers', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'export-drivers', 'guard_name' => 'web']);
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
@@ -23,7 +24,7 @@ function makeDriverExportViewer(): User
         'password' => Hash::make('password'),
     ]);
 
-    $user->givePermissionTo('view-drivers');
+    $user->givePermissionTo(['view-drivers', 'export-drivers']);
 
     return $user;
 }

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ArrowLeft, Edit, Route as RouteIcon, MapPin, Clock } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { useCan } from '@/lib/permissions';
 import { Badge } from '@/components/ui/badge';
 
 interface VehicleRoute {
@@ -42,6 +43,8 @@ interface ShowRouteProps {
 }
 
 export default function ShowRoute({ route }: ShowRouteProps) {
+    const can = useCan();
+
     return (
         <AppLayout>
             <Head title={`Route: ${route.name}`} />
@@ -60,7 +63,8 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                         {
                             label: "Edit Route",
                             icon: <Edit className="mr-2 h-4 w-4" />,
-                            href: `/routes/${route.id}/edit`
+                            href: `/routes/${route.id}/edit`,
+                            permission: 'edit-routes',
                         }
                     ]}
                 />
@@ -207,9 +211,11 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                     <div className="text-center text-muted-foreground py-8">
                                         <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                         <p>No stops defined for this route</p>
-                                        <Button variant="outline" className="mt-4" asChild>
-                                            <a href={`/routes/${route.id}/edit`}>Add Stops</a>
-                                        </Button>
+                                        {can('edit-routes') && (
+                                            <Button variant="outline" className="mt-4" asChild>
+                                                <a href={`/routes/${route.id}/edit`}>Add Stops</a>
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>

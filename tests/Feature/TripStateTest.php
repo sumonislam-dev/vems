@@ -15,6 +15,10 @@ function seedTripStatePermissions(): void
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'approve-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'reject-trips', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'assign-vehicles', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'check-in-trips', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'check-out-trips', 'guard_name' => 'web']);
     app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
@@ -75,6 +79,7 @@ it('approves a pending trip and records the approver', function () {
 it('rejects a pending trip and records the rejection reason', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('rejecter-1');
+    $manager->givePermissionTo('reject-trips');
     $manager->givePermissionTo('approve-trips');
 
     $trip = makeStateTrip();
@@ -110,6 +115,7 @@ it('notifies the requester when their trip is approved', function () {
 it('notifies the requester when their trip is rejected', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('rejecter-notify-1');
+    $manager->givePermissionTo('reject-trips');
     $manager->givePermissionTo('approve-trips');
 
     $trip = makeStateTrip();
@@ -229,7 +235,7 @@ it('starts an approved trip and records the odometer reading', function () {
     $manager = makeTripStateUser('starter-1');
     $manager->givePermissionTo('edit-trips');
 
-    $trip = makeStateTrip(['status' => 'approved']);
+    $trip = makeStateTrip(['status' => 'approved', 'vehicle_id' => makeStateVehicle()->id]);
 
     $response = $this->actingAs($manager)->post("/trips/{$trip->id}/start", [
         'odometer_start' => 1000,
@@ -402,6 +408,7 @@ it('denies trip state actions to users without the required permission', functio
 it('lets the driver assigned to the trip vehicle start and complete the trip without edit-trips (3.4)', function () {
     seedTripStatePermissions();
     $driver = makeTripStateUser('assigned-driver-1');
+    $driver->givePermissionTo(['check-in-trips', 'check-out-trips']);
 
     $vehicle = Vehicle::create([
         'brand' => 'Toyota',
@@ -425,7 +432,7 @@ it('lets the driver assigned to the trip vehicle start and complete the trip wit
 it('records the real reason/notes on a reassigned vehicle in one write (regression)', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('reassigner-1');
-    $manager->givePermissionTo('edit-trips');
+    $manager->givePermissionTo('assign-vehicles');
 
     $oldVehicle = makeStateVehicle();
     $newVehicle = makeStateVehicle();

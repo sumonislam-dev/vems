@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, DataTableColumn, PaginatedData, Vendor } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { Building2, Edit, Eye, Plus, Trash2, Users } from 'lucide-react';
@@ -31,6 +32,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPageProps) {
+    const can = useCan();
+
     // Define table columns
     const columns: DataTableColumn<Vendor>[] = [
         {
@@ -111,22 +114,26 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => router.visit(route('vendors.edit', vendor.id))}
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(vendor)}
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-vendors') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.visit(route('vendors.edit', vendor.id))}
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-vendors') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(vendor)}
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -151,6 +158,7 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
                             label: 'Add Vendor',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('vendors.create'),
+                            permission: 'create-vendors',
                         },
                     ]}
                 />

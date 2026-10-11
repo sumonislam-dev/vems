@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, Logistics, Trip } from '@/types';
+import { useCan } from '@/lib/permissions';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Plus, Minus, X, UserPlus, Calendar, AlertCircle, MapPin, Building2, Users, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -180,6 +181,8 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
     }, []);
 
     const selectedVehicle = vehicles?.find((v) => v.value.toString() === data.vehicle_id);
+    // Only Logistics changes the vehicle; the server ignores it from anyone else
+    const canAssignVehicle = useCan()('assign-vehicles');
     const formError = (errors as Record<string, string | undefined>).error;
 
     // Sync factories with form data
@@ -292,13 +295,13 @@ export default function EditTrip({ trip, vehicles, routes, departments, employee
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <SearchableSelect
-                                        label="Vehicle *"
+                                        label="Vehicle"
                                         name="vehicle_id"
                                         value={data.vehicle_id}
                                         onChange={(value) => setData('vehicle_id', value)}
                                         options={vehicles?.map((v) => ({ label: v.label, value: v.value.toString() })) || []}
-                                        placeholder="Search vehicle..."
-                                        required
+                                        placeholder={canAssignVehicle ? 'Search vehicle...' : 'Assigned by Logistics'}
+                                        disabled={!canAssignVehicle}
                                         error={errors.vehicle_id}
                                     />
                                     {selectedVehicle && (

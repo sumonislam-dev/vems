@@ -492,7 +492,10 @@ class MonthlyVehicleReport
             'unused' => 'Not used in this period',
         ];
 
-        $rows = $vehicles->map(function (Vehicle $vehicle) use ($tripsByVehicle, $downtimesByVehicle, $dates) {
+        // Driver contact details follow the vehicle page's rule: view-drivers only
+        $showPhones = $this->viewer === null || $this->viewer->can('view-drivers');
+
+        $rows = $vehicles->map(function (Vehicle $vehicle) use ($tripsByVehicle, $downtimesByVehicle, $dates, $showPhones) {
             $trips = $tripsByVehicle->get($vehicle->id, collect());
             $vehicleDowntimes = $downtimesByVehicle->get($vehicle->id, collect());
             $byDay = $trips->groupBy(fn (Trip $t) => $this->dateKey($t));
@@ -501,7 +504,7 @@ class MonthlyVehicleReport
                 'vehicle_id' => $vehicle->id,
                 'group' => $this->detailGroup($vehicle, $trips),
                 'driver' => $vehicle->driver?->name,
-                'phone' => $vehicle->driver?->official_phone ?: $vehicle->driver?->personal_phone,
+                'phone' => $showPhones ? ($vehicle->driver?->official_phone ?: $vehicle->driver?->personal_phone) : null,
                 'vendor' => $vehicle->vendor?->name,
                 'vehicle_type' => $vehicle->vehicle_type,
                 'registration_number' => $vehicle->registration_number,
