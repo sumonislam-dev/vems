@@ -14,6 +14,7 @@ import { useState } from 'react';
 interface DayCell {
     text: string;
     trips: number;
+    down: boolean;
 }
 
 interface CompareRow {
@@ -37,6 +38,8 @@ interface MonthlyVehicleReportProps {
             vendor: string;
             trips: number;
             vehicle_days: number;
+            breakdowns: number;
+            replacements: number;
             complaints: number;
             complaints_open: number;
             issues_per_100: number;
@@ -61,6 +64,7 @@ interface MonthlyVehicleReportProps {
             }[];
             fleet_size: number;
             assigned_per_day: number[];
+            down_per_day: number[];
             idle_per_day: number[];
         };
     };
@@ -396,6 +400,8 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                                                 <TableHead>Vendor</TableHead>
                                                 <TableHead className="text-right">Trips</TableHead>
                                                 <TableHead className="text-right">Vehicle-days</TableHead>
+                                                <TableHead className="text-right">Breakdowns</TableHead>
+                                                <TableHead className="text-right">Replacements</TableHead>
                                                 <TableHead className="text-right">Complaints</TableHead>
                                                 <TableHead className="text-right">Still open</TableHead>
                                                 <TableHead className="text-right">Per 100 trips</TableHead>
@@ -404,7 +410,7 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                                         <TableBody>
                                             {report.vendors.length === 0 && (
                                                 <TableRow>
-                                                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                                                    <TableCell colSpan={8} className="text-center text-muted-foreground">
                                                         No trips in this period
                                                     </TableCell>
                                                 </TableRow>
@@ -414,6 +420,8 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                                                     <TableCell>{v.vendor}</TableCell>
                                                     <TableCell className="text-right">{v.trips}</TableCell>
                                                     <TableCell className="text-right">{v.vehicle_days}</TableCell>
+                                                    <TableCell className="text-right">{v.breakdowns}</TableCell>
+                                                    <TableCell className="text-right">{v.replacements}</TableCell>
                                                     <TableCell className="text-right">{v.complaints}</TableCell>
                                                     <TableCell className="text-right">{v.complaints_open}</TableCell>
                                                     <TableCell className="text-right">{v.issues_per_100}</TableCell>
@@ -460,6 +468,15 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                                         <TableCell colSpan={2} />
                                     </TableRow>
                                     <TableRow className="bg-muted/50 font-semibold">
+                                        <TableCell colSpan={3}># of vehicles not available (downtime)</TableCell>
+                                        {report.details.down_per_day.map((n, i) => (
+                                            <TableCell key={i} className="px-1 text-center">
+                                                {n}
+                                            </TableCell>
+                                        ))}
+                                        <TableCell colSpan={2} />
+                                    </TableRow>
+                                    <TableRow className="bg-muted/50 font-semibold">
                                         <TableCell colSpan={3}># of vehicles remaining idle per day</TableCell>
                                         {report.details.idle_per_day.map((n, i) => (
                                             <TableCell key={i} className="px-1 text-center">
@@ -471,7 +488,8 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                                 </TableBody>
                             </Table>
                             <p className="mt-2 text-xs text-muted-foreground">
-                                Fleet size {report.details.fleet_size}. Idle includes vehicles off for repair (downtime is not recorded yet).
+                                Fleet size {report.details.fleet_size}. Idle = available but not used; vehicles with recorded downtime are counted
+                                separately.
                             </p>
                         </CardContent>
                     </Card>
@@ -506,10 +524,15 @@ function GroupRows({ group }: { group: MonthlyVehicleReportProps['report']['deta
                     </TableCell>
                     <TableCell>{v.vendor ?? '-'}</TableCell>
                     {v.cells.map((cell, i) => (
-                        <TableCell key={i} className="min-w-24 px-1 align-top" title={cell ? `${cell.trips} trip(s)` : undefined}>
+                        <TableCell
+                            key={i}
+                            className={cn('min-w-24 px-1 align-top', cell?.down && 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300')}
+                            title={cell && !cell.down ? `${cell.trips} trip(s)` : undefined}
+                        >
                             {cell && (
                                 <>
-                                    <span>{cell.text}</span> <span className="text-muted-foreground">({cell.trips})</span>
+                                    <span>{cell.text}</span>
+                                    {cell.trips > 0 && <span className="text-muted-foreground"> ({cell.trips})</span>}
                                 </>
                             )}
                         </TableCell>

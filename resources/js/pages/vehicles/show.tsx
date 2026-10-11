@@ -3,6 +3,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { VehicleDowntimeCard, type VehicleDowntime } from '@/components/vehicle-downtime-card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -33,6 +34,10 @@ interface ShowVehicleProps {
     vehicle: Vehicle;
     assignments?: Assignment[];
     assignableDrivers?: AssignableDriver[];
+    downtimes?: VehicleDowntime[];
+    downtimeReasons?: { value: string; label: string }[];
+    replacementVehicles?: { id: number; registration_number: string }[];
+    canEditVehicles?: boolean;
 }
 
 const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
@@ -43,7 +48,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Vehicle Details', href: '#' },
 ];
 
-export default function ShowVehicle({ vehicle, assignments = [], assignableDrivers = [] }: ShowVehicleProps) {
+export default function ShowVehicle({
+    vehicle,
+    assignments = [],
+    assignableDrivers = [],
+    downtimes = [],
+    downtimeReasons = [],
+    replacementVehicles = [],
+    canEditVehicles = false,
+}: ShowVehicleProps) {
     const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
     const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
 
@@ -638,6 +651,14 @@ export default function ShowVehicle({ vehicle, assignments = [], assignableDrive
                         </Card>
                     )}
                 </div>
+
+                <VehicleDowntimeCard
+                    vehicleId={vehicle.id}
+                    downtimes={downtimes}
+                    reasons={downtimeReasons}
+                    replacementVehicles={replacementVehicles}
+                    canEdit={canEditVehicles}
+                />
 
                 {/* Driver Assignment History */}
                 {assignments.length > 0 && (

@@ -6,6 +6,7 @@ use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleDowntime;
 use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
@@ -162,7 +163,7 @@ it('builds the vehicle-by-day details with trip counts, groups, route remarks an
     $rows = collect($details['groups'])->flatMap(fn ($g) => collect($g['rows'])->map(fn ($r) => [...$r, 'group' => $g['key']]))->keyBy('registration_number');
 
     expect($rows['V1']['group'])->toBe('inspection')
-        ->and($rows['V1']['cells'][0])->toBe(['text' => 'Gazipur', 'trips' => 3])
+        ->and($rows['V1']['cells'][0])->toBe(['text' => 'Gazipur', 'trips' => 3, 'down' => false])
         ->and($rows['V1']['total_trips'])->toBe(4)
         ->and($rows['V1']['remarks'])->toBe('6')          // the route it actually ran beats its regular "3.1"
         ->and($rows['V1']['phone'])->toBe('01700000000')
@@ -271,4 +272,29 @@ it('counts complaints as open at period end by when they were raised, resolved a
     // + the scenario's own complaint (raised Jan 5, still open)
     expect($service['complaints']['current'])->toBe(5)
         ->and($service['complaints_open']['current'])->toBe(2);
+});
+
+it('separates downtime from idle and counts breakdowns and replacements', function () {
+    $s = seedMonthlyReportScenario();
+    // V3 (its only trip was cancelled) is in the workshop for the whole period, covered by V2
+    VehicleDowntime::create([
+        'vehicle_id' => $s['v3']->id, 'starts_on' => '2026-01-01', 'reason' => 'repair', 'replacement_vehicle_id' => $s['v2']->id,
+    ]);
+
+    $report = buildMonthlyReport();
+    $details = $report['details'];
+    $v3 = collect($details['groups'])->flatMap(fn ($g) => $g['rows'])->firstWhere('registration_number', 'V3');
+    $key = collect($report['key_numbers'])->keyBy('key');
+    $hello = collect($report['vendors'])->firstWhere('vendor', 'Hello');
+
+    expect($v3['cells'][0])->toBe(['text' => 'Down - Repair', 'trips' => 0, 'down' => true])
+        ->and($details['assigned_per_day'])->toBe([2, 1])
+        ->and($details['down_per_day'])->toBe([1, 1])
+        ->and($details['idle_per_day'])->toBe([0, 1])
+        // Open since Jan 1: 2 days in this period (Jan 5–6) and 2 in the previous one (Jan 3–4)
+        ->and($key['downtime_days']['current'])->toBe(2)
+        ->and($key['downtime_days']['previous'])->toBe(2)
+        ->and($key['replacements']['current'])->toBe(1)
+        ->and($hello['breakdowns'])->toBe(1)
+        ->and($hello['replacements'])->toBe(1);
 });

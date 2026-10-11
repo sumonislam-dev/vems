@@ -6,6 +6,7 @@ use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleDowntime;
 use App\Models\Vendor;
 use App\Models\Zone;
 use Carbon\Carbon;
@@ -77,6 +78,9 @@ class MonthlyVehicleReport
         $complaints = $this->complaintsFor($trips, $this->to);
         $prevComplaints = $this->complaintsFor($prevTrips, $prevTo);
 
+        $downtimes = $this->loadDowntimes($this->from, $this->to);
+        $prevDowntimes = $this->loadDowntimes($prevFrom, $prevTo);
+
         return [
             'period' => [
                 'from' => $this->from->toDateString(),
@@ -93,11 +97,11 @@ class MonthlyVehicleReport
             'daily' => $this->dailyGrid($usage, $days),
             'purposes' => $this->purposeTotals($usage),
             'adhoc_bands' => $this->adhocBands($usage),
-            'key_numbers' => $this->keyNumbers($usage, $prevUsage),
+            'key_numbers' => $this->keyNumbers($usage, $prevUsage, $downtimes, $prevDowntimes, $prevFrom, $prevTo),
             'offices' => $this->offices($usage),
             'service' => $this->serviceQuality($trips, $prevTrips, $complaints, $prevComplaints),
-            'vendors' => $this->vendorScorecard($usage, $complaints),
-            'details' => $this->details($usage, $days),
+            'vendors' => $this->vendorScorecard($usage, $complaints, $downtimes),
+            'details' => $this->details($usage, $days, $downtimes),
         ];
     }
 
@@ -154,6 +158,38 @@ class MonthlyVehicleReport
         return $trips
             ->filter(fn (Trip $t) => $t->vehicle_id && ! in_array($t->status, self::USAGE_EXCLUDED_STATUSES, true))
             ->values();
+    }
+
+    /**
+     * Downtime overlapping the period, for vehicles in the report's scope
+     * (same zone access and filters as the trips).
+     */
+    private function loadDowntimes(Carbon $from, Carbon $to): Collection
+    {
+        $zoneIds = Zone::accessIds($this->viewer);
+
+        $vehicleIds = Vehicle::withoutGlobalScopes()
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
+            ->when($this->filters['zone_id'] ?? null, fn ($q, $id) => $q->where('zone_id', $id))
+            ->when($this->filters['vendor_id'] ?? null, fn ($q, $id) => $q->where('vendor_id', $id))
+            ->when($this->filters['vehicle_id'] ?? null, fn ($q, $id) => $q->whereKey($id))
+            ->when($this->filters['rental_type'] ?? null, fn ($q, $type) => $q->where('rental_type', $type))
+            ->select('id');
+
+        return VehicleDowntime::query()
+            ->overlapping($from, $to)
+            ->whereIn('vehicle_id', $vehicleIds)
+            ->with(['vehicle' => fn ($q) => $q->withoutGlobalScopes()->select('id', 'vendor_id')])
+            ->get();
+    }
+
+    /** Days of $downtime that fall within $from..$to */
+    private function downtimeDaysWithin(VehicleDowntime $downtime, Carbon $from, Carbon $to): int
+    {
+        $start = $downtime->starts_on->max($from);
+        $end = ($downtime->ends_on ?? $to)->min($to);
+
+        return $start->lte($end) ? (int) $start->diffInDays($end) + 1 : 0;
     }
 
     /**
@@ -272,10 +308,10 @@ class MonthlyVehicleReport
         })->all();
     }
 
-    private function keyNumbers(Collection $usage, Collection $prevUsage): array
+    private function keyNumbers(Collection $usage, Collection $prevUsage, Collection $downtimes, Collection $prevDowntimes, Carbon $prevFrom, Carbon $prevTo): array
     {
-        $current = $this->metrics($usage);
-        $previous = $this->metrics($prevUsage);
+        $current = $this->metrics($usage) + $this->downtimeMetrics($downtimes, $this->from, $this->to);
+        $previous = $this->metrics($prevUsage) + $this->downtimeMetrics($prevDowntimes, $prevFrom, $prevTo);
 
         $labels = [
             'trips' => 'Trips',
@@ -287,6 +323,8 @@ class MonthlyVehicleReport
             'adhoc_days' => 'Days on which ad-hoc vehicles were used',
             'max_adhoc_in_day' => 'Most ad-hoc vehicles needed in one day',
             'max_pool_in_day' => 'Most pool vehicles in use in one day',
+            'downtime_days' => 'Vehicle downtime days',
+            'replacements' => 'Replacement vehicles provided',
         ];
 
         return collect($labels)->map(fn ($label, $key) => [
@@ -315,6 +353,14 @@ class MonthlyVehicleReport
             'adhoc_days' => $adhocPerDay->filter()->count(),
             'max_adhoc_in_day' => (int) $adhocPerDay->max(),
             'max_pool_in_day' => (int) $poolPerDay->max(),
+        ];
+    }
+
+    private function downtimeMetrics(Collection $downtimes, Carbon $from, Carbon $to): array
+    {
+        return [
+            'downtime_days' => $downtimes->sum(fn (VehicleDowntime $d) => $this->downtimeDaysWithin($d, $from, $to)),
+            'replacements' => $downtimes->whereNotNull('replacement_vehicle_id')->count(),
         ];
     }
 
@@ -382,13 +428,17 @@ class MonthlyVehicleReport
         ])->values()->all();
     }
 
-    private function vendorScorecard(Collection $usage, Collection $complaints): array
+    private function vendorScorecard(Collection $usage, Collection $complaints, Collection $downtimes): array
     {
         $names = Vendor::withoutGlobalScopes()->pluck('name', 'id');
         $complaintsByTrip = $complaints->groupBy('trip_id');
+        $tripsByVendor = $usage->groupBy(fn (Trip $t) => $t->vehicle?->vendor_id ?? 0);
+        $downtimesByVendor = $downtimes->groupBy(fn (VehicleDowntime $d) => $d->vehicle?->vendor_id ?? 0);
 
-        $rows = $usage->groupBy(fn (Trip $t) => $t->vehicle?->vendor_id ?? 0)
-            ->map(function (Collection $trips, $vendorId) use ($names, $complaintsByTrip) {
+        $rows = $tripsByVendor->keys()->merge($downtimesByVendor->keys())->unique()
+            ->map(function ($vendorId) use ($names, $complaintsByTrip, $tripsByVendor, $downtimesByVendor) {
+                $trips = $tripsByVendor->get($vendorId, collect());
+                $vendorDowntimes = $downtimesByVendor->get($vendorId, collect());
                 $vendorComplaints = $trips->flatMap(fn (Trip $t) => $complaintsByTrip->get($t->id, collect()));
                 $byDay = $trips->groupBy(fn (Trip $t) => $this->dateKey($t));
 
@@ -397,6 +447,8 @@ class MonthlyVehicleReport
                     'trips' => $trips->count(),
                     'vehicle_days' => $byDay->sum(fn ($t) => $this->distinctVehicles($t)),
                     'late_arrivals' => null,
+                    'breakdowns' => $vendorDowntimes->whereIn('reason', VehicleDowntime::BREAKDOWN_REASONS)->count(),
+                    'replacements' => $vendorDowntimes->whereNotNull('replacement_vehicle_id')->count(),
                     'complaints' => $vendorComplaints->count(),
                     'complaints_open' => $vendorComplaints->where('open_at_end', true)->count(),
                     'issues_per_100' => $trips->count() ? round($vendorComplaints->count() / $trips->count() * 100, 1) : 0,
@@ -412,6 +464,8 @@ class MonthlyVehicleReport
                 'trips' => $trips,
                 'vehicle_days' => $rows->sum('vehicle_days'),
                 'late_arrivals' => null,
+                'breakdowns' => $rows->sum('breakdowns'),
+                'replacements' => $rows->sum('replacements'),
                 'complaints' => $rows->sum('complaints'),
                 'complaints_open' => $rows->sum('complaints_open'),
                 'issues_per_100' => $trips ? round($rows->sum('complaints') / $trips * 100, 1) : 0,
@@ -423,10 +477,11 @@ class MonthlyVehicleReport
 
     // ------------------------------------------------------------- details
 
-    private function details(Collection $usage, Collection $days): array
+    private function details(Collection $usage, Collection $days, Collection $downtimes): array
     {
         $dates = $days->map->toDateString();
         $tripsByVehicle = $usage->groupBy('vehicle_id');
+        $downtimesByVehicle = $downtimes->groupBy('vehicle_id');
         $vehicles = $this->detailVehicles($tripsByVehicle->keys()->all());
 
         $groupOrder = array_keys(self::PURPOSES + ['unspecified' => 1, 'staff_transport' => 1, 'adhoc' => 1, 'unused' => 1]);
@@ -437,8 +492,9 @@ class MonthlyVehicleReport
             'unused' => 'Not used in this period',
         ];
 
-        $rows = $vehicles->map(function (Vehicle $vehicle) use ($tripsByVehicle, $dates) {
+        $rows = $vehicles->map(function (Vehicle $vehicle) use ($tripsByVehicle, $downtimesByVehicle, $dates) {
             $trips = $tripsByVehicle->get($vehicle->id, collect());
+            $vehicleDowntimes = $downtimesByVehicle->get($vehicle->id, collect());
             $byDay = $trips->groupBy(fn (Trip $t) => $this->dateKey($t));
 
             return [
@@ -450,7 +506,8 @@ class MonthlyVehicleReport
                 'vehicle_type' => $vehicle->vehicle_type,
                 'registration_number' => $vehicle->registration_number,
                 'rental_type' => $vehicle->rental_type,
-                'cells' => $dates->map(fn ($d) => $this->detailCell($byDay->get($d)))->all(),
+                'cells' => $dates->map(fn ($d) => $this->detailCell($byDay->get($d))
+                    ?? $this->downCell($vehicleDowntimes->first(fn (VehicleDowntime $dt) => $dt->coversDate($d))))->all(),
                 'total_trips' => $trips->count(),
                 'remarks' => $this->remarks($vehicle, $trips),
             ];
@@ -464,21 +521,24 @@ class MonthlyVehicleReport
                 'rows' => $groupRows->sortBy('registration_number')->values()
                     ->map(fn ($r, $i) => ['sl' => $i + 1] + $r)->all(),
                 'used_per_day' => collect($dates)->keys()
-                    ->map(fn ($i) => $groupRows->filter(fn ($r) => $r['cells'][$i] !== null)->count())->all(),
+                    ->map(fn ($i) => $groupRows->filter(fn ($r) => ($r['cells'][$i]['trips'] ?? 0) > 0)->count())->all(),
             ])
             ->values();
 
-        // Idle = fleet (non-ad-hoc vehicles listed) not used that day. Vehicles
-        // off for repair also count as idle until downtime is recorded.
+        // Of the fleet (non-ad-hoc vehicles listed), each day: used, down
+        // (recorded downtime, not used), and idle (available but not used).
         $fleet = $rows->where('rental_type', '!=', 'adhoc');
         $usedPerDay = collect($dates)->keys()
-            ->map(fn ($i) => $fleet->filter(fn ($r) => $r['cells'][$i] !== null)->count());
+            ->map(fn ($i) => $fleet->filter(fn ($r) => ($r['cells'][$i]['trips'] ?? 0) > 0)->count());
+        $downPerDay = collect($dates)->keys()
+            ->map(fn ($i) => $fleet->filter(fn ($r) => $r['cells'][$i]['down'] ?? false)->count());
 
         return [
             'groups' => $groups->all(),
             'fleet_size' => $fleet->count(),
             'assigned_per_day' => $usedPerDay->all(),
-            'idle_per_day' => $usedPerDay->map(fn ($n) => $fleet->count() - $n)->all(),
+            'down_per_day' => $downPerDay->all(),
+            'idle_per_day' => $usedPerDay->keys()->map(fn ($i) => $fleet->count() - $usedPerDay[$i] - $downPerDay[$i])->all(),
         ];
     }
 
@@ -544,7 +604,16 @@ class MonthlyVehicleReport
         return [
             'text' => $labels->isEmpty() ? 'Pick & Drop' : $labels->implode(', '),
             'trips' => $trips->count(),
+            'down' => false,
         ];
+    }
+
+    /** A day the vehicle wasn't used because it was out of service */
+    private function downCell(?VehicleDowntime $downtime): ?array
+    {
+        return $downtime
+            ? ['text' => 'Down - '.$downtime->reason_label, 'trips' => 0, 'down' => true]
+            : null;
     }
 
     private function tripLabel(Trip $trip): string

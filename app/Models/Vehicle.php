@@ -34,6 +34,9 @@ class Vehicle extends Model
 
     public const PLACEHOLDER_MODEL = 'TBD';
 
+    /** Statuses that mean the vehicle is out of service (see VehicleObserver::syncDowntime()) */
+    public const DOWN_STATUSES = ['maintenance', 'out_of_service'];
+
     protected $appends = ['expiring_documents', 'is_placeholder'];
 
     public function getExpiringDocumentsAttribute(): array
@@ -166,6 +169,14 @@ class Vehicle extends Model
     public function defaultRoute()
     {
         return $this->belongsTo(VehicleRoute::class, 'default_route_id');
+    }
+
+    /**
+     * Out-of-service periods, newest first
+     */
+    public function downtimes()
+    {
+        return $this->hasMany(VehicleDowntime::class)->latest('starts_on');
     }
 
     /**

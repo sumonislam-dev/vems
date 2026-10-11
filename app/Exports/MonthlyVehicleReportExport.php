@@ -85,9 +85,9 @@ class MonthlyVehicleReportExport implements WithMultipleSheets
         }
 
         $heading('Vendor scorecard');
-        $header(['Vendor', 'Trips', 'Vehicle-days', 'Late arrivals', 'Complaints', 'Complaints still open', 'Complaints per 100 trips']);
+        $header(['Vendor', 'Trips', 'Vehicle-days', 'Late arrivals', 'Breakdowns', 'Replacements', 'Complaints', 'Complaints still open', 'Complaints per 100 trips']);
         foreach ($r['vendors'] as $v) {
-            $rows[] = [$v['vendor'], $v['trips'], $v['vehicle_days'], 'Not tracked', $v['complaints'], $v['complaints_open'], $v['issues_per_100']];
+            $rows[] = [$v['vendor'], $v['trips'], $v['vehicle_days'], 'Not tracked', $v['breakdowns'], $v['replacements'], $v['complaints'], $v['complaints_open'], $v['issues_per_100']];
             if ($v['vendor'] === 'All vendors') {
                 $bold[] = count($rows);
             }
@@ -117,7 +117,11 @@ class MonthlyVehicleReportExport implements WithMultipleSheets
             foreach ($group['rows'] as $v) {
                 $rows[] = [
                     $v['sl'], $v['driver'], $v['vendor'], ucfirst((string) $v['vehicle_type']), $v['phone'], $v['registration_number'],
-                    ...array_map(fn ($c) => $c ? "{$c['text']} ({$c['trips']})" : '', $v['cells']),
+                    ...array_map(fn ($c) => match (true) {
+                        $c === null => '',
+                        $c['trips'] > 0 => "{$c['text']} ({$c['trips']})",
+                        default => $c['text'],
+                    }, $v['cells']),
                     $v['total_trips'], $v['remarks'],
                 ];
             }
@@ -128,9 +132,11 @@ class MonthlyVehicleReportExport implements WithMultipleSheets
         $rows[] = [];
         $rows[] = ['', '# of vehicles assigned per day', '', '', '', '', ...$d['assigned_per_day']];
         $bold[] = count($rows);
+        $rows[] = ['', '# of vehicles not available (downtime)', '', '', '', '', ...$d['down_per_day']];
+        $bold[] = count($rows);
         $rows[] = ['', '# of vehicles remaining idle per day', '', '', '', '', ...$d['idle_per_day']];
         $bold[] = count($rows);
-        $rows[] = ['', 'Idle includes vehicles off for repair (downtime is not recorded yet). Fleet size: '.$d['fleet_size']];
+        $rows[] = ['', 'Idle = available but not used. Fleet size: '.$d['fleet_size']];
 
         return new ReportArraySheet('Details', $rows, $bold);
     }

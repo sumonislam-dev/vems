@@ -23,6 +23,7 @@ use App\Http\Controllers\TripStateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserGroupController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleDowntimeController;
 use App\Http\Controllers\VehicleRouteController;
 use App\Http\Controllers\VendorController;
 use App\Http\Controllers\ZoneController;
@@ -72,6 +73,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('vehicles-expiring', [VehicleController::class, 'getExpiringVehicles'])->name('vehicles.expiring');
     Route::get('vehicles-export', [VehicleController::class, 'export'])->name('vehicles.export');
     Route::post('vehicles-bulk-status', [VehicleController::class, 'bulkUpdateStatus'])->name('vehicles.bulk-status');
+    Route::post('vehicles/{vehicle}/downtimes', [VehicleDowntimeController::class, 'store'])->name('vehicles.downtimes.store');
+    Route::put('vehicles/{vehicle}/downtimes/{downtime}', [VehicleDowntimeController::class, 'update'])->name('vehicles.downtimes.update');
+    Route::post('vehicles/{vehicle}/downtimes/{downtime}/end', [VehicleDowntimeController::class, 'end'])->name('vehicles.downtimes.end');
+    Route::delete('vehicles/{vehicle}/downtimes/{downtime}', [VehicleDowntimeController::class, 'destroy'])->name('vehicles.downtimes.destroy');
     Route::post('/vehicles/{vehicle}/assign-driver', [VehicleController::class, 'assignDriver'])->name('vehicles.assign-driver');
 
     Route::resource('vendors', VendorController::class);

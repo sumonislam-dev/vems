@@ -6,6 +6,7 @@ use App\Exports\VehiclesExport;
 use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleDowntime;
 use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
@@ -594,10 +595,21 @@ class VehicleController extends Controller implements HasMiddleware
 
         $canAssignVehicles = auth()->user()->can('assign-vehicles');
 
+        $canEditVehicles = auth()->user()->can('edit-vehicles');
+
         return Inertia::render('vehicles/show', [
             'vehicle' => $vehicle,
             'assignments' => $assignments,
             'assignableDrivers' => $canAssignVehicles ? $this->assignableDrivers($vehicle->driver_id) : [],
+            'downtimes' => $vehicle->downtimes()
+                ->with(['replacementVehicle:id,registration_number', 'recorder:id,name'])
+                ->get()
+                ->map(fn ($d) => [...$d->toArray(), 'reason_label' => $d->reason_label]),
+            'downtimeReasons' => collect(VehicleDowntime::REASONS)->map(fn ($label, $value) => compact('value', 'label'))->values(),
+            'replacementVehicles' => $canEditVehicles
+                ? Vehicle::whereKeyNot($vehicle->id)->where('is_active', true)->orderBy('registration_number')->get(['id', 'registration_number'])
+                : [],
+            'canEditVehicles' => $canEditVehicles,
         ]);
     }
 
@@ -726,6 +738,15 @@ class VehicleController extends Controller implements HasMiddleware
             $vehicle = Vehicle::whereKey($vehicle->id)->lockForUpdate()->firstOrFail();
             $vehicle->update($validated);
         });
+
+        // Going out of service auto-starts a downtime (VehicleObserver) with a
+        // default reason — send the user to the vehicle so they can review it.
+        $newStatus = $validated['status'] ?? $vehicle->status;
+        if (in_array($newStatus, Vehicle::DOWN_STATUSES, true) && ! in_array($vehicle->status, Vehicle::DOWN_STATUSES, true)) {
+            return redirect()
+                ->route('vehicles.show', $vehicle)
+                ->with('success', 'Vehicle updated. Downtime started from today — please check the reason and add a replacement vehicle if one was provided.');
+        }
 
         return redirect()
             ->route('vehicles.index')

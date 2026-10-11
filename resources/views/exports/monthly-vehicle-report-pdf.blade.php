@@ -111,15 +111,16 @@
 
                 <h2>Vendor scorecard</h2>
                 <table>
-                    <thead><tr><th class="label">Vendor</th><th>Trips</th><th>Vehicle-days</th><th>Late</th><th>Complaints</th><th>Open</th><th>Per 100 trips</th></tr></thead>
+                    <thead><tr><th class="label">Vendor</th><th>Trips</th><th>Vehicle-days</th><th>Late</th><th>Breakdowns</th><th>Replacements</th><th>Complaints</th><th>Open</th><th>Per 100 trips</th></tr></thead>
                     <tbody>
                         @forelse ($report['vendors'] as $v)
                             <tr class="{{ $v['vendor'] === 'All vendors' ? 'total' : '' }}">
                                 <td class="label">{{ $v['vendor'] }}</td><td>{{ $v['trips'] }}</td><td>{{ $v['vehicle_days'] }}</td><td>-</td>
+                                <td>{{ $v['breakdowns'] }}</td><td>{{ $v['replacements'] }}</td>
                                 <td>{{ $v['complaints'] }}</td><td>{{ $v['complaints_open'] }}</td><td>{{ $v['issues_per_100'] }}</td>
                             </tr>
                         @empty
-                            <tr><td colspan="7">No trips</td></tr>
+                            <tr><td colspan="9">No trips</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -156,7 +157,7 @@
                         <td>{{ ucfirst((string) $v['vehicle_type']) }}</td>
                         <td class="label">{{ $v['registration_number'] }}</td>
                         @foreach ($v['cells'] as $cell)
-                            <td>{{ $cell ? $cell['text'].' ('.$cell['trips'].')' : '' }}</td>
+                            <td style="{{ ($cell['down'] ?? false) ? 'color:#b45309;' : '' }}">{{ $cell ? $cell['text'].($cell['trips'] > 0 ? ' ('.$cell['trips'].')' : '') : '' }}</td>
                         @endforeach
                         <td>{{ $v['total_trips'] }}</td>
                         <td>{{ $v['remarks'] }}</td>
@@ -178,6 +179,13 @@
                 <td colspan="2"></td>
             </tr>
             <tr class="total">
+                <td colspan="5" class="label"># of vehicles not available (downtime)</td>
+                @foreach ($report['details']['down_per_day'] as $n)
+                    <td>{{ $n }}</td>
+                @endforeach
+                <td colspan="2"></td>
+            </tr>
+            <tr class="total">
                 <td colspan="5" class="label"># of vehicles remaining idle per day</td>
                 @foreach ($report['details']['idle_per_day'] as $n)
                     <td>{{ $n }}</td>
@@ -186,6 +194,6 @@
             </tr>
         </tbody>
     </table>
-    <div class="note">Idle includes vehicles off for repair (downtime is not recorded yet). Fleet size: {{ $report['details']['fleet_size'] }}.</div>
+    <div class="note">Idle = available but not used. Fleet size: {{ $report['details']['fleet_size'] }}.</div>
 </body>
 </html>
