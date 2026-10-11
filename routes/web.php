@@ -4,14 +4,12 @@ use App\Http\Controllers\ActiveZoneController;
 use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
 use App\Http\Controllers\MonthlyVehicleReportController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StopController;
@@ -61,18 +59,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::patch('/active-zone', [ActiveZoneController::class, 'update'])->name('active-zone.update');
 
-    // Debug route — restricted to Super Admin only
-    Route::middleware('role:super-admin')->group(function () {
-        Route::get('/debug/auth', [DebugController::class, 'authCheck'])->name('debug.auth');
-    });
-
-    Route::resource('products', ProductController::class);
-    Route::get('products-export', [ProductController::class, 'export'])->name('products.export');
-
     Route::resource('factories', FactoryController::class);
 
     Route::resource('vehicles', VehicleController::class);
-    Route::get('vehicles-expiring', [VehicleController::class, 'getExpiringVehicles'])->name('vehicles.expiring');
     Route::get('vehicles-export', [VehicleController::class, 'export'])->name('vehicles.export');
     Route::post('vehicles-bulk-status', [VehicleController::class, 'bulkUpdateStatus'])->name('vehicles.bulk-status');
     Route::post('vehicles/{vehicle}/downtimes', [VehicleDowntimeController::class, 'store'])->name('vehicles.downtimes.store');
@@ -82,15 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/vehicles/{vehicle}/assign-driver', [VehicleController::class, 'assignDriver'])->name('vehicles.assign-driver');
 
     Route::resource('vendors', VendorController::class);
-    Route::get('vendors-select', [VendorController::class, 'getVendorsForSelect'])->name('vendors.select');
 
     Route::resource('users', UserController::class);
     Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
     Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
-    Route::middleware('throttle:60,1')->group(function () {
-        Route::get('/api/drivers/available', [DriverController::class, 'getAvailableDrivers'])->name('drivers.available');
-    });
-    Route::patch('/drivers/{user}/status', [DriverController::class, 'updateDriverStatus'])->name('drivers.update-status');
     Route::get('/drivers/{driver}/assignable-vehicles', [DriverController::class, 'assignableVehicles'])->name('drivers.assignable-vehicles');
     Route::get('/drivers-export', [DriverController::class, 'export'])->name('drivers.export');
     Route::post('/drivers-bulk-status', [DriverController::class, 'bulkUpdateStatus'])->name('drivers.bulk-status');

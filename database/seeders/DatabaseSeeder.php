@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use App\Models\Product;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -13,9 +12,6 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Create products first
-        Product::factory(200)->create();
-
         $this->call([
             RolePermissionSeeder::class, // Must run first to create roles
             ZoneSeeder::class, // Must run before any seeder assigning zone_id

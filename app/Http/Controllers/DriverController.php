@@ -31,10 +31,10 @@ class DriverController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-drivers', only: ['index', 'show', 'getAvailableDrivers']),
+            new Middleware('permission:view-drivers', only: ['index', 'show']),
             new Middleware('permission:export-drivers', only: ['export']),
             new Middleware('permission:create-drivers', only: ['create', 'store']),
-            new Middleware('permission:edit-drivers', only: ['edit', 'update', 'updateDriverStatus', 'bulkUpdateStatus']),
+            new Middleware('permission:edit-drivers', only: ['edit', 'update', 'bulkUpdateStatus']),
             new Middleware('permission:delete-drivers', only: ['destroy']),
             new Middleware('permission:assign-vehicles', only: ['assignableVehicles']),
         ];
@@ -665,19 +665,6 @@ class DriverController extends Controller implements HasMiddleware
     }
 
     /**
-     * Get available drivers for AJAX requests.
-     */
-    public function getAvailableDrivers(Request $request)
-    {
-        $drivers = User::availableDrivers()
-            ->with('department:id,name')
-            ->select('id', 'name', 'username', 'employee_id', 'department_id', 'driving_license_no', 'license_class')
-            ->get();
-
-        return response()->json($drivers);
-    }
-
-    /**
      * Active vehicles for the driver-side "Assign Vehicle" picker, each
      * flagged with its current driver (if any) so the frontend can warn
      * before reassigning a vehicle away from another driver.
@@ -703,26 +690,6 @@ class DriverController extends Controller implements HasMiddleware
             ]);
 
         return response()->json($vehicles);
-    }
-
-    /**
-     * Update driver status.
-     */
-    public function updateDriverStatus(Request $request, User $user): RedirectResponse
-    {
-        $request->validate([
-            'driver_status' => 'required|in:available,on_trip,on_leave,inactive,suspended',
-        ]);
-
-        if (! $user->isDriver()) {
-            return redirect()->back()
-                ->with('error', 'User is not a driver.');
-        }
-
-        $user->update(['driver_status' => $request->driver_status]);
-
-        return redirect()->back()
-            ->with('success', 'Driver status updated successfully.');
     }
 
     /**

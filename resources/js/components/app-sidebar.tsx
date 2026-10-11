@@ -49,12 +49,6 @@ const mainNavItems: NavItem[] = [
     },
 
 
-    // {
-    //     title: 'Products',
-    //     href: '/products',
-    //     icon: Package,
-    // },
-
     {
         title: 'Factories',
         href: '/factories',
@@ -142,19 +136,6 @@ const mainNavItems: NavItem[] = [
     },
 
 ];
-
-// const footerNavItems: NavItem[] = [
-//     {
-//         title: 'Repository',
-//         href: 'https://github.com/laravel/react-starter-kit',
-//         icon: Folder,
-//     },
-//     {
-//         title: 'Documentation',
-//         href: 'https://laravel.com/docs/starter-kits#react',
-//         icon: BookOpen,
-//     },
-// ];
 
 // Keep an item if the user has its required permission (or it has none), or if
 // at least one of its children remains visible after the same check.

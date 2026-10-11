@@ -9,18 +9,18 @@ import { cn } from "@/lib/utils"
  *
  * @example
  * <PageHeader
- *   title="Products"
- *   description="Manage your product inventory"
+ *   title="Vehicles"
+ *   description="Manage the fleet"
  *   actions={[
  *     {
- *       label: "Add Product",
+ *       label: "Add Vehicle",
  *       icon: <Plus className="mr-2 h-4 w-4" />,
- *       href: "/products/create",
+ *       href: "/vehicles/create",
  *     }
  *   ]}
  *   stats={[
- *     { label: "Total Products", value: 150 },
- *     { label: "Active Products", value: 120 },
+ *     { label: "Total Vehicles", value: 150 },
+ *     { label: "Active Vehicles", value: 120 },
  *   ]}
  * />
  */

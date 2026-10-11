@@ -26,7 +26,7 @@ class VehicleController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-vehicles', only: ['index', 'show', 'getExpiringVehicles']),
+            new Middleware('permission:view-vehicles', only: ['index', 'show']),
             new Middleware('permission:export-vehicles', only: ['export']),
             new Middleware('permission:create-vehicles', only: ['create', 'store']),
             new Middleware('permission:edit-vehicles', only: ['edit', 'update', 'bulkUpdateStatus']),
@@ -545,8 +545,6 @@ class VehicleController extends Controller implements HasMiddleware
             }
         }
 
-        \Log::info('Validated data:', $validated);
-
         // Set default values for boolean fields if not present
         $validated['tax_token_alert_enabled'] = $validated['tax_token_alert_enabled'] ?? true;
         $validated['fitness_alert_enabled'] = $validated['fitness_alert_enabled'] ?? true;
@@ -559,7 +557,6 @@ class VehicleController extends Controller implements HasMiddleware
 
         try {
             $vehicle = Vehicle::create($validated);
-            \Log::info('Vehicle created successfully:', ['vehicle_id' => $vehicle->id]);
 
             return redirect()
                 ->route('vehicles.index')
@@ -798,26 +795,5 @@ class VehicleController extends Controller implements HasMiddleware
         return redirect()
             ->route('vehicles.index')
             ->with('success', 'Vehicle deleted successfully!');
-    }
-
-    /**
-     * Get vehicles with expiring documents for dashboard
-     */
-    public function getExpiringVehicles()
-    {
-        $expiringVehicles = Vehicle::withExpiringDocuments()
-            ->where('is_active', true)
-            ->get()
-            ->map(function ($vehicle) {
-                return [
-                    'id' => $vehicle->id,
-                    'brand' => $vehicle->brand,
-                    'model' => $vehicle->model,
-                    'registration_number' => $vehicle->registration_number,
-                    'expiring_documents' => $vehicle->getExpiringDocuments(),
-                ];
-            });
-
-        return response()->json($expiringVehicles);
     }
 }

@@ -43,8 +43,6 @@ npm run types                   # tsc --noEmit
 php artisan setup:permissions
 ```
 `setup:permissions` makes the database match `RolePermissionSeeder` exactly, so it deletes or revokes anything not listed. On a live database use the add-only `php artisan permissions:update` (`--dry-run` to preview): it adds new permissions and roles and grants seeded roles their newly listed permissions, but never deletes or revokes anything.
-Related one-off commands in `app/Console/Commands/`: `CheckUserPermissions`, `BackfillVehicleAssignments`, `ShowRouteData`.
-
 ## Architecture
 
 ### Request flow
@@ -55,7 +53,7 @@ Every page is a Laravel route (`routes/web.php`, plus `routes/auth.php` / `route
 ### Auth & permissions
 - Roles/permissions via `spatie/laravel-permission` (`Role`, `Permission` models, `HasRoles` trait on `User`).
 - `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `transport-manager`, `management`, `department-head`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`). Running it deletes any role or permission it doesn't list.
-- Route-level role gating uses `Route::middleware('role:super-admin')->group(...)` (see the `/debug/auth` route).
+- Authorization is permission-based: controllers declare `permission:*` middleware (`HasMiddleware`), and the frontend hides actions with `useCan()`.
 - Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `transport-manager` runs trips/fleet/drivers/vendors/reports without user, role or zone administration; `management` is read-only oversight; `department-head` approves/rejects only trips of departments they head (`departments.head_id`, permission `approve-department-trips`, see `User::canApproveTrip()`); `employee`/`driver` get a scoped-down subset for their day-to-day flows. Exports/imports have their own `export-*`/`import-*` permissions, and changing a user's roles needs `manage-user-roles`.
 
 ### Users, drivers, vendors
@@ -63,7 +61,7 @@ There is no separate `Driver` model — drivers are `User` rows with `user_type`
 
 `Vendor` / `VendorContactPerson` model an external vendor org; `users.vendor_id` links a user (e.g. an outsourced driver) to a `Vendor`.
 
-**Dead files to be aware of:** `app/Http/Requests/UserStoreRequest.php` and `UserUpdateRequest.php` are unused leftovers — `UserController` and `DriverController` both actually use `StoreUserRequest` / `UpdateUserRequest`. Don't assume the `User*Request` variants are the active validation path.
+`UserController` and `DriverController` share the same Form Requests (`StoreUserRequest` / `UpdateUserRequest`).
 
 ### Trips (the core domain)
 `Trip` (`app/Models/Trip.php`) is the largest model and centers a web of related tables:
@@ -86,7 +84,7 @@ There is no separate `Driver` model — drivers are `User` rows with `user_type`
 - `resources/js/base-components/` — higher-level reusable patterns shared across resource pages: `base-data-table.tsx`, `base-form.tsx`, `advanced-form.tsx`, `base-export-button.tsx`, `base-multi-select.tsx`, `page-header.tsx`. Prefer extending/reusing these over hand-rolling a new table/form per resource.
 - `resources/js/types/` — hand-written TS interfaces mirroring backend models (`trip.ts`, `user.ts`, `vehicle.ts`, etc.), not auto-generated from PHP.
 - Path alias `@/*` → `resources/js/*` (see `tsconfig.json` and `vite.config.ts`).
-- Excel import/export uses `maatwebsite/excel` server-side (see `*.export`/`*.import` routes on Users/Departments/Products); PDF via `barryvdh/laravel-dompdf`.
+- Excel import/export uses `maatwebsite/excel` server-side (see `*.export`/`*.import` routes on Users/Departments/Vehicles/Drivers); PDF via `barryvdh/laravel-dompdf`.
 
 ### Database
 Dev/prod uses MySQL (`DB_DATABASE=vems`); the test suite runs against in-memory SQLite regardless of `.env` (`phpunit.xml` overrides `DB_CONNECTION`/`DB_DATABASE`). Queue/cache default to `database` driver, mail to `log`.

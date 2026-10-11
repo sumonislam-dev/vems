@@ -35,9 +35,6 @@ export default function Welcome() {
                                         if (fallback) fallback.style.display = 'flex';
                                     }}
                                 />
-                                {/*<div>*/}
-                                {/*    <p className="text-sm text-gray-600 dark:text-gray-400">Vehicle Management</p>*/}
-                                {/*</div>*/}
                             </div>
 
                             {/* Navigation */}
@@ -76,26 +73,6 @@ export default function Welcome() {
                 <section className="relative py-20 lg:py-32">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                         <div className="text-center">
-                            {/* Hero Logo */}
-                            <div className="flex justify-center mb-8">
-                                {/*<div className="w-24 h-24 rounded-2xl overflow-hidden bg-white dark:bg-gray-800 shadow-lg border border-gray-200 dark:border-gray-700">*/}
-                                {/*    <img*/}
-                                {/*        src="/images/rsc.png"*/}
-                                {/*        alt="RSC Logo"*/}
-                                {/*        className="w-full h-full object-contain p-2"*/}
-                                {/*        onError={(e) => {*/}
-                                {/*            const target = e.target as HTMLImageElement;*/}
-                                {/*            target.style.display = 'none';*/}
-                                {/*            const fallback = target.parentElement?.querySelector('.logo-fallback') as HTMLElement;*/}
-                                {/*            if (fallback) fallback.style.display = 'flex';*/}
-                                {/*        }}*/}
-                                {/*    />*/}
-                                {/*    <div className="logo-fallback w-full h-full bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center" style={{ display: 'none' }}>*/}
-                                {/*        <span className="text-white font-bold text-2xl">RSC</span>*/}
-                                {/*    </div>*/}
-                                {/*</div>*/}
-                            </div>
-
                             <h1 className="mb-6 text-4xl font-bold text-gray-900 dark:text-gray-100 lg:text-6xl">
                                 Professional
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600"> Vehicle </span>

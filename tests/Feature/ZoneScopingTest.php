@@ -265,19 +265,13 @@ it('rejects a restricted user creating a factory in a zone other than their own'
     expect(Factory::where('name', 'Cross Zone Factory')->exists())->toBeFalse();
 });
 
-it('backfills factory zone_id from city, leaving unrecognized cities untouched', function () {
+it('maps a city to its zone, leaving unrecognized cities unmapped', function () {
     $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
     $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
 
-    $dhakaFactory = Factory::create(['account_id' => 'ACC-'.uniqid(), 'name' => 'Dhaka Factory', 'status' => 'active', 'city' => 'Gazipur']);
-    $ctgFactory = Factory::create(['account_id' => 'ACC-'.uniqid(), 'name' => 'CTG Factory', 'status' => 'active', 'city' => 'Chittagong']);
-    $unknownFactory = Factory::create(['account_id' => 'ACC-'.uniqid(), 'name' => 'Unknown City Factory', 'status' => 'active', 'city' => 'Sylhet']);
-
-    $this->artisan('vems:backfill-factory-zones')->assertExitCode(0);
-
-    expect($dhakaFactory->fresh()->zone_id)->toBe($dhaka->id);
-    expect($ctgFactory->fresh()->zone_id)->toBe($ctg->id);
-    expect($unknownFactory->fresh()->zone_id)->toBeNull();
+    expect(Zone::idForCity('Gazipur'))->toBe($dhaka->id)
+        ->and(Zone::idForCity('Chittagong'))->toBe($ctg->id)
+        ->and(Zone::idForCity('Sylhet'))->toBeNull();
 });
 
 it('snapshots the assigned vehicle zone onto a trip when it is created', function () {
@@ -360,30 +354,6 @@ it("gives a trip with no vehicle its requester's zone, switching to the vehicle'
 
     $trip->update(['vehicle_id' => null]);
     expect($trip->fresh()->zone_id)->toBe($dhaka->id);
-});
-
-it('backfills trip zones from the vehicle, or from the requester when no vehicle is assigned', function () {
-    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
-    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
-    $ctgVehicle = Vehicle::create([
-        'brand' => 'Honda', 'model' => 'Civic',
-        'registration_number' => 'ZONE-'.uniqid(),
-        'is_active' => true, 'zone_id' => $ctg->id,
-    ]);
-    $requester = makeZoneScopingUser($dhaka);
-    $base = [
-        'requested_by' => $requester->id, 'priority' => 'medium', 'scheduled_date' => '2026-06-01',
-        'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00', 'status' => 'pending',
-    ];
-    $withVehicle = Trip::create([...$base, 'vehicle_id' => $ctgVehicle->id]);
-    $withoutVehicle = Trip::create($base);
-    // Simulate trips created before the zone snapshot existed
-    Trip::query()->update(['zone_id' => null]);
-
-    $this->artisan('vems:backfill-trip-zones')->assertSuccessful();
-
-    expect($withVehicle->fresh()->zone_id)->toBe($ctg->id)
-        ->and($withoutVehicle->fresh()->zone_id)->toBe($dhaka->id);
 });
 
 it("grants view-all-zones directly when a user's zone access is set to all", function () {

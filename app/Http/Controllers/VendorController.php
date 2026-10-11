@@ -16,7 +16,7 @@ class VendorController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-vendors', only: ['index', 'show', 'getVendorsForSelect']),
+            new Middleware('permission:view-vendors', only: ['index', 'show']),
             new Middleware('permission:create-vendors', only: ['create', 'store']),
             new Middleware('permission:edit-vendors', only: ['edit', 'update']),
             new Middleware('permission:delete-vendors', only: ['destroy']),
@@ -330,18 +330,5 @@ class VendorController extends Controller implements HasMiddleware
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete vendor.');
         }
-    }
-
-    /**
-     * Get vendors for dropdown/select options
-     */
-    public function getVendorsForSelect()
-    {
-        $vendors = Vendor::active()
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        return response()->json($vendors);
     }
 }

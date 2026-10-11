@@ -275,28 +275,4 @@ class Vehicle extends Model
 
         return $expiring;
     }
-
-    /**
-     * Scope to get vehicles with expiring documents
-     */
-    public function scopeWithExpiringDocuments($query)
-    {
-        return $query->where(function ($q) {
-            $q->where(function ($subQ) {
-                $subQ->where('tax_token_alert_enabled', true)
-                    ->whereNotNull('tax_token_last_date')
-                    ->whereRaw('DATEDIFF(tax_token_last_date, NOW()) <= alert_days_before');
-            })
-                ->orWhere(function ($subQ) {
-                    $subQ->where('fitness_alert_enabled', true)
-                        ->whereNotNull('fitness_certificate_last_date')
-                        ->whereRaw('DATEDIFF(fitness_certificate_last_date, NOW()) <= alert_days_before');
-                })
-                ->orWhere(function ($subQ) {
-                    $subQ->where('insurance_alert_enabled', true)
-                        ->whereNotNull('insurance_last_date')
-                        ->whereRaw('DATEDIFF(insurance_last_date, NOW()) <= alert_days_before');
-                });
-        });
-    }
 }

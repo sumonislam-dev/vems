@@ -17,13 +17,6 @@ class RolePermissionSeeder extends Seeder
     public static function permissions(): array
     {
         return [
-            // Product Management
-            'view-products',
-            'create-products',
-            'edit-products',
-            'delete-products',
-            'export-products',
-
             // Stop Management
             'view-stops',
             'create-stops',

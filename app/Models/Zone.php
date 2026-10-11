@@ -237,8 +237,7 @@ class Zone extends Model
 
     /**
      * City → zone code. Bangladesh geography, not exhaustive — only cities
-     * actually seen in this app's data so far. Shared by the seeders and
-     * `vems:backfill-factory-zones` so the mapping lives in one place.
+     * actually seen in this app's data so far. Used by the seeders.
      */
     private const CITY_ZONE_CODES = [
         'dhaka' => 'DHK',
