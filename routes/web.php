@@ -9,6 +9,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
+use App\Http\Controllers\MonthlyVehicleReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
@@ -136,6 +137,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Reports routes
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+    Route::get('/reports/monthly-vehicle', [MonthlyVehicleReportController::class, 'index'])->name('reports.monthly-vehicle');
+    Route::get('/reports/monthly-vehicle/export', [MonthlyVehicleReportController::class, 'export'])->name('reports.monthly-vehicle.export');
 
     // Trip state routes
     Route::post('/trips/bulk-approve', [TripStateController::class, 'bulkApprove'])->name('trips.bulk-approve');
