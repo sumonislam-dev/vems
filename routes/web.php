@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActiveZoneController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AnalyticsReportController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
@@ -139,6 +140,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
     Route::get('/reports/monthly-vehicle', [MonthlyVehicleReportController::class, 'index'])->name('reports.monthly-vehicle');
     Route::get('/reports/monthly-vehicle/export', [MonthlyVehicleReportController::class, 'export'])->name('reports.monthly-vehicle.export');
+    Route::get('/reports/{report}', [AnalyticsReportController::class, 'show'])
+        ->whereIn('report', array_keys(AnalyticsReportController::REPORTS))->name('reports.analytics');
+    Route::get('/reports/{report}/export', [AnalyticsReportController::class, 'export'])
+        ->whereIn('report', array_keys(AnalyticsReportController::REPORTS))->name('reports.analytics.export');
 
     // Trip state routes
     Route::post('/trips/bulk-approve', [TripStateController::class, 'bulkApprove'])->name('trips.bulk-approve');

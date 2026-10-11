@@ -67,6 +67,10 @@ return [
 
     'timezone' => 'UTC',
 
+    // Where the users are: trip schedules (date + time) are entered in this
+    // timezone, and daily jobs run on its clock.
+    'local_timezone' => env('APP_LOCAL_TIMEZONE', 'Asia/Dhaka'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration

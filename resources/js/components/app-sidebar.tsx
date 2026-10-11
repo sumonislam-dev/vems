@@ -5,7 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, Sid
 import { hasPermission } from '@/lib/permissions';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, FileSpreadsheet, MessageSquareWarning, ClipboardCheck, History, Globe } from 'lucide-react';
+import { Building2, Car, LayoutGrid, Users, UserCheck, Shield, Route, Briefcase, MapPin, Factory, UsersRound, CalendarClock, BarChart3, FileSpreadsheet, MessageSquareWarning, ClipboardCheck, History, Globe, ShieldAlert } from 'lucide-react';
 import AppLogo from './app-logo';
 
 // `permission` gates each item to match its target page's controller middleware
@@ -121,12 +121,14 @@ const mainNavItems: NavItem[] = [
         href: '/reports',
         icon: BarChart3,
         permission: 'view-reports',
-    },
-    {
-        title: 'Monthly Vehicle Report',
-        href: '/reports/monthly-vehicle',
-        icon: FileSpreadsheet,
-        permission: 'view-reports',
+        children: [
+            { title: 'Trip Report', href: '/reports', icon: BarChart3, permission: 'view-reports' },
+            { title: 'Monthly Vehicle Report', href: '/reports/monthly-vehicle', icon: FileSpreadsheet, permission: 'view-reports' },
+            { title: 'Complaints & SLA', href: '/reports/complaints', icon: MessageSquareWarning, permission: 'view-reports' },
+            { title: 'Driver Performance', href: '/reports/driver-performance', icon: UserCheck, permission: 'view-reports' },
+            { title: 'Compliance & Expiry', href: '/reports/compliance', icon: ShieldAlert, permission: 'view-reports' },
+            { title: 'Department Usage', href: '/reports/department-usage', icon: Building2, permission: 'view-reports' },
+        ],
     },
     {
         title: 'Activity Log',

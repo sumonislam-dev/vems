@@ -30,7 +30,7 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
                                     <SidebarMenuSub>
                                         {item.children.map((child) => (
                                             <SidebarMenuSubItem key={child.title}>
-                                                <SidebarMenuSubButton asChild isActive={page.url.startsWith(child.href)}>
+                                                <SidebarMenuSubButton asChild isActive={page.url.split('?')[0] === child.href}>
                                                     <Link href={child.href} prefetch>
                                                         {child.icon && <child.icon />}
                                                         <span>{child.title}</span>
