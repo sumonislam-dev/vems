@@ -22,11 +22,60 @@ class Vehicle extends Model
             ->useLogName('vehicles');
     }
 
-    protected $appends = ['expiring_documents'];
+    /**
+     * Ad-hoc hires are often booked before the actual car is known, so an
+     * ad-hoc vehicle may be saved with its identity left blank and filled
+     * with these placeholders (registration ADHOC-001, ADHOC-002, ...) until
+     * someone edits in the real registration/brand/model.
+     */
+    public const PLACEHOLDER_PREFIX = 'ADHOC-';
+
+    public const PLACEHOLDER_BRAND = 'Ad-hoc';
+
+    public const PLACEHOLDER_MODEL = 'TBD';
+
+    protected $appends = ['expiring_documents', 'is_placeholder'];
 
     public function getExpiringDocumentsAttribute(): array
     {
         return $this->getExpiringDocuments();
+    }
+
+    public function getIsPlaceholderAttribute(): bool
+    {
+        return $this->isPlaceholder();
+    }
+
+    /**
+     * An ad-hoc vehicle still carrying an auto-generated registration — its
+     * real identity hasn't been entered yet.
+     */
+    public function isPlaceholder(): bool
+    {
+        return $this->rental_type === 'adhoc'
+            && str_starts_with((string) $this->registration_number, self::PLACEHOLDER_PREFIX);
+    }
+
+    /**
+     * The next free placeholder registration (ADHOC-001, ADHOC-002, ...).
+     * Looks past the zone scope: registration_number is unique table-wide,
+     * so numbering must be too, or two zones would mint the same one.
+     */
+    public static function nextPlaceholderRegistration(): string
+    {
+        $max = static::withoutGlobalScopes()
+            ->where('registration_number', 'like', self::PLACEHOLDER_PREFIX.'%')
+            ->pluck('registration_number')
+            ->map(fn (string $reg) => (int) substr($reg, strlen(self::PLACEHOLDER_PREFIX)))
+            ->max() ?? 0;
+
+        return self::PLACEHOLDER_PREFIX.str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
+    }
+
+    public function scopePlaceholders($query)
+    {
+        return $query->where('rental_type', 'adhoc')
+            ->where('registration_number', 'like', self::PLACEHOLDER_PREFIX.'%');
     }
 
     protected $fillable = [

@@ -204,6 +204,13 @@ class VehicleController extends Controller implements HasMiddleware
             if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
+
+            // Ad-hoc placeholders still waiting for the real car's details
+            if (! empty($filters['details']) && count($filters['details']) === 1) {
+                $filters['details'][0] === 'pending'
+                    ? $query->placeholders()
+                    : $query->whereNot(fn ($q) => $q->placeholders());
+            }
         }
 
         // Apply sorting
@@ -355,6 +362,13 @@ class VehicleController extends Controller implements HasMiddleware
             if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
+
+            // Ad-hoc placeholders still waiting for the real car's details
+            if (! empty($filters['details']) && count($filters['details']) === 1) {
+                $filters['details'][0] === 'pending'
+                    ? $query->placeholders()
+                    : $query->whereNot(fn ($q) => $q->placeholders());
+            }
         }
 
         $query->orderBy($validated['sort'], $validated['direction']);
@@ -459,12 +473,18 @@ class VehicleController extends Controller implements HasMiddleware
         // Merge transformed data back to request
         $request->merge($data);
 
+        // An ad-hoc hire can be booked before the actual car is known: its
+        // identity, vendor and driver may be left blank and are filled with
+        // placeholders below (see Vehicle::PLACEHOLDER_*).
+        $isAdhoc = $request->input('rental_type') === 'adhoc';
+        $identityRule = $isAdhoc ? 'nullable' : 'required';
+
         // Validate the incoming request data
         $validated = $request->validate([
-            'brand' => 'required|string|max:255',
-            'model' => 'required|string|max:255',
+            'brand' => "{$identityRule}|string|max:255",
+            'model' => "{$identityRule}|string|max:255",
             'color' => 'nullable|string|max:255', // Made optional
-            'registration_number' => 'required|string|max:255|unique:vehicles',
+            'registration_number' => "{$identityRule}|string|max:255|unique:vehicles",
             'vehicle_type' => 'required|in:sedan,suv,van,microbus,coaster,bus,pickup,truck,other',
             'rental_type' => 'required|in:own,pool,rental,adhoc,support',
             'capacity' => 'nullable|integer|min:1',
@@ -472,8 +492,8 @@ class VehicleController extends Controller implements HasMiddleware
             'parking_latitude' => 'nullable|numeric|between:-90,90',
             'parking_longitude' => 'nullable|numeric|between:-180,180',
             'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
-            'vendor_id' => 'required|exists:vendors,id', // Required service provider
-            'driver_id' => 'required|exists:users,id', // Required driver
+            'vendor_id' => "{$identityRule}|exists:vendors,id", // Required service provider (except ad-hoc)
+            'driver_id' => "{$identityRule}|exists:users,id", // Required driver (except ad-hoc)
             'zone_id' => Zone::validationRule(),
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
@@ -524,6 +544,10 @@ class VehicleController extends Controller implements HasMiddleware
         $validated['fitness_alert_enabled'] = $validated['fitness_alert_enabled'] ?? true;
         $validated['insurance_alert_enabled'] = $validated['insurance_alert_enabled'] ?? true;
         $validated['alert_days_before'] = $validated['alert_days_before'] ?? 30;
+
+        if ($isAdhoc) {
+            $validated = $this->fillAdhocPlaceholders($validated);
+        }
 
         try {
             $vehicle = Vehicle::create($validated);
@@ -609,11 +633,16 @@ class VehicleController extends Controller implements HasMiddleware
         // Merge transformed data back to request
         $request->merge($data);
 
+        // Same ad-hoc leniency as store(); a blank registration on edit just
+        // keeps the vehicle's current one rather than minting a new placeholder.
+        $isAdhoc = $request->input('rental_type') === 'adhoc';
+        $identityRule = $isAdhoc ? 'nullable' : 'required';
+
         $validated = $request->validate([
-            'brand' => 'required|string|max:255',
-            'model' => 'required|string|max:255',
+            'brand' => "{$identityRule}|string|max:255",
+            'model' => "{$identityRule}|string|max:255",
             'color' => 'nullable|string|max:255', // Made optional
-            'registration_number' => 'required|string|max:255|unique:vehicles,registration_number,'.$vehicle->id,
+            'registration_number' => "{$identityRule}|string|max:255|unique:vehicles,registration_number,".$vehicle->id,
             'vehicle_type' => 'required|in:sedan,suv,van,microbus,coaster,bus,pickup,truck,other',
             'rental_type' => 'required|in:own,pool,rental,adhoc,support',
             'capacity' => 'nullable|integer|min:1',
@@ -671,6 +700,13 @@ class VehicleController extends Controller implements HasMiddleware
             }
         }
 
+        if ($isAdhoc) {
+            if (blank($validated['registration_number'] ?? null)) {
+                $validated['registration_number'] = $vehicle->registration_number;
+            }
+            $validated = $this->fillAdhocPlaceholders($validated);
+        }
+
         DB::transaction(function () use ($vehicle, $validated) {
             // Lock the vehicle so a concurrent update can't race
             // VehicleObserver::updating()'s close-old/create-new driver
@@ -682,6 +718,26 @@ class VehicleController extends Controller implements HasMiddleware
         return redirect()
             ->route('vehicles.index')
             ->with('success', 'Vehicle updated successfully!');
+    }
+
+    /**
+     * Fill an ad-hoc vehicle's blank identity fields with placeholders, so
+     * every screen and export that prints brand/model/registration keeps
+     * working until the real car's details are entered.
+     */
+    private function fillAdhocPlaceholders(array $validated): array
+    {
+        if (blank($validated['registration_number'] ?? null)) {
+            $validated['registration_number'] = Vehicle::nextPlaceholderRegistration();
+        }
+        if (blank($validated['brand'] ?? null)) {
+            $validated['brand'] = Vehicle::PLACEHOLDER_BRAND;
+        }
+        if (blank($validated['model'] ?? null)) {
+            $validated['model'] = Vehicle::PLACEHOLDER_MODEL;
+        }
+
+        return $validated;
     }
 
     /**

@@ -190,6 +190,11 @@ export default function ShowVehicle({ vehicle, assignments = [], assignableDrive
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Registration Number</label>
                                     <p className="font-mono text-sm font-semibold">{vehicle.registration_number}</p>
+                                    {vehicle.is_placeholder && (
+                                        <Badge variant="outline" className="mt-1 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                            Details pending — edit to add the real vehicle
+                                        </Badge>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Vendor / Service Provider</label>

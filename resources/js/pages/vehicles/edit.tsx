@@ -130,6 +130,10 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
         alert_days_before: vehicle.alert_days_before?.toString() || '30',
     });
 
+    // Ad-hoc hires may be saved before the real car is known; the server fills
+    // blank identity fields with placeholders (see Vehicle::PLACEHOLDER_*).
+    const isAdhoc = data.rental_type === 'adhoc';
+
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         // PHP does not parse multipart/form-data bodies on PUT requests, so a
@@ -243,8 +247,8 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                 value={data.brand}
                                 onChange={(value) => setData('brand', value)}
                                 error={errors.brand || undefined}
-                                required
-                                placeholder="Toyota, Honda, Ford"
+                                required={!isAdhoc}
+                                placeholder={isAdhoc ? 'Ad-hoc (auto if blank)' : 'Toyota, Honda, Ford'}
                             />
 
                             <FormField
@@ -253,8 +257,8 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                 value={data.model}
                                 onChange={(value) => setData('model', value)}
                                 error={errors.model || undefined}
-                                required
-                                placeholder="Camry, Civic, F-150"
+                                required={!isAdhoc}
+                                placeholder={isAdhoc ? 'TBD (auto if blank)' : 'Camry, Civic, F-150'}
                             />
 
                                     <FormField
@@ -272,8 +276,9 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                         value={data.registration_number}
                                         onChange={(value) => setData('registration_number', value)}
                                         error={errors.registration_number || undefined}
-                                        required
-                                        placeholder="ABC-123"
+                                        required={!isAdhoc}
+                                        placeholder={isAdhoc ? 'ADHOC-001 (auto if blank)' : 'ABC-123'}
+                                        description={isAdhoc ? 'Leave blank to keep the current number' : undefined}
                                     />
 
                                     <FormSelect
@@ -313,7 +318,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                         onChange={(value) => setData('vendor_id', value)}
                                         options={vendorOptions}
                                         error={errors.vendor_id || undefined}
-                                        required
+                                        required={!isAdhoc}
                                         placeholder="Select vendor..."
                                     />
 
@@ -324,7 +329,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                         onChange={(value) => setData('driver_id', value)}
                                         options={driverOptions}
                                         error={errors.driver_id || undefined}
-                                        required
+                                        required={!isAdhoc}
                                         placeholder="Select driver..."
                                     />
 

@@ -197,8 +197,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'registration_number',
             label: 'Registration',
             sortable: true,
-            render: (value) => (
-                <span className="font-mono text-sm">{value}</span>
+            render: (value, row) => (
+                <div className="flex flex-col items-start gap-1">
+                    <span className="font-mono text-sm">{value}</span>
+                    {row.is_placeholder && (
+                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                            Details pending
+                        </Badge>
+                    )}
+                </div>
             ),
         },
         {
@@ -471,6 +478,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                 label: condition.label,
                 value: condition.value,
             })),
+        },
+        {
+            key: 'details',
+            label: 'Details',
+            type: 'multiselect',
+            options: [
+                { label: 'Pending (ad-hoc placeholder)', value: 'pending' },
+                { label: 'Complete', value: 'complete' },
+            ],
         },
     ];
 

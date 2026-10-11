@@ -46,6 +46,8 @@ export interface Vehicle {
     model: string;
     color: string | null;
     registration_number: string;
+    /** Ad-hoc vehicle still carrying an auto-generated ADHOC-xxx registration */
+    is_placeholder?: boolean;
     vehicle_type: string;
     rental_type: string;
     capacity: number | null;
