@@ -277,7 +277,7 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.tax_token_file ? (
-                                            <a href={`/storage/${vehicle.tax_token_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'tax_token_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
                                         ) : 'N/A'}
@@ -321,7 +321,7 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.fitness_certificate_file ? (
-                                            <a href={`/storage/${vehicle.fitness_certificate_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'fitness_certificate_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
                                         ) : 'N/A'}
@@ -370,7 +370,7 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.insurance_policy_file ? (
-                                            <a href={`/storage/${vehicle.insurance_policy_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'insurance_policy_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
                                         ) : 'N/A'}
@@ -418,7 +418,7 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.registration_certificate_file ? (
-                                            <a href={`/storage/${vehicle.registration_certificate_file}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'registration_certificate_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
                                         ) : 'N/A'}

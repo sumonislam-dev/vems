@@ -4,15 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Models\Vendor;
 use App\Models\Zone;
+use App\Support\PrivateDocument;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class VendorController extends Controller implements HasMiddleware
 {
+    private const DOCUMENT_FIELDS = ['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'];
+
     public static function middleware(): array
     {
         return [
@@ -124,15 +126,11 @@ class VendorController extends Controller implements HasMiddleware
             'contact_persons.*.notes' => 'nullable|string',
         ]);
 
-        $data = $request->except(['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file']);
+        $data = $request->except(self::DOCUMENT_FIELDS);
 
-        // Handle file uploads
-        foreach (['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'] as $field) {
+        foreach (self::DOCUMENT_FIELDS as $field) {
             if ($request->hasFile($field)) {
-                $file = $request->file($field);
-                $fileName = $field.'_'.time().'.'.$file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data[$field] = $fileName;
+                $data[$field] = PrivateDocument::replace(null, $request->file($field), 'vendor_documents');
             }
         }
 
@@ -230,52 +228,12 @@ class VendorController extends Controller implements HasMiddleware
         ]);
 
         try {
-            $data = $request->except(['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file']);
+            $data = $request->except(self::DOCUMENT_FIELDS);
 
-            // Handle file uploads
-            if ($request->hasFile('trade_license_file')) {
-                // Remove old file if it exists
-                if ($vendor->trade_license_file) {
-                    Storage::delete('public/vendor_documents/'.$vendor->trade_license_file);
+            foreach (self::DOCUMENT_FIELDS as $field) {
+                if ($request->hasFile($field)) {
+                    $data[$field] = PrivateDocument::replace($vendor->{$field}, $request->file($field), 'vendor_documents');
                 }
-
-                $file = $request->file('trade_license_file');
-                $fileName = 'trade_license_'.time().'.'.$file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['trade_license_file'] = $fileName;
-            }
-
-            if ($request->hasFile('tin_file')) {
-                if ($vendor->tin_file) {
-                    Storage::delete('public/vendor_documents/'.$vendor->tin_file);
-                }
-
-                $file = $request->file('tin_file');
-                $fileName = 'tin_'.time().'.'.$file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['tin_file'] = $fileName;
-            }
-
-            if ($request->hasFile('bin_file')) {
-                if ($vendor->bin_file) {
-                    Storage::delete('public/vendor_documents/'.$vendor->bin_file);
-                }
-
-                $file = $request->file('bin_file');
-                $fileName = 'bin_'.time().'.'.$file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['bin_file'] = $fileName;
-            }
-
-            if ($request->hasFile('tax_return_file')) {
-                if ($vendor->tax_return_file) {
-                    Storage::delete('public/vendor_documents/'.$vendor->tax_return_file);
-                }
-
-                $file = $request->file('tax_return_file');
-                $fileName = 'tax_return_'.time().'.'.$file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['tax_return_file'] = $fileName;
             }
 
             $vendor->update($data);
@@ -324,6 +282,10 @@ class VendorController extends Controller implements HasMiddleware
         }
         try {
             $vendor->delete();
+
+            foreach (self::DOCUMENT_FIELDS as $field) {
+                PrivateDocument::delete($vendor->{$field});
+            }
 
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor deleted successfully!');

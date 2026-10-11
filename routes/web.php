@@ -5,6 +5,7 @@ use App\Http\Controllers\ActivityLogController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
@@ -58,6 +59,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
 
     Route::patch('/active-zone', [ActiveZoneController::class, 'update'])->name('active-zone.update');
+
+    // Private documents (NID, licences, vehicle/vendor papers), permission-checked
+    Route::get('users/{user}/documents/{field}', [DocumentController::class, 'user'])
+        ->whereIn('field', DocumentController::USER_FIELDS)->name('users.document');
+    Route::get('vehicles/{vehicle}/documents/{field}', [DocumentController::class, 'vehicle'])
+        ->whereIn('field', DocumentController::VEHICLE_FIELDS)->name('vehicles.document');
+    Route::get('vendors/{vendor}/documents/{field}', [DocumentController::class, 'vendor'])
+        ->whereIn('field', DocumentController::VENDOR_FIELDS)->name('vendors.document');
 
     Route::resource('factories', FactoryController::class);
 

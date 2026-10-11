@@ -105,10 +105,9 @@ class ReportController extends Controller implements HasMiddleware
             )
             ->first();
 
+        // Same filtered (and zone-scoped) trips as the rest of the report
         $passengerSummary = TripPassenger::query()
-            ->join('trips', 'trips.id', '=', 'trip_passengers.trip_id')
-            ->whereBetween('trips.scheduled_date', [$from->toDateString(), $to->toDateString()])
-            ->when($scheduleType, fn ($query) => $query->where('trips.schedule_type', $scheduleType))
+            ->whereIn('trip_id', (clone $tripQuery)->select('trips.id'))
             ->selectRaw(
                 'COUNT(*) as total, '
                 . "SUM(CASE WHEN trip_passengers.status = 'completed' THEN 1 ELSE 0 END) as completed, "

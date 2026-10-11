@@ -3,6 +3,7 @@ import { AttendanceHistoryCard } from '@/components/trip-attendance-history';
 import { TripActionButtons } from '@/components/trip-action-buttons';
 import { TripAssignVehicleDialog, type AssignableVehicleOption } from '@/components/trip-assign-vehicle-dialog';
 import { AttendanceTripPassenger, PassengerAttendanceCard } from '@/components/trip-passenger-attendance-card';
+import { TripRejectDialog } from '@/components/trip-reject-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -773,21 +774,7 @@ export default function ShowTrip({
                                             Approve Trip
                                         </Button>
                                     )}
-                                    {showReject && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full"
-                                            onClick={() => {
-                                                const reason = prompt('Rejection reason:');
-                                                if (reason) {
-                                                    router.post(route('trips.reject', trip.id), { rejection_reason: reason });
-                                                }
-                                            }}
-                                        >
-                                            <XCircle className="mr-2 h-4 w-4" />
-                                            Reject Trip
-                                        </Button>
-                                    )}
+                                    {showReject && <TripRejectDialog tripId={trip.id} />}
 
                                     {showStart && (
                                         <Button

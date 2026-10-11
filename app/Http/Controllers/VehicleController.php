@@ -10,12 +10,12 @@ use App\Models\VehicleDowntime;
 use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
+use App\Support\PrivateDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -541,7 +541,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
             if ($request->hasFile($field)) {
-                $validated[$field] = $request->file($field)->store('vehicle_documents', 'public');
+                $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'vehicle_documents');
             }
         }
 
@@ -556,7 +556,7 @@ class VehicleController extends Controller implements HasMiddleware
         }
 
         try {
-            $vehicle = Vehicle::create($validated);
+            Vehicle::create($validated);
 
             return redirect()
                 ->route('vehicles.index')
@@ -715,10 +715,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
             if ($request->hasFile($field)) {
-                if ($vehicle->$field) {
-                    Storage::disk('public')->delete($vehicle->$field);
-                }
-                $validated[$field] = $request->file($field)->store('vehicle_documents', 'public');
+                $validated[$field] = PrivateDocument::replace($vehicle->$field, $request->file($field), 'vehicle_documents');
             }
         }
 
@@ -784,10 +781,14 @@ class VehicleController extends Controller implements HasMiddleware
      */
     public function destroy(Vehicle $vehicle)
     {
-        foreach (['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'registration_certificate_file'] as $field) {
-            if ($vehicle->$field) {
-                Storage::disk('public')->delete($vehicle->$field);
-            }
+        if ($vehicle->trips()->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])->exists()) {
+            return back()->with('error', 'Cannot delete a vehicle with active trips. Reassign or finish them first.');
+        }
+
+        // Soft delete: past trips, reports and documents keep the vehicle.
+        // Unassigning the driver first closes their assignment history.
+        if ($vehicle->driver_id) {
+            $vehicle->update(['driver_id' => null]);
         }
 
         $vehicle->delete();

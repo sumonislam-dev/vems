@@ -360,7 +360,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                             {vendor.trade_license_file ? (
                                                 <div className="flex items-center space-x-2">
                                                     <a
-                                                        href={`/storage/vendor_documents/${vendor.trade_license_file}`}
+                                                        href={route('vendors.document', { vendor: vendor.id, field: 'trade_license_file', download: 1 })}
                                                         target="_blank"
                                                         className="text-xs text-blue-600 hover:underline flex items-center"
                                                     >
@@ -377,7 +377,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                                         className="h-6 text-xs px-2"
                                                         asChild
                                                     >
-                                                        <a href={`/storage/vendor_documents/${vendor.trade_license_file}`} target="_blank">
+                                                        <a href={route('vendors.document', [vendor.id, 'trade_license_file'])} target="_blank">
                                                             <ExternalLink className="h-3 w-3 mr-1" />
                                                             Show
                                                         </a>
@@ -396,7 +396,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                             {vendor.tin_file ? (
                                                 <div className="flex items-center space-x-2">
                                                     <a
-                                                        href={`/storage/vendor_documents/${vendor.tin_file}`}
+                                                        href={route('vendors.document', { vendor: vendor.id, field: 'tin_file', download: 1 })}
                                                         target="_blank"
                                                         className="text-xs text-blue-600 hover:underline flex items-center"
                                                     >
@@ -413,7 +413,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                                         className="h-6 text-xs px-2"
                                                         asChild
                                                     >
-                                                        <a href={`/storage/vendor_documents/${vendor.tin_file}`} target="_blank">
+                                                        <a href={route('vendors.document', [vendor.id, 'tin_file'])} target="_blank">
                                                             <ExternalLink className="h-3 w-3 mr-1" />
                                                             Show
                                                         </a>
@@ -432,7 +432,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                             {vendor.bin_file ? (
                                                 <div className="flex items-center space-x-2">
                                                     <a
-                                                        href={`/storage/vendor_documents/${vendor.bin_file}`}
+                                                        href={route('vendors.document', { vendor: vendor.id, field: 'bin_file', download: 1 })}
                                                         target="_blank"
                                                         className="text-xs text-blue-600 hover:underline flex items-center"
                                                     >
@@ -449,7 +449,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                                         className="h-6 text-xs px-2"
                                                         asChild
                                                     >
-                                                        <a href={`/storage/vendor_documents/${vendor.bin_file}`} target="_blank">
+                                                        <a href={route('vendors.document', [vendor.id, 'bin_file'])} target="_blank">
                                                             <ExternalLink className="h-3 w-3 mr-1" />
                                                             Show
                                                         </a>
@@ -468,7 +468,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                             {vendor.tax_return_file ? (
                                                 <div className="flex items-center space-x-2">
                                                     <a
-                                                        href={`/storage/vendor_documents/${vendor.tax_return_file}`}
+                                                        href={route('vendors.document', { vendor: vendor.id, field: 'tax_return_file', download: 1 })}
                                                         target="_blank"
                                                         className="text-xs text-blue-600 hover:underline flex items-center"
                                                     >
@@ -485,7 +485,7 @@ export default function ShowVendor({ vendor }: ShowVendorProps) {
                                                         className="h-6 text-xs px-2"
                                                         asChild
                                                     >
-                                                        <a href={`/storage/vendor_documents/${vendor.tax_return_file}`} target="_blank">
+                                                        <a href={route('vendors.document', [vendor.id, 'tax_return_file'])} target="_blank">
                                                             <ExternalLink className="h-3 w-3 mr-1" />
                                                             Show
                                                         </a>

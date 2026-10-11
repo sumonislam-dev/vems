@@ -36,7 +36,7 @@ function makeDriverDocumentEditor(): User
 }
 
 it('stores an uploaded driving license file when creating a driver', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedDriverDocumentPermissions();
     $editor = makeDriverDocumentEditor();
     $vendor = Vendor::create(['name' => 'V1', 'status' => 'active']);
@@ -61,12 +61,12 @@ it('stores an uploaded driving license file when creating a driver', function ()
     $driver = User::where('username', 'like', 'new_driver_%')->first();
     expect($driver->driving_license_file)->not->toBeNull()
         ->and($driver->nid_file)->not->toBeNull();
-    Storage::disk('public')->assertExists($driver->driving_license_file);
-    Storage::disk('public')->assertExists($driver->nid_file);
+    Storage::disk('local')->assertExists($driver->driving_license_file);
+    Storage::disk('local')->assertExists($driver->nid_file);
 });
 
 it('replaces the old driving license file and deletes it when updating', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedDriverDocumentPermissions();
     $editor = makeDriverDocumentEditor();
     $vendor = Vendor::create(['name' => 'V2', 'status' => 'active']);
@@ -85,7 +85,7 @@ it('replaces the old driving license file and deletes it when updating', functio
         'driving_license_file' => 'driver_documents/old-license.pdf',
         'password' => Hash::make('password'),
     ]);
-    Storage::disk('public')->put('driver_documents/old-license.pdf', 'old');
+    Storage::disk('local')->put('driver_documents/old-license.pdf', 'old');
 
     $response = $this->actingAs($editor)->put("/drivers/{$driver->id}", [
         'name' => $driver->name,
@@ -103,12 +103,12 @@ it('replaces the old driving license file and deletes it when updating', functio
     $response->assertSessionDoesntHaveErrors();
     $driver->refresh();
     expect($driver->driving_license_file)->not->toBe('driver_documents/old-license.pdf');
-    Storage::disk('public')->assertMissing('driver_documents/old-license.pdf');
-    Storage::disk('public')->assertExists($driver->driving_license_file);
+    Storage::disk('local')->assertMissing('driver_documents/old-license.pdf');
+    Storage::disk('local')->assertExists($driver->driving_license_file);
 });
 
 it('deletes the driving license and NID files when a driver is destroyed', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedDriverDocumentPermissions();
     $editor = makeDriverDocumentEditor();
     $vendor = Vendor::create(['name' => 'V3', 'status' => 'active']);
@@ -125,12 +125,12 @@ it('deletes the driving license and NID files when a driver is destroyed', funct
         'nid_file' => 'driver_documents/nid.jpg',
         'password' => Hash::make('password'),
     ]);
-    Storage::disk('public')->put('driver_documents/license.pdf', 'x');
-    Storage::disk('public')->put('driver_documents/nid.jpg', 'x');
+    Storage::disk('local')->put('driver_documents/license.pdf', 'x');
+    Storage::disk('local')->put('driver_documents/nid.jpg', 'x');
 
     $response = $this->actingAs($editor)->delete("/drivers/{$driver->id}");
 
     $response->assertRedirect();
-    Storage::disk('public')->assertMissing('driver_documents/license.pdf');
-    Storage::disk('public')->assertMissing('driver_documents/nid.jpg');
+    Storage::disk('local')->assertMissing('driver_documents/license.pdf');
+    Storage::disk('local')->assertMissing('driver_documents/nid.jpg');
 });

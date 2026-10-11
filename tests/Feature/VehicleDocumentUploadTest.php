@@ -35,7 +35,7 @@ function makeVehicleDocumentUser(): User
 }
 
 it('stores an uploaded tax token file when creating a vehicle', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedVehicleDocumentPermissions();
     $user = makeVehicleDocumentUser();
     $vendor = Vendor::create(['name' => 'V1', 'status' => 'active']);
@@ -59,11 +59,11 @@ it('stores an uploaded tax token file when creating a vehicle', function () {
 
     $vehicle = Vehicle::where('registration_number', 'like', 'DOC-%')->first();
     expect($vehicle->tax_token_file)->not->toBeNull();
-    Storage::disk('public')->assertExists($vehicle->tax_token_file);
+    Storage::disk('local')->assertExists($vehicle->tax_token_file);
 });
 
 it('replaces the old file and deletes it when uploading a new one on update', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedVehicleDocumentPermissions();
     $user = makeVehicleDocumentUser();
 
@@ -73,7 +73,7 @@ it('replaces the old file and deletes it when uploading a new one on update', fu
         'is_active' => true,
         'tax_token_file' => 'vehicle_documents/old-file.pdf',
     ]);
-    Storage::disk('public')->put('vehicle_documents/old-file.pdf', 'old content');
+    Storage::disk('local')->put('vehicle_documents/old-file.pdf', 'old content');
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
         'brand' => 'Toyota', 'model' => 'Camry',
@@ -88,12 +88,12 @@ it('replaces the old file and deletes it when uploading a new one on update', fu
 
     $vehicle->refresh();
     expect($vehicle->tax_token_file)->not->toBe('vehicle_documents/old-file.pdf');
-    Storage::disk('public')->assertMissing('vehicle_documents/old-file.pdf');
-    Storage::disk('public')->assertExists($vehicle->tax_token_file);
+    Storage::disk('local')->assertMissing('vehicle_documents/old-file.pdf');
+    Storage::disk('local')->assertExists($vehicle->tax_token_file);
 });
 
 it('keeps the existing file when no new file is uploaded on update', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedVehicleDocumentPermissions();
     $user = makeVehicleDocumentUser();
 
@@ -103,7 +103,7 @@ it('keeps the existing file when no new file is uploaded on update', function ()
         'is_active' => true,
         'tax_token_file' => 'vehicle_documents/keep-me.pdf',
     ]);
-    Storage::disk('public')->put('vehicle_documents/keep-me.pdf', 'content');
+    Storage::disk('local')->put('vehicle_documents/keep-me.pdf', 'content');
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
         'brand' => 'Toyota', 'model' => 'Camry',
@@ -115,11 +115,11 @@ it('keeps the existing file when no new file is uploaded on update', function ()
     $response->assertSessionDoesntHaveErrors();
     $vehicle->refresh();
     expect($vehicle->tax_token_file)->toBe('vehicle_documents/keep-me.pdf');
-    Storage::disk('public')->assertExists('vehicle_documents/keep-me.pdf');
+    Storage::disk('local')->assertExists('vehicle_documents/keep-me.pdf');
 });
 
-it('deletes all document files when a vehicle is destroyed', function () {
-    Storage::fake('public');
+it('keeps document files when a vehicle is (soft) deleted', function () {
+    Storage::fake('local');
     seedVehicleDocumentPermissions();
     $user = makeVehicleDocumentUser();
 
@@ -130,18 +130,19 @@ it('deletes all document files when a vehicle is destroyed', function () {
         'tax_token_file' => 'vehicle_documents/a.pdf',
         'fitness_certificate_file' => 'vehicle_documents/b.pdf',
     ]);
-    Storage::disk('public')->put('vehicle_documents/a.pdf', 'x');
-    Storage::disk('public')->put('vehicle_documents/b.pdf', 'x');
+    Storage::disk('local')->put('vehicle_documents/a.pdf', 'x');
+    Storage::disk('local')->put('vehicle_documents/b.pdf', 'x');
 
     $response = $this->actingAs($user)->delete("/vehicles/{$vehicle->id}");
 
     $response->assertRedirect();
-    Storage::disk('public')->assertMissing('vehicle_documents/a.pdf');
-    Storage::disk('public')->assertMissing('vehicle_documents/b.pdf');
+    expect($vehicle->fresh()->trashed())->toBeTrue();
+    Storage::disk('local')->assertExists('vehicle_documents/a.pdf');
+    Storage::disk('local')->assertExists('vehicle_documents/b.pdf');
 });
 
 it('rejects a document file that is too large or the wrong type', function () {
-    Storage::fake('public');
+    Storage::fake('local');
     seedVehicleDocumentPermissions();
     $user = makeVehicleDocumentUser();
     $vendor = Vendor::create(['name' => 'V2', 'status' => 'active']);

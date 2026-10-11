@@ -41,12 +41,12 @@ class VehicleDowntime extends Model
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     public function replacementVehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class, 'replacement_vehicle_id');
+        return $this->belongsTo(Vehicle::class, 'replacement_vehicle_id')->withTrashed();
     }
 
     public function recorder(): BelongsTo

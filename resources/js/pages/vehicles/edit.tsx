@@ -502,7 +502,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                             maxSize={2 * 1024 * 1024}
                                         />
                                         {vehicle.tax_token_file && (
-                                            <a href={`/storage/${vehicle.tax_token_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'tax_token_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                 View current file
                                             </a>
                                         )}
@@ -544,7 +544,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                             maxSize={2 * 1024 * 1024}
                                         />
                                         {vehicle.fitness_certificate_file && (
-                                            <a href={`/storage/${vehicle.fitness_certificate_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'fitness_certificate_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                 View current file
                                             </a>
                                         )}
@@ -604,7 +604,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                             maxSize={2 * 1024 * 1024}
                                         />
                                         {vehicle.insurance_policy_file && (
-                                            <a href={`/storage/${vehicle.insurance_policy_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'insurance_policy_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                 View current file
                                             </a>
                                         )}
@@ -636,7 +636,7 @@ export default function EditVehicle({ vehicle, vendors, drivers = [], zones = []
                                             maxSize={2 * 1024 * 1024}
                                         />
                                         {vehicle.registration_certificate_file && (
-                                            <a href={`/storage/${vehicle.registration_certificate_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                            <a href={route('vehicles.document', [vehicle.id, 'registration_certificate_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                 View current file
                                             </a>
                                         )}

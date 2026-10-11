@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Vendor;
 use App\Models\Zone;
+use App\Support\PrivateDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -409,12 +410,11 @@ class DriverController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
-        if ($request->hasFile('driving_license_file')) {
-            $validated['driving_license_file'] = $request->file('driving_license_file')->store('driver_documents', 'public');
-        }
-
-        if ($request->hasFile('nid_file')) {
-            $validated['nid_file'] = $request->file('nid_file')->store('driver_documents', 'public');
+        // NID/licence scans are private (see DocumentController)
+        foreach (['driving_license_file', 'nid_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+            }
         }
 
         // Auto-generate password if not provided
@@ -584,18 +584,10 @@ class DriverController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
-        if ($request->hasFile('driving_license_file')) {
-            if ($driver->driving_license_file) {
-                Storage::disk('public')->delete($driver->driving_license_file);
+        foreach (['driving_license_file', 'nid_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $validated[$field] = PrivateDocument::replace($driver->{$field}, $request->file($field), 'driver_documents');
             }
-            $validated['driving_license_file'] = $request->file('driving_license_file')->store('driver_documents', 'public');
-        }
-
-        if ($request->hasFile('nid_file')) {
-            if ($driver->nid_file) {
-                Storage::disk('public')->delete($driver->nid_file);
-            }
-            $validated['nid_file'] = $request->file('nid_file')->store('driver_documents', 'public');
         }
 
         // Hash password if provided
@@ -652,12 +644,8 @@ class DriverController extends Controller implements HasMiddleware
         if ($driver->photo) {
             Storage::disk('public')->delete($driver->photo);
         }
-        if ($driver->driving_license_file) {
-            Storage::disk('public')->delete($driver->driving_license_file);
-        }
-        if ($driver->nid_file) {
-            Storage::disk('public')->delete($driver->nid_file);
-        }
+        PrivateDocument::delete($driver->driving_license_file);
+        PrivateDocument::delete($driver->nid_file);
 
         $driver->delete();
 

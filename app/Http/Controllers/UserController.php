@@ -11,6 +11,7 @@ use App\Models\TripRecurringGroup;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
+use App\Support\PrivateDocument;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -259,6 +260,13 @@ class UserController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
+        // NID/licence scans are private (see DocumentController)
+        foreach (['driving_license_file', 'nid_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
+            }
+        }
+
         // Hash password
         $validated['password'] = Hash::make($validated['password']);
 
@@ -411,6 +419,12 @@ class UserController extends Controller implements HasMiddleware
             $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
         }
 
+        foreach (['driving_license_file', 'nid_file'] as $field) {
+            if ($request->hasFile($field)) {
+                $validated[$field] = PrivateDocument::replace($user->{$field}, $request->file($field), 'driver_documents');
+            }
+        }
+
         // Hash password if provided
         if (! empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
@@ -482,6 +496,8 @@ class UserController extends Controller implements HasMiddleware
         if ($user->photo) {
             Storage::disk('public')->delete($user->photo);
         }
+        PrivateDocument::delete($user->driving_license_file);
+        PrivateDocument::delete($user->nid_file);
 
         $user->delete();
 

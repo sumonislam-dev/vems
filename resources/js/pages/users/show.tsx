@@ -290,7 +290,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 </div>
                                                 <p className="text-sm font-mono">{user.nid_number}</p>
                                                 {user.nid_file && (
-                                                    <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a href={route('users.document', [user.id, 'nid_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                         View scan
                                                     </a>
                                                 )}
@@ -315,7 +315,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 </div>
                                                 <p className="text-sm font-mono">{user.driving_license_no}</p>
                                                 {user.driving_license_file && (
-                                                    <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a href={route('users.document', [user.id, 'driving_license_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                                                         View scan
                                                     </a>
                                                 )}

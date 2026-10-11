@@ -97,6 +97,53 @@ class TripController extends Controller implements HasMiddleware
     }
 
     /**
+     * Refuse to drop a passenger who already has check-in/out history.
+     *
+     * @param  array<int, array{user_id: int|string}>  $passengers
+     *
+     * @throws ValidationException
+     */
+    private function assertPassengersRemovable(Trip $trip, array $passengers): void
+    {
+        $keptUserIds = collect($passengers)->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+
+        $locked = $trip->passengers()
+            ->whereNotIn('user_id', $keptUserIds)
+            ->whereHas('passengerEvents')
+            ->with('user:id,name')
+            ->get();
+
+        if ($locked->isNotEmpty()) {
+            throw ValidationException::withMessages([
+                'passengers' => 'Cannot remove passengers who already have check-in history: '.$locked->pluck('user.name')->join(', ').'.',
+            ]);
+        }
+    }
+
+    /**
+     * Update passengers in place (matched by user), so existing rows and
+     * their check-in/out history survive an edit.
+     *
+     * @param  array<int, array{user_id: int|string, pickup_stop_id?: int|null, dropoff_stop_id?: int|null}>  $passengers
+     */
+    private function syncPassengers(Trip $trip, array $passengers): void
+    {
+        $incoming = collect($passengers)->keyBy(fn ($p) => (int) $p['user_id']);
+
+        $trip->passengers()->whereNotIn('user_id', $incoming->keys())->delete();
+
+        foreach ($incoming as $userId => $passenger) {
+            $trip->passengers()->updateOrCreate(
+                ['user_id' => $userId],
+                [
+                    'pickup_stop_id' => $passenger['pickup_stop_id'] ?? null,
+                    'dropoff_stop_id' => $passenger['dropoff_stop_id'] ?? null,
+                ]
+            );
+        }
+    }
+
+    /**
      * Display a cross-trip passenger events log
      */
     public function passengerEvents(Request $request)
@@ -832,6 +879,10 @@ class TripController extends Controller implements HasMiddleware
             $this->assertVehicleCapacity($validated['vehicle_id'], $passengerCount);
         }
 
+        if (isset($validated['passengers'])) {
+            $this->assertPassengersRemovable($trip, $validated['passengers']);
+        }
+
         DB::beginTransaction();
         try {
             $tripData = collect($validated)
@@ -839,12 +890,8 @@ class TripController extends Controller implements HasMiddleware
                 ->toArray();
             $trip->update($tripData);
 
-            // Update passengers
             if (isset($validated['passengers'])) {
-                $trip->passengers()->delete();
-                foreach ($validated['passengers'] as $passenger) {
-                    $trip->passengers()->create($passenger);
-                }
+                $this->syncPassengers($trip, $validated['passengers']);
             }
 
             // Sync factories

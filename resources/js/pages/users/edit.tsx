@@ -415,7 +415,7 @@ export default function EditUser({
                         maxSize={2 * 1024 * 1024}
                       />
                       {(user.nid_file as string | null) && (
-                        <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                        <a href={route('users.document', [user.id, 'nid_file'])} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
                           View current file
                         </a>
                       )}
@@ -602,7 +602,7 @@ export default function EditUser({
                       />
                       {(user.driving_license_file as string | null) && (
                         <a
-                          href={`/storage/${user.driving_license_file}`}
+                          href={route('users.document', [user.id, 'driving_license_file'])}
                           target="_blank"
                           rel="noreferrer"
                           className="text-xs text-blue-600 hover:underline"

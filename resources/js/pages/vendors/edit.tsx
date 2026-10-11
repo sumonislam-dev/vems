@@ -365,7 +365,7 @@ export default function EditVendor({ vendor, zones }: EditVendorProps) {
                                                         {vendor.trade_license_file && (
                                                             <a
                                                                 className="text-xs text-blue-500 hover:underline"
-                                                                href={`/storage/vendor_documents/${vendor.trade_license_file}`}
+                                                                href={route('vendors.document', [vendor.id, 'trade_license_file'])}
                                                                 target="_blank"
                                                                 rel="noreferrer"
                                                             >
@@ -410,7 +410,7 @@ export default function EditVendor({ vendor, zones }: EditVendorProps) {
                                                         {vendor.tin_file && (
                                                             <a
                                                                 className="text-xs text-blue-500 hover:underline"
-                                                                href={`/storage/vendor_documents/${vendor.tin_file}`}
+                                                                href={route('vendors.document', [vendor.id, 'tin_file'])}
                                                                 target="_blank"
                                                                 rel="noreferrer"
                                                             >
@@ -455,7 +455,7 @@ export default function EditVendor({ vendor, zones }: EditVendorProps) {
                                                         {vendor.bin_file && (
                                                             <a
                                                                 className="text-xs text-blue-500 hover:underline"
-                                                                href={`/storage/vendor_documents/${vendor.bin_file}`}
+                                                                href={route('vendors.document', [vendor.id, 'bin_file'])}
                                                                 target="_blank"
                                                                 rel="noreferrer"
                                                             >
@@ -498,7 +498,7 @@ export default function EditVendor({ vendor, zones }: EditVendorProps) {
                                                         {vendor.tax_return_file && (
                                                             <a
                                                                 className="text-xs text-blue-500 hover:underline"
-                                                                href={`/storage/vendor_documents/${vendor.tax_return_file}`}
+                                                                href={route('vendors.document', [vendor.id, 'tax_return_file'])}
                                                                 target="_blank"
                                                                 rel="noreferrer"
                                                             >
