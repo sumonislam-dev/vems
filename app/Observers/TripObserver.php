@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\Trip;
 use App\Models\TripVehicleAssignment;
+use App\Models\User;
 use App\Models\Vehicle;
 
 class TripObserver
@@ -13,9 +14,7 @@ class TripObserver
      */
     public function creating(Trip $trip): void
     {
-        if ($trip->vehicle_id) {
-            $trip->zone_id = Vehicle::find($trip->vehicle_id)?->zone_id;
-        }
+        $trip->zone_id = $this->zoneFor($trip);
     }
 
     /**
@@ -55,8 +54,8 @@ class TripObserver
             $now = now();
 
             // Keep the zone snapshot in step with whichever vehicle is now assigned
-            // (or clear it if the trip was unassigned) — see Trip::zone().
-            $trip->zone_id = $trip->vehicle_id ? Vehicle::find($trip->vehicle_id)?->zone_id : null;
+            // (or the requester's, if the trip was unassigned) — see Trip::zone().
+            $trip->zone_id = $this->zoneFor($trip);
 
             // Close previous current assignment for this trip (if any)
             $prev = $trip->vehicleAssignments()
@@ -84,5 +83,23 @@ class TripObserver
                 ]);
             }
         }
+    }
+
+    /**
+     * The trip's zone snapshot: its vehicle's zone once one is assigned,
+     * otherwise the requester's — so a request still waiting for a vehicle
+     * already belongs to an office and shows up in that office's lists and
+     * reports. Looked up past the zone scope: the snapshot must reflect the
+     * real zone, not what the acting user happens to be allowed to see.
+     */
+    private function zoneFor(Trip $trip): ?int
+    {
+        if ($trip->vehicle_id) {
+            return Vehicle::withoutGlobalScopes()->find($trip->vehicle_id)?->zone_id;
+        }
+
+        return $trip->requested_by
+            ? User::withoutGlobalScopes()->find($trip->requested_by)?->zone_id
+            : null;
     }
 }

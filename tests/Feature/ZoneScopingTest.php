@@ -335,6 +335,57 @@ it('updates a trip zone snapshot when its vehicle is reassigned, and clears it o
     expect($trip->fresh()->zone_id)->toBeNull();
 });
 
+it("gives a trip with no vehicle its requester's zone, switching to the vehicle's once assigned and back when unassigned", function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+    $requester = makeZoneScopingUser($dhaka);
+
+    $trip = Trip::create([
+        'requested_by' => $requester->id,
+        'priority' => 'medium',
+        'scheduled_date' => '2026-06-01',
+        'scheduled_start_time' => '08:00',
+        'scheduled_end_time' => '09:00',
+        'status' => 'pending',
+    ]);
+    expect($trip->zone_id)->toBe($dhaka->id);
+
+    $trip->update(['vehicle_id' => $ctgVehicle->id]);
+    expect($trip->fresh()->zone_id)->toBe($ctg->id);
+
+    $trip->update(['vehicle_id' => null]);
+    expect($trip->fresh()->zone_id)->toBe($dhaka->id);
+});
+
+it('backfills trip zones from the vehicle, or from the requester when no vehicle is assigned', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'ZONE-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+    $requester = makeZoneScopingUser($dhaka);
+    $base = [
+        'requested_by' => $requester->id, 'priority' => 'medium', 'scheduled_date' => '2026-06-01',
+        'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00', 'status' => 'pending',
+    ];
+    $withVehicle = Trip::create([...$base, 'vehicle_id' => $ctgVehicle->id]);
+    $withoutVehicle = Trip::create($base);
+    // Simulate trips created before the zone snapshot existed
+    Trip::query()->update(['zone_id' => null]);
+
+    $this->artisan('vems:backfill-trip-zones')->assertSuccessful();
+
+    expect($withVehicle->fresh()->zone_id)->toBe($ctg->id)
+        ->and($withoutVehicle->fresh()->zone_id)->toBe($dhaka->id);
+});
+
 it("grants view-all-zones directly when a user's zone access is set to all", function () {
     seedZoneScopingPermissions();
     Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);

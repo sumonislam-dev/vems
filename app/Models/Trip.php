@@ -125,8 +125,9 @@ class Trip extends Model
     }
 
     /**
-     * A snapshot of the assigned vehicle's zone at assignment time (see
-     * TripObserver::creating()/updating()) — not user-settable (deliberately
+     * A snapshot of the assigned vehicle's zone at assignment time, or the
+     * requester's zone while no vehicle is assigned (see
+     * TripObserver::zoneFor()) — not user-settable (deliberately
      * absent from $fillable), so it can't drift from the vehicle's zone at
      * the moment it was assigned without going through that snapshot logic.
      */
