@@ -60,9 +60,10 @@ it('walks a trip request through every role on the demo data', function () {
     expect(messagesOf($employee))->toContain('is assigned to your trip')
         ->and(messagesOf($driver))->toContain('You are driving trip');
 
-    // 4. The driver starts and completes it
-    $this->actingAs($driver)->post("/trips/{$trip->id}/start", ['odometer_start' => 12000])->assertSessionHas('success');
-    $this->actingAs($driver)->post("/trips/{$trip->id}/complete", ['odometer_end' => 12045])->assertSessionHas('success');
+    // 4. The driver starts (from the vehicle's last reading) and completes it
+    $lastReading = (float) Trip::where('vehicle_id', $vehicle->id)->max('odometer_end');
+    $this->actingAs($driver)->post("/trips/{$trip->id}/start", ['odometer_start' => $lastReading + 5])->assertSessionHas('success');
+    $this->actingAs($driver)->post("/trips/{$trip->id}/complete", ['odometer_end' => $lastReading + 50])->assertSessionHas('success');
     expect($trip->fresh()->status)->toBe('completed')
         ->and((float) $trip->fresh()->distance_traveled)->toBe(45.0);
 

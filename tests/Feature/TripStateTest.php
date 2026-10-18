@@ -5,6 +5,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Seed the permissions TripStateController's middleware checks.
@@ -12,14 +13,14 @@ use Spatie\Permission\Models\Permission;
  */
 function seedTripStatePermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'approve-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'reject-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'assign-vehicles', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'check-in-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'check-out-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeStateVehicle(array $overrides = []): Vehicle
@@ -27,7 +28,7 @@ function makeStateVehicle(array $overrides = []): Vehicle
     return Vehicle::create(array_merge([
         'brand' => 'Toyota',
         'model' => 'Hiace',
-        'registration_number' => 'VEH-' . uniqid(),
+        'registration_number' => 'VEH-'.uniqid(),
         'is_active' => true,
     ], $overrides));
 }
@@ -36,9 +37,9 @@ function makeTripStateUser(string $username): User
 {
     return User::create([
         'email_verified_at' => now(),
-        'name' => 'Trip Manager ' . $username,
+        'name' => 'Trip Manager '.$username,
         'username' => $username,
-        'email' => $username . '@example.com',
+        'email' => $username.'@example.com',
         'user_type' => 'transport_manager',
         'status' => 'active',
         'password' => Hash::make('password'),
@@ -47,10 +48,10 @@ function makeTripStateUser(string $username): User
 
 function makeStateTrip(array $overrides = []): Trip
 {
-    $requester = makeTripStateUser('requester-' . uniqid());
+    $requester = makeTripStateUser('requester-'.uniqid());
 
     return Trip::create(array_merge([
-        'trip_number' => 'TRIP-' . uniqid(),
+        'trip_number' => 'TRIP-'.uniqid(),
         'requested_by' => $requester->id,
         'priority' => 'medium',
         'scheduled_date' => '2026-05-03',
@@ -285,7 +286,7 @@ it('completing a trip credits the assigned driver distance and trip count', func
     $vehicle = Vehicle::create([
         'brand' => 'Toyota',
         'model' => 'Hiace',
-        'registration_number' => 'VEH-' . uniqid(),
+        'registration_number' => 'VEH-'.uniqid(),
         'driver_id' => $driver->id,
         'is_active' => true,
     ]);
@@ -305,26 +306,62 @@ it('completing a trip credits the assigned driver distance and trip count', func
         ->and($driver->total_trips_completed)->toBe(3);
 });
 
-it('completes a trip with no odometer_end at all, since it is optional', function () {
+it('starts and completes a trip without odometer readings, since they are optional', function () {
     seedTripStatePermissions();
     $manager = makeTripStateUser('completer-4');
     $manager->givePermissionTo('edit-trips');
 
-    $trip = makeStateTrip([
-        'status' => 'in_progress',
-        'odometer_start' => 1000,
-    ]);
-
-    $response = $this->actingAs($manager)->post("/trips/{$trip->id}/complete", [
-        'notes' => 'Odometer reading unavailable at drop-off.',
-    ]);
-    $response->assertRedirect();
-    $response->assertSessionDoesntHaveErrors();
+    $trip = makeStateTrip(['status' => 'approved', 'vehicle_id' => makeStateVehicle()->id]);
+    $this->actingAs($manager)->post("/trips/{$trip->id}/start")->assertSessionHasNoErrors();
+    $this->actingAs($manager)->post("/trips/{$trip->id}/complete", ['notes' => 'Odometer reading unavailable at drop-off.'])
+        ->assertSessionHasNoErrors();
 
     $trip->refresh();
     expect($trip->status)->toBe('completed')
-        ->and($trip->is_completed)->toBeTrue()
+        ->and($trip->odometer_start)->toBeNull()
         ->and($trip->odometer_end)->toBeNull();
+});
+
+it('accepts any end reading when the trip was started without one', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('completer-6');
+    $manager->givePermissionTo('edit-trips');
+
+    $trip = makeStateTrip(['status' => 'in_progress']);
+    $this->actingAs($manager)->post("/trips/{$trip->id}/complete", ['odometer_end' => 120450])
+        ->assertSessionHasNoErrors();
+
+    expect($trip->fresh()->status)->toBe('completed');
+});
+
+it('will not start below the last recorded reading of the vehicle', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('starter-2');
+    $manager->givePermissionTo('edit-trips');
+    $vehicle = makeStateVehicle();
+
+    makeStateTrip(['status' => 'completed', 'vehicle_id' => $vehicle->id, 'odometer_start' => 1000, 'odometer_end' => 1200]);
+    $trip = makeStateTrip(['status' => 'approved', 'vehicle_id' => $vehicle->id]);
+
+    $this->actingAs($manager)->post("/trips/{$trip->id}/start", ['odometer_start' => 1100])
+        ->assertSessionHasErrors('odometer_start');
+    $this->actingAs($manager)->post("/trips/{$trip->id}/start", ['odometer_start' => 1200])
+        ->assertSessionHasNoErrors();
+
+    expect($trip->fresh()->status)->toBe('in_progress');
+});
+
+it('rejects an end reading that is an unbelievable jump for one trip', function () {
+    seedTripStatePermissions();
+    $manager = makeTripStateUser('completer-5');
+    $manager->givePermissionTo('edit-trips');
+
+    $trip = makeStateTrip(['status' => 'in_progress', 'odometer_start' => 12000]);
+
+    // Typo: one digit too many
+    $this->actingAs($manager)->post("/trips/{$trip->id}/complete", ['odometer_end' => 120450])
+        ->assertSessionHasErrors('odometer_end');
+    expect($trip->fresh()->status)->toBe('in_progress');
 });
 
 it('rejects fuel/cost figures above the sanity bound (2.4)', function () {
@@ -413,7 +450,7 @@ it('lets the driver assigned to the trip vehicle start and complete the trip wit
     $vehicle = Vehicle::create([
         'brand' => 'Toyota',
         'model' => 'Hiace',
-        'registration_number' => 'VEH-' . uniqid(),
+        'registration_number' => 'VEH-'.uniqid(),
         'driver_id' => $driver->id,
         'is_active' => true,
     ]);
@@ -465,7 +502,7 @@ it('refuses start/complete to a driver not assigned to the trip vehicle', functi
     $vehicle = Vehicle::create([
         'brand' => 'Toyota',
         'model' => 'Hiace',
-        'registration_number' => 'VEH-' . uniqid(),
+        'registration_number' => 'VEH-'.uniqid(),
         'driver_id' => $assignedDriver->id,
         'is_active' => true,
     ]);

@@ -57,9 +57,10 @@ Use a private browser window for each account, so you can stay logged in as seve
 
 ## 5. Driver runs the trip (`ahmed.driver`)
 
-- [ ] **5.1** The dashboard shows the trip. Open it → **Start**, entering an odometer reading.
-- [ ] **5.2** **Complete**, entering a higher odometer reading.
-  **Expect:** **Completed**, with the distance calculated.
+- [ ] **5.1** The dashboard shows the trip. Open it → **Start**. Try a reading lower than the vehicle's last trip.
+  **Expect:** refused, showing the last recorded reading. A higher reading (or none) starts the trip.
+- [ ] **5.2** **Complete**. Try a reading with one digit too many.
+  **Expect:** refused. A sensible reading gives **Completed**, with the distance calculated. Leaving it blank also completes the trip.
 - [ ] **5.3** Check passenger check-in and check-out work, if the trip has passengers.
 
 ## 6. Complaint (`maria.admin` → `sarah.manager`)

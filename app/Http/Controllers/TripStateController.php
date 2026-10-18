@@ -14,6 +14,9 @@ use Illuminate\Validation\ValidationException;
 
 class TripStateController extends Controller implements HasMiddleware
 {
+    /** Longest believable single trip; a bigger odometer jump is almost certainly a typo */
+    private const MAX_TRIP_KM = 3000;
+
     public static function middleware(): array
     {
         return [
@@ -49,7 +52,7 @@ class TripStateController extends Controller implements HasMiddleware
         abort_unless($request->user()->canApproveTrip($trip), 403);
 
         try {
-            if (!$trip->canTransitionTo('approved')) {
+            if (! $trip->canTransitionTo('approved')) {
                 return back()->with('error', 'Trip cannot be approved in current status.');
             }
 
@@ -107,7 +110,7 @@ class TripStateController extends Controller implements HasMiddleware
         abort_unless($request->user()->canRejectTrip($trip), 403);
 
         try {
-            if (!$trip->canTransitionTo('rejected')) {
+            if (! $trip->canTransitionTo('rejected')) {
                 return back()->with('error', 'Trip cannot be rejected in current status.');
             }
 
@@ -134,7 +137,7 @@ class TripStateController extends Controller implements HasMiddleware
         $this->authorizeStartOrComplete($request, $trip);
 
         try {
-            if (!$trip->canTransitionTo('in_progress')) {
+            if (! $trip->canTransitionTo('in_progress')) {
                 return back()->with('error', 'Trip cannot be started in current status.');
             }
 
@@ -142,8 +145,15 @@ class TripStateController extends Controller implements HasMiddleware
                 return back()->with('error', 'Assign a vehicle before starting the trip.');
             }
 
+            // Optional, but if entered it can't be below the vehicle's last recorded reading (catches typos)
+            $lastReading = (float) Trip::where('vehicle_id', $trip->vehicle_id)
+                ->whereKeyNot($trip->id)
+                ->max('odometer_end');
+
             $validated = $request->validate([
-                'odometer_start' => 'nullable|numeric|min:0',
+                'odometer_start' => 'nullable|numeric|min:'.$lastReading,
+            ], [
+                'odometer_start.min' => "The reading can't be below this vehicle's last recorded reading (".number_format($lastReading).' km).',
             ]);
 
             $trip->startTrip($validated['odometer_start'] ?? null);
@@ -164,16 +174,25 @@ class TripStateController extends Controller implements HasMiddleware
         $this->authorizeStartOrComplete($request, $trip);
 
         try {
-            if (!$trip->canTransitionTo('completed')) {
+            if (! $trip->canTransitionTo('completed')) {
                 return back()->with('error', 'Trip cannot be completed in current status.');
             }
 
+            // Optional; when there is a start reading, the end must be within one believable trip of it
+            $odometerEnd = ['nullable', 'numeric', 'min:'.($trip->odometer_start ?? 0)];
+            if ($trip->odometer_start !== null) {
+                $odometerEnd[] = 'max:'.($trip->odometer_start + self::MAX_TRIP_KM);
+            }
+
             $validated = $request->validate([
-                'odometer_end' => 'nullable|numeric|min:' . ($trip->odometer_start ?? 0),
+                'odometer_end' => $odometerEnd,
                 'fuel_consumed' => 'nullable|numeric|min:0|max:2000',
                 'fuel_cost' => 'nullable|numeric|min:0|max:1000000',
                 'other_costs' => 'nullable|numeric|min:0|max:1000000',
                 'notes' => 'nullable|string',
+            ], [
+                'odometer_end.min' => "The end reading can't be below the start reading.",
+                'odometer_end.max' => 'That is more than '.number_format(self::MAX_TRIP_KM).' km for one trip. Please check the reading.',
             ]);
 
             $trip->completeTrip($validated);
@@ -192,7 +211,7 @@ class TripStateController extends Controller implements HasMiddleware
     public function cancel(Request $request, Trip $trip, TripNotifier $notifier)
     {
         try {
-            if (!$trip->canTransitionTo('cancelled')) {
+            if (! $trip->canTransitionTo('cancelled')) {
                 return back()->with('error', 'Trip cannot be cancelled in current status.');
             }
 
