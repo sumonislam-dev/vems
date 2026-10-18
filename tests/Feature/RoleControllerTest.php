@@ -264,7 +264,23 @@ it('redirects guests to the login page', function () {
     $this->get('/roles')->assertRedirect(route('login'));
 });
 
-// RoleController has no guard for seeded roles: super-admin can be renamed
-// (dropping Gate::before's bypass for its holders) and unassigned seeded roles
-// like admin can be deleted.
-it('protects seeded system roles from being renamed or deleted')->todo();
+it('protects seeded roles from being renamed or deleted, but lets their permissions change', function () {
+    // The app relies on these names (e.g. the super-admin Gate::before bypass)
+    $superAdmin = Role::create(['name' => 'super-admin', 'guard_name' => 'web']);
+    $admin = Role::create(['name' => 'admin', 'guard_name' => 'web']);
+    $user = roleCtlUser();
+
+    $this->actingAs($user)->put("/roles/{$superAdmin->id}", ['name' => 'superadmin'])
+        ->assertSessionHasErrors(['name' => 'Built-in roles cannot be renamed.']);
+    $this->actingAs($user)->delete("/roles/{$admin->id}")
+        ->assertSessionHas('error', 'Built-in roles cannot be deleted.');
+
+    $this->actingAs($user)->put("/roles/{$admin->id}", [
+        'name' => 'admin',
+        'permissions' => roleCtlPermissionIds(['view-trips']),
+    ])->assertSessionHasNoErrors();
+
+    expect($superAdmin->fresh()->name)->toBe('super-admin')
+        ->and(Role::where('name', 'admin')->exists())->toBeTrue()
+        ->and($admin->fresh()->permissions->pluck('name')->all())->toBe(['view-trips']);
+});

@@ -170,6 +170,18 @@ it('refuses to delete a zone that still has records assigned', function (Closure
     'a stop' => [fn (Zone $zone) => Stop::create(['name' => 'Agrabad', 'latitude' => 22.3, 'longitude' => 91.8, 'zone_id' => $zone->id])],
 ]);
 
+it('still refuses to delete an in-use zone while the switcher shows another zone', function () {
+    $vehicle = zoneMgmtVehicle($this->ctg);
+    $admin = zoneMgmtUser(['delete-zones', 'view-all-zones']);
+
+    // Narrowed to Dhaka, the admin can't "see" Chattogram's vehicle
+    $this->actingAs($admin)->patch('/active-zone', ['zone_id' => $this->dhaka->id]);
+    $this->actingAs($admin)->delete("/zones/{$this->ctg->id}")->assertSessionHas('error');
+
+    expect(Zone::find($this->ctg->id))->not->toBeNull()
+        ->and(Vehicle::withoutGlobalScopes()->find($vehicle->id)->zone_id)->toBe($this->ctg->id);
+});
+
 it('forbids each zone action without its permission', function (string $method, string $uri, array $granted) {
     $uri = str_replace('{id}', (string) $this->ctg->id, $uri);
 

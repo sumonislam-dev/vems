@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\RouteStop;
 use App\Models\Stop;
+use App\Models\Trip;
+use App\Models\TripRouteAssignment;
 use App\Models\VehicleRoute;
 use App\Models\Zone;
 use Illuminate\Http\Request;
@@ -141,8 +143,10 @@ class VehicleRouteController extends Controller implements HasMiddleware
         }
 
         // Apply sorting
-        $sortColumn = $request->get('sort', 'created_at');
-        $sortDirection = $request->get('direction', 'desc');
+        // Unknown sort/direction values fall back to the default, never reach SQL
+        $sortColumn = in_array($request->get('sort'), ['name', 'route_stops_count', 'total_distance', 'created_at'], true)
+            ? $request->get('sort') : 'created_at';
+        $sortDirection = $request->get('direction') === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortColumn, $sortDirection);
 
         // Get pagination data
@@ -311,6 +315,14 @@ class VehicleRouteController extends Controller implements HasMiddleware
      */
     public function destroy(VehicleRoute $route)
     {
+        // Deleting would cascade away the trips' route history
+        $usedByTrips = Trip::where('vehicle_route_id', $route->id)->exists()
+            || TripRouteAssignment::where('vehicle_route_id', $route->id)->exists();
+
+        if ($usedByTrips) {
+            return back()->with('error', 'Cannot delete this route: trips have used it. Edit it instead.');
+        }
+
         try {
             $route->delete();
 

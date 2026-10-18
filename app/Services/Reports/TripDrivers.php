@@ -44,9 +44,24 @@ class TripDrivers
             ->keyBy('id');
     }
 
+    /**
+     * Set a driver_name attribute on each trip, for exports.
+     *
+     * @param  Collection<int, Trip>  $trips
+     * @return Collection<int, Trip>
+     */
+    public static function attachNames(Collection $trips): Collection
+    {
+        $drivers = new self($trips);
+
+        return $trips->each(fn (Trip $trip) => $trip->setAttribute('driver_name', $drivers->for($trip)?->name));
+    }
+
     public function idFor(Trip $trip): ?int
     {
-        return $this->driverIds[$trip->id] ?? null;
+        $id = $this->driverIds[$trip->id] ?? null;
+
+        return $id === null ? null : (int) $id;
     }
 
     public function for(Trip $trip): ?User

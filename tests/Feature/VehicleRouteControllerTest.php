@@ -2,6 +2,8 @@
 
 use App\Models\RouteStop;
 use App\Models\Stop;
+use App\Models\Trip;
+use App\Models\TripRouteAssignment;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
@@ -261,8 +263,35 @@ it('deletes a route with its stops and clears it from vehicles using it as defau
         ->and($vehicle->fresh()->default_route_id)->toBeNull();
 });
 
-it('should refuse to delete a route that trips are assigned to (history is cascaded away today)')
-    ->todo();
+it('refuses to delete a route that trips have used, keeping their route history', function () {
+    $route = VehicleRoute::create(['name' => 'In Use']);
+    $trip = Trip::create([
+        'requested_by' => vrcTestUser()->id,
+        'priority' => 'medium',
+        'scheduled_date' => '2026-03-05',
+        'scheduled_start_time' => '08:00:00',
+        'scheduled_end_time' => '09:00:00',
+        'status' => 'approved',
+    ]);
+    $trip->assignRoute($route->id);
+
+    $this->actingAs(vrcTestUser(['delete-routes']))
+        ->delete("/routes/{$route->id}")
+        ->assertSessionHas('error');
+
+    expect(VehicleRoute::find($route->id))->not->toBeNull()
+        ->and(TripRouteAssignment::where('trip_id', $trip->id)->count())->toBe(1);
+});
+
+it('falls back to the default order for an unknown sort column or direction', function () {
+    VehicleRoute::create(['name' => 'Alpha']);
+    VehicleRoute::create(['name' => 'Beta']);
+
+    $this->actingAs(vrcTestUser(['view-routes']))
+        ->get('/routes?sort=no_such_column&direction=sideways')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->has('routes.data', 2));
+});
 
 it('should scope the avg-stops-per-route stat to the viewer zone (RouteStop::count() is unscoped today)')
     ->todo();

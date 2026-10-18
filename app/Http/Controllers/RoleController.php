@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -157,6 +159,11 @@ class RoleController extends Controller implements HasMiddleware
                 'permissions.*' => 'exists:permissions,id',
             ]);
 
+            // Seeded roles are referenced by name in code (e.g. the super-admin bypass)
+            if (self::isSeeded($role) && $validated['name'] !== $role->name) {
+                throw ValidationException::withMessages(['name' => 'Built-in roles cannot be renamed.']);
+            }
+
             $validated['guard_name'] = $validated['guard_name'] ?? 'web';
 
             $oldPermissionNames = $role->permissions()->pluck('name')->all();
@@ -190,6 +197,12 @@ class RoleController extends Controller implements HasMiddleware
      */
     public function destroy(Role $role)
     {
+        if (self::isSeeded($role)) {
+            return redirect()
+                ->route('roles.index')
+                ->with('error', 'Built-in roles cannot be deleted.');
+        }
+
         // Check if role has users
         if ($role->users()->count() > 0) {
             return redirect()
@@ -208,5 +221,11 @@ class RoleController extends Controller implements HasMiddleware
         return redirect()
             ->route('roles.index')
             ->with('success', 'Role deleted successfully!');
+    }
+
+    /** Roles defined in RolePermissionSeeder (the app relies on their names) */
+    private static function isSeeded(Role $role): bool
+    {
+        return array_key_exists($role->getOriginal('name'), RolePermissionSeeder::roles());
     }
 }

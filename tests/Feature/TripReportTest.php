@@ -6,6 +6,7 @@ use App\Models\Trip;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use App\Models\Zone;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
 use Maatwebsite\Excel\Facades\Excel;
@@ -158,8 +159,21 @@ it('filters by vehicle and by route', function () {
 
 // Any `search` currently 500s: the top-routes query joins vehicle_routes, which
 // also has a `description` column, so the unqualified search clause is ambiguous
-// (ReportController.php:94 with the join at :153).
-it('searches trip number, locations and vehicle registration')->todo();
+it('searches trip number, locations and vehicle registration, even with the top-routes join', function () {
+    // vehicle_routes also has a description column, so the search must be qualified
+    $route = VehicleRoute::create(['name' => 'Route S', 'description' => 'Gazipur loop']);
+    $vehicle = tripReportVehicle('DHA-777');
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-S-1', 'end_location' => 'Gazipur', 'vehicle_route_id' => $route->id]);
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-S-2', 'vehicle_id' => $vehicle->id, 'vehicle_route_id' => $route->id]);
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-S-3', 'end_location' => 'Savar']);
+
+    $user = tripReportUser(['view-reports']);
+    $range = 'from=2026-03-01&to=2026-03-31';
+
+    expect(tripReportNumbers(tripReportProps($user, $range.'&search=gazipur')))->toBe(['TR-S-1'])
+        ->and(tripReportNumbers(tripReportProps($user, $range.'&search=DHA-777')))->toBe(['TR-S-2'])
+        ->and(tripReportNumbers(tripReportProps($user, $range.'&search=TR-S-3')))->toBe(['TR-S-3']);
+});
 
 it('totals trips, completion/cancellation rates and passengers for the filtered trips only', function () {
     $department = Department::create(['name' => 'Inspection', 'code' => 'INSP']);
@@ -291,6 +305,40 @@ it('redirects guests to the login page', function () {
     $this->get('/reports/export')->assertRedirect(route('login'));
 });
 
-// ReportController never applies Zone::accessIds(), unlike the Monthly Vehicle
-// and analytics reports: a viewer limited to one zone sees every zone's trips.
-it('limits rows to the zones the viewer can access')->todo();
+it('limits rows and exports to the zones the viewer can access', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    // A trip takes its zone from its vehicle
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-Z-DHK', 'vehicle_id' => tripReportVehicle('Z-DHK', ['zone_id' => $dhaka->id])->id]);
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-Z-CTG', 'vehicle_id' => tripReportVehicle('Z-CTG', ['zone_id' => $ctg->id])->id]);
+
+    $dhakaOnly = tripReportUser(['view-reports', 'export-reports'], ['zone_id' => $dhaka->id]);
+    $report = tripReportProps($dhakaOnly, 'from=2026-03-01&to=2026-03-31');
+
+    expect(tripReportNumbers($report))->toBe(['TR-Z-DHK'])
+        ->and($report['summary']['total_trips'])->toBe(1);
+
+    $csv = $this->actingAs($dhakaOnly)
+        ->get('/reports/export?from=2026-03-01&to=2026-03-31&format=csv')
+        ->assertOk()
+        ->streamedContent();
+    expect($csv)->toContain('TR-Z-DHK')->not->toContain('TR-Z-CTG');
+});
+
+it('shows who drove each trip from the vehicle, and filters by that driver', function () {
+    $ahmed = tripReportUser([], ['name' => 'Ahmed Driver', 'user_type' => 'driver']);
+    $karim = tripReportUser([], ['name' => 'Karim Driver', 'user_type' => 'driver']);
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-D-1', 'vehicle_id' => tripReportVehicle('D-AHMED', ['driver_id' => $ahmed->id])->id]);
+    tripReportTrip('2026-03-05', ['trip_number' => 'TR-D-2', 'vehicle_id' => tripReportVehicle('D-KARIM', ['driver_id' => $karim->id])->id]);
+
+    $user = tripReportUser();
+    $range = 'from=2026-03-01&to=2026-03-31';
+
+    $rows = collect(tripReportProps($user, $range)['trip_histories']['data'])->keyBy('trip_number');
+    expect($rows['TR-D-1']['driver']['name'])->toBe('Ahmed Driver')
+        ->and($rows['TR-D-2']['driver']['name'])->toBe('Karim Driver')
+        ->and(tripReportNumbers(tripReportProps($user, $range.'&driver_id='.$ahmed->id)))->toBe(['TR-D-1']);
+
+    $csv = $this->actingAs($user)->get('/reports/export?'.$range.'&format=csv')->streamedContent();
+    expect($csv)->toContain('Ahmed Driver')->toContain('Karim Driver');
+});

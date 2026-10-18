@@ -136,10 +136,14 @@ class ZoneController extends Controller implements HasMiddleware
      */
     public function destroy(Zone $zone): RedirectResponse
     {
-        if (
-            $zone->users()->exists() || $zone->vehicles()->exists() || $zone->stops()->exists()
-            || $zone->vehicleRoutes()->exists() || $zone->factories()->exists() || $zone->vendors()->exists()
-        ) {
+        // Count everything in the zone, not just what the deleting user can see
+        // (the zone scope, narrowed by the navbar switcher, would hide it)
+        $inUse = collect([
+            $zone->users(), $zone->vehicles(), $zone->stops(),
+            $zone->vehicleRoutes(), $zone->factories(), $zone->vendors(),
+        ])->contains(fn ($relation) => $relation->withoutGlobalScope('zone')->exists());
+
+        if ($inUse) {
             return back()->with('error', 'Cannot delete zone: it still has users, vehicles, stops, routes, factories or vendors assigned. Reassign them first.');
         }
 

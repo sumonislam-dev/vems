@@ -170,6 +170,29 @@ it('rejects invalid vendor input', function () {
     expect(Vendor::count())->toBe(0);
 });
 
+it('requires at least one contact person on create', function () {
+    $user = vendorTestUser(['create-vendors']);
+
+    $this->actingAs($user)->post('/vendors', ['name' => 'No Contacts Ltd', 'status' => 'active'])
+        ->assertSessionHasErrors('contact_persons');
+    $this->actingAs($user)->post('/vendors', ['name' => 'No Contacts Ltd', 'status' => 'active', 'contact_persons' => []])
+        ->assertSessionHasErrors('contact_persons');
+
+    expect(Vendor::count())->toBe(0);
+});
+
+it('falls back to the default order for an unknown sort column or direction', function () {
+    Vendor::create(['name' => 'Beta Cars', 'status' => 'active']);
+    Vendor::create(['name' => 'Alpha Cars', 'status' => 'active']);
+
+    $this->actingAs(vendorTestUser(['view-vendors']))
+        ->get('/vendors?sort=no_such_column&direction=sideways')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('vendors.data.0.name', 'Alpha Cars')
+            ->where('vendors.data.1.name', 'Beta Cars'));
+});
+
 it('stores uploaded vendor papers on the private disk', function () {
     Storage::fake('local');
 

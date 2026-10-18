@@ -8,8 +8,11 @@ use App\Models\TripPassenger;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use App\Models\Zone;
+use App\Services\Reports\TripDrivers;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -29,26 +32,11 @@ class ReportController extends Controller implements HasMiddleware
 
     public function index(Request $request)
     {
-        $validated = $request->validate([
-            'from' => 'nullable|date',
-            'to' => 'nullable|date|after_or_equal:from',
-            'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
-            'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
-            'driver_id' => 'nullable|integer|exists:users,id',
-            'vehicle_id' => 'nullable|integer|exists:vehicles,id',
-            'route_id' => 'nullable|integer|exists:vehicle_routes,id',
-            'search' => 'nullable|string|max:100',
+        $validated = $request->validate(self::filterRules() + [
             'per_page' => 'nullable|integer|min:10|max:100',
         ]);
 
-        $to = !empty($validated['to'])
-            ? Carbon::parse($validated['to'])->endOfDay()
-            : now()->endOfDay();
-
-        $from = !empty($validated['from'])
-            ? Carbon::parse($validated['from'])->startOfDay()
-            : (clone $to)->subDays(29)->startOfDay();
-
+        [$from, $to] = $this->period($validated);
         $scheduleType = $validated['schedule_type'] ?? null;
         $status = $validated['status'] ?? null;
         $driverId = $validated['driver_id'] ?? null;
@@ -57,51 +45,18 @@ class ReportController extends Controller implements HasMiddleware
         $search = $validated['search'] ?? null;
         $perPage = $validated['per_page'] ?? 15;
 
-        $tripQuery = Trip::query()
+        $tripQuery = $this->filteredTrips($validated, $from, $to)
             ->with([
                 'vehicle:id,registration_number,brand,model',
-                'driver:id,name',
                 'department:id,name',
                 'vehicleRoute:id,name',
-            ])
-            ->whereBetween('scheduled_date', [$from->toDateString(), $to->toDateString()]);
-
-        if (!empty($scheduleType)) {
-            $tripQuery->where('schedule_type', $scheduleType);
-        }
-
-        if (!empty($status)) {
-            $tripQuery->where('status', $status);
-        }
-
-        if (!empty($driverId)) {
-            $tripQuery->where('driver_id', $driverId);
-        }
-
-        if (!empty($vehicleId)) {
-            $tripQuery->where('vehicle_id', $vehicleId);
-        }
-
-        if (!empty($routeId)) {
-            $tripQuery->where('vehicle_route_id', $routeId);
-        }
-
-        if (!empty($search)) {
-            $tripQuery->where(function ($q) use ($search) {
-                $q->where('trip_number', 'like', "%{$search}%")
-                    ->orWhere('start_location', 'like', "%{$search}%")
-                    ->orWhere('end_location', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('driver', fn ($driverQuery) => $driverQuery->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('vehicle', fn ($vehicleQuery) => $vehicleQuery->where('registration_number', 'like', "%{$search}%"));
-            });
-        }
+            ]);
 
         $tripAggregate = (clone $tripQuery)
             ->selectRaw(
                 'COUNT(*) as total_trips, '
-                . "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_trips, "
-                . "SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_trips"
+                ."SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_trips, "
+                ."SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_trips"
             )
             ->first();
 
@@ -110,8 +65,8 @@ class ReportController extends Controller implements HasMiddleware
             ->whereIn('trip_id', (clone $tripQuery)->select('trips.id'))
             ->selectRaw(
                 'COUNT(*) as total, '
-                . "SUM(CASE WHEN trip_passengers.status = 'completed' THEN 1 ELSE 0 END) as completed, "
-                . "SUM(CASE WHEN trip_passengers.status = 'no_show' THEN 1 ELSE 0 END) as no_show"
+                ."SUM(CASE WHEN trip_passengers.status = 'completed' THEN 1 ELSE 0 END) as completed, "
+                ."SUM(CASE WHEN trip_passengers.status = 'no_show' THEN 1 ELSE 0 END) as no_show"
             )
             ->first();
 
@@ -167,6 +122,10 @@ class ReportController extends Controller implements HasMiddleware
             ->orderByDesc('scheduled_start_time')
             ->paginate($perPage)
             ->withQueryString();
+
+        // Drivers come from the vehicle's assignment history, not trips.driver_id
+        $drivers = new TripDrivers($tripHistories->getCollection());
+        $tripHistories->getCollection()->each(fn (Trip $trip) => $trip->setRelation('driver', $drivers->for($trip)?->setVisible(['id', 'name'])));
 
         $activeVehicles = Vehicle::where('is_active', true)->count();
 
@@ -231,71 +190,18 @@ class ReportController extends Controller implements HasMiddleware
 
     public function export(Request $request)
     {
-        $validated = $request->validate([
-            'from' => 'nullable|date',
-            'to' => 'nullable|date|after_or_equal:from',
-            'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
-            'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
-            'driver_id' => 'nullable|integer|exists:users,id',
-            'vehicle_id' => 'nullable|integer|exists:vehicles,id',
-            'route_id' => 'nullable|integer|exists:vehicle_routes,id',
-            'search' => 'nullable|string|max:100',
+        $validated = $request->validate(self::filterRules() + [
             'format' => 'nullable|string|in:csv,excel,pdf',
         ]);
 
-        $to = !empty($validated['to'])
-            ? Carbon::parse($validated['to'])->endOfDay()
-            : now()->endOfDay();
-
-        $from = !empty($validated['from'])
-            ? Carbon::parse($validated['from'])->startOfDay()
-            : (clone $to)->subDays(29)->startOfDay();
-
-        $scheduleType = $validated['schedule_type'] ?? null;
-        $status = $validated['status'] ?? null;
-        $driverId = $validated['driver_id'] ?? null;
-        $vehicleId = $validated['vehicle_id'] ?? null;
-        $routeId = $validated['route_id'] ?? null;
-        $search = $validated['search'] ?? null;
+        [$from, $to] = $this->period($validated);
         $format = $validated['format'] ?? 'csv';
 
-        $query = Trip::query()
-            ->with(['vehicle:id,registration_number', 'driver:id,name', 'department:id,name', 'vehicleRoute:id,name'])
-            ->withCount('passengers')
-            ->whereBetween('scheduled_date', [$from->toDateString(), $to->toDateString()]);
+        $query = $this->filteredTrips($validated, $from, $to)
+            ->with(['vehicle:id,registration_number', 'department:id,name', 'vehicleRoute:id,name'])
+            ->withCount('passengers');
 
-        if (!empty($scheduleType)) {
-            $query->where('schedule_type', $scheduleType);
-        }
-
-        if (!empty($status)) {
-            $query->where('status', $status);
-        }
-
-        if (!empty($driverId)) {
-            $query->where('driver_id', $driverId);
-        }
-
-        if (!empty($vehicleId)) {
-            $query->where('vehicle_id', $vehicleId);
-        }
-
-        if (!empty($routeId)) {
-            $query->where('vehicle_route_id', $routeId);
-        }
-
-        if (!empty($search)) {
-            $query->where(function ($q) use ($search) {
-                $q->where('trip_number', 'like', "%{$search}%")
-                    ->orWhere('start_location', 'like', "%{$search}%")
-                    ->orWhere('end_location', 'like', "%{$search}%")
-                    ->orWhere('description', 'like', "%{$search}%")
-                    ->orWhereHas('driver', fn ($driverQuery) => $driverQuery->where('name', 'like', "%{$search}%"))
-                    ->orWhereHas('vehicle', fn ($vehicleQuery) => $vehicleQuery->where('registration_number', 'like', "%{$search}%"));
-            });
-        }
-
-        $query->orderBy('scheduled_date');
+        $query->orderBy('trips.scheduled_date');
 
         $timestamp = now()->format('Ymd_His');
 
@@ -327,6 +233,8 @@ class ReportController extends Controller implements HasMiddleware
 
             $query
                 ->chunk(500, function ($trips) use ($handle) {
+                    TripDrivers::attachNames($trips);
+
                     foreach ($trips as $trip) {
                         fputcsv($handle, [
                             $trip->trip_number,
@@ -335,7 +243,7 @@ class ReportController extends Controller implements HasMiddleware
                             $trip->schedule_type,
                             $trip->vehicleRoute?->name,
                             $trip->vehicle?->registration_number,
-                            $trip->driver?->name,
+                            $trip->driver_name,
                             $trip->department?->name,
                             $trip->passengers_count,
                         ]);
@@ -350,7 +258,7 @@ class ReportController extends Controller implements HasMiddleware
 
     private function exportPdf($query, Carbon $from, Carbon $to, string $timestamp)
     {
-        $trips = $query->get();
+        $trips = TripDrivers::attachNames($query->get());
         $pdf = Pdf::loadView('exports.trips-report-pdf', [
             'trips' => $trips,
             'exportDate' => now()->format('F j, Y g:i A'),
@@ -368,5 +276,86 @@ class ReportController extends Controller implements HasMiddleware
             ]);
 
         return $pdf->download("trip-report-{$timestamp}.pdf");
+    }
+
+    /** Filters shared by the report page and its exports */
+    private static function filterRules(): array
+    {
+        return [
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
+            'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
+            'driver_id' => 'nullable|integer|exists:users,id',
+            'vehicle_id' => 'nullable|integer|exists:vehicles,id',
+            'route_id' => 'nullable|integer|exists:vehicle_routes,id',
+            'search' => 'nullable|string|max:100',
+        ];
+    }
+
+    /**
+     * The chosen period, defaulting to the last 30 days.
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function period(array $validated): array
+    {
+        $to = ! empty($validated['to'])
+            ? Carbon::parse($validated['to'])->endOfDay()
+            : now()->endOfDay();
+
+        $from = ! empty($validated['from'])
+            ? Carbon::parse($validated['from'])->startOfDay()
+            : (clone $to)->subDays(29)->startOfDay();
+
+        return [$from, $to];
+    }
+
+    /**
+     * Trips matching the filters, limited to the offices the viewer can see.
+     * Columns are qualified because the top-routes chart joins vehicle_routes.
+     */
+    private function filteredTrips(array $validated, Carbon $from, Carbon $to): Builder
+    {
+        $zoneIds = Zone::accessIds();
+        $search = $validated['search'] ?? null;
+
+        $query = Trip::query()
+            ->whereBetween('trips.scheduled_date', [$from->toDateString(), $to->toDateString()])
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('trips.zone_id', $zoneIds))
+            ->when($validated['schedule_type'] ?? null, fn ($q, $type) => $q->where('trips.schedule_type', $type))
+            ->when($validated['status'] ?? null, fn ($q, $status) => $q->where('trips.status', $status))
+            ->when($validated['vehicle_id'] ?? null, fn ($q, $id) => $q->where('trips.vehicle_id', $id))
+            ->when($validated['route_id'] ?? null, fn ($q, $id) => $q->where('trips.vehicle_route_id', $id));
+
+        if (! empty($search)) {
+            $query->where(function ($q) use ($search) {
+                $q->where('trips.trip_number', 'like', "%{$search}%")
+                    ->orWhere('trips.start_location', 'like', "%{$search}%")
+                    ->orWhere('trips.end_location', 'like', "%{$search}%")
+                    ->orWhere('trips.description', 'like', "%{$search}%")
+                    ->orWhereHas('vehicle', fn ($vehicleQuery) => $vehicleQuery->where('registration_number', 'like', "%{$search}%"));
+            });
+        }
+
+        if (! empty($validated['driver_id'])) {
+            $query->whereIn('trips.id', $this->tripIdsDrivenBy(clone $query, (int) $validated['driver_id']));
+        }
+
+        return $query;
+    }
+
+    /**
+     * Ids of the trips (among $query) that $driverId drove, worked out the
+     * same way the report shows the driver (see TripDrivers).
+     *
+     * @return array<int>
+     */
+    private function tripIdsDrivenBy(Builder $query, int $driverId): array
+    {
+        $trips = $query->get(['trips.id', 'trips.vehicle_id', 'trips.driver_id', 'trips.scheduled_date']);
+        $drivers = new TripDrivers($trips);
+
+        return $trips->filter(fn (Trip $trip) => $drivers->idFor($trip) === $driverId)->pluck('id')->all();
     }
 }

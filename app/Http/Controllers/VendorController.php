@@ -55,8 +55,10 @@ class VendorController extends Controller implements HasMiddleware
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'name');
-        $sortDirection = $request->get('direction', 'asc');
+        // Unknown sort/direction values fall back to the default, never reach SQL
+        $sortField = in_array($request->get('sort'), ['name', 'status', 'created_at'], true)
+            ? $request->get('sort') : 'name';
+        $sortDirection = $request->get('direction') === 'desc' ? 'desc' : 'asc';
         $query->orderBy($sortField, $sortDirection);
 
         $vendors = $query->paginate($request->get('per_page', 15))
@@ -119,7 +121,7 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
             'zone_id' => Zone::validationRule(),
-            'contact_persons' => 'array|min:1', // Minimum 1 contact person
+            'contact_persons' => 'required|array|min:1', // Minimum 1 contact person
             'contact_persons.*.name' => 'required|string|max:255',
             'contact_persons.*.position' => 'nullable|string|max:255',
             'contact_persons.*.phone' => 'nullable|string|max:20',
