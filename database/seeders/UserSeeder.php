@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\Department;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Database\Seeder;
@@ -373,8 +374,10 @@ class UserSeeder extends Seeder
                 $admin->assignRole('super-admin');
             }
 
-            if (Role::where('name', 'admin')->exists()) {
-                $transportManager->assignRole('admin');
+            // Logistics for every office (central transport desk)
+            if (Role::where('name', 'transport-manager')->exists()) {
+                $transportManager->syncRoles('transport-manager');
+                Zone::applyAccess($transportManager, 'all');
             }
 
             if (Role::where('name', 'driver')->exists()) {
@@ -390,13 +393,26 @@ class UserSeeder extends Seeder
                     $employee->assignRole('employee');
                 }
             }
+
+            // One account per remaining role, for walking through the workflow
+            if (Role::where('name', 'department-head')->exists()) {
+                $head = User::where('username', 'khadiza.rahman')->first();
+                $head?->syncRoles('department-head');
+                Department::where('code', 'ADMIN')->update(['head_id' => $head?->id]);
+            }
+
+            if (Role::where('name', 'management')->exists()) {
+                User::where('username', 'hasan.sarker')->first()?->syncRoles('management');
+            }
         } catch (\Exception $e) {
             // Roles might not exist yet, continue without assigning
         }
 
         echo "vems Users created successfully:\n";
         echo "- 1 Admin (admin/password)\n";
-        echo "- 1 Transport Manager (sarah.manager/password)\n";
+        echo "- 1 Transport Manager, all offices (sarah.manager/password)\n";
+        echo "- 1 Department Head of Administration (khadiza.rahman/password)\n";
+        echo "- 1 Management, read-only (hasan.sarker/password)\n";
         echo "- 4 Drivers (ahmed.driver, karim.driver, rahim.driver, hasan.driver/password)\n";
         echo "- 4 Employees from different departments (john.hr, lisa.finance, david.operations, maria.admin/password)\n";
     }
