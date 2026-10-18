@@ -25,6 +25,11 @@ class Trip extends Model
 
     public ?string $pendingVehicleReassignNotes = null;
 
+    /** Reason/notes for the next route change, read by TripObserver (see assignRoute()) */
+    public ?string $pendingRouteReason = null;
+
+    public ?string $pendingRouteNotes = null;
+
     protected $fillable = [
         'trip_number',
         'vehicle_route_id',
@@ -438,40 +443,10 @@ class Trip extends Model
 
     public function assignRoute(int $vehicleRouteId, ?string $reason = null, ?string $notes = null): void
     {
-        DB::transaction(function () use ($vehicleRouteId, $reason, $notes) {
-            // Lock this trip's row so a concurrent assignRoute() call for the same
-            // trip waits instead of racing to close/create "current" assignment rows.
-            static::whereKey($this->id)->lockForUpdate()->firstOrFail();
-
-            // Mark current route as unassigned
-            $this->routeAssignments()->current()->update([
-                'is_current' => false,
-                'unassigned_at' => now(),
-            ]);
-
-            // Create new route assignment
-            $this->routeAssignments()->create([
-                'vehicle_route_id' => $vehicleRouteId,
-                'assigned_by' => auth()->id(),
-                'assigned_at' => now(),
-                'is_current' => true,
-                'reason' => $reason,
-                'notes' => $notes,
-            ]);
-
-            // Log the route change
-            TripAuditLog::create([
-                'trip_id' => $this->id,
-                'user_id' => auth()->id(),
-                'action' => 'route_changed',
-                'new_values' => [
-                    'vehicle_route_id' => $vehicleRouteId,
-                    'reason' => $reason,
-                    'notes' => $notes,
-                ],
-                'reason' => $reason,
-            ]);
-        });
+        // TripObserver records the route history (and the audit hook the change)
+        $this->pendingRouteReason = $reason;
+        $this->pendingRouteNotes = $notes;
+        $this->update(['vehicle_route_id' => $vehicleRouteId]);
     }
 
     /**

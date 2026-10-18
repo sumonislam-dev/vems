@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Trip;
+use App\Models\TripRouteAssignment;
 use App\Models\TripVehicleAssignment;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -26,6 +27,17 @@ class TripObserver
             TripVehicleAssignment::create([
                 'trip_id' => $trip->id,
                 'vehicle_id' => $trip->vehicle_id,
+                'assigned_at' => now(),
+                'is_current' => true,
+                'assigned_by' => auth()->id(),
+                'reason' => 'initial',
+            ]);
+        }
+
+        if ($trip->vehicle_route_id) {
+            TripRouteAssignment::create([
+                'trip_id' => $trip->id,
+                'vehicle_route_id' => $trip->vehicle_route_id,
                 'assigned_at' => now(),
                 'is_current' => true,
                 'assigned_by' => auth()->id(),
@@ -80,6 +92,28 @@ class TripObserver
                     'assigned_by' => auth()->id(),
                     'reason' => $trip->pendingVehicleReassignReason ?? 'replacement',
                     'notes' => $trip->pendingVehicleReassignNotes,
+                ]);
+            }
+        }
+
+        // Route history, same pattern as the vehicle's
+        if ($trip->isDirty('vehicle_route_id')) {
+            $now = now();
+
+            $trip->routeAssignments()->where('is_current', true)->update([
+                'unassigned_at' => $now,
+                'is_current' => false,
+            ]);
+
+            if ($trip->vehicle_route_id) {
+                TripRouteAssignment::create([
+                    'trip_id' => $trip->id,
+                    'vehicle_route_id' => $trip->vehicle_route_id,
+                    'assigned_at' => $now,
+                    'is_current' => true,
+                    'assigned_by' => auth()->id(),
+                    'reason' => $trip->pendingRouteReason ?? 'changed',
+                    'notes' => $trip->pendingRouteNotes,
                 ]);
             }
         }

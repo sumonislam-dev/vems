@@ -46,7 +46,8 @@ class StopController extends Controller implements HasMiddleware
      */
     public function index(): JsonResponse
     {
-        $stops = Stop::select('id', 'name', 'description', 'latitude', 'longitude', 'zone_id')
+        $stops = Stop::selectable()
+            ->select('id', 'name', 'description', 'latitude', 'longitude', 'zone_id')
             ->orderBy('name')
             ->get();
 

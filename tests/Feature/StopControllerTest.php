@@ -149,13 +149,15 @@ it('scopes the lookup and new stops to a zoned user zone', function () {
     $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
     Stop::create(['name' => 'Dhaka Stop', 'zone_id' => $dhaka->id]);
     Stop::create(['name' => 'CTG Stop', 'zone_id' => $ctg->id]);
+    Stop::create(['name' => 'Airport', 'zone_id' => null]); // shared, no zone
 
     $user = stopCtlTestUser(['view-stops', 'create-stops'], $dhaka);
 
     $this->actingAs($user)->getJson('/api/stops')
         ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.name', 'Dhaka Stop');
+        ->assertJsonCount(2, 'data')
+        ->assertJsonPath('data.0.name', 'Airport')
+        ->assertJsonPath('data.1.name', 'Dhaka Stop');
 
     $this->actingAs($user)
         ->postJson('/api/stops', ['name' => 'Sneaky CTG Stop', 'zone_id' => $ctg->id])

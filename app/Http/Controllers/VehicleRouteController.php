@@ -53,13 +53,23 @@ class VehicleRouteController extends Controller implements HasMiddleware
      */
     private function stopsZoneMismatchError(array $validated): ?string
     {
-        if (empty($validated['zone_id']) || empty($validated['stops'])) {
+        if (empty($validated['stops'])) {
             return null;
         }
 
-        $stopIds = collect($validated['stops'])->pluck('stop_id');
+        $stopIds = collect($validated['stops'])->pluck('stop_id')->unique();
 
-        $mismatched = Stop::whereIn('id', $stopIds)
+        // Only stops the form offers: the user's zones' stops and shared ones
+        if (Stop::selectable()->whereIn('stops.id', $stopIds)->count() < $stopIds->count()) {
+            return 'One or more selected stops are not available to you.';
+        }
+
+        if (empty($validated['zone_id'])) {
+            return null;
+        }
+
+        // Checked across every zone: the zone scope would hide the very stops to catch
+        $mismatched = Stop::withoutGlobalScope('zone')->whereIn('id', $stopIds)
             ->whereNotNull('zone_id')
             ->where('zone_id', '!=', $validated['zone_id'])
             ->exists();
@@ -74,7 +84,8 @@ class VehicleRouteController extends Controller implements HasMiddleware
      */
     private function calculateRouteDistances($routeId, $stopsData)
     {
-        $stops = Stop::whereIn('id', collect($stopsData)->pluck('stop_id'))->get()->keyBy('id');
+        // Already checked by stopsZoneMismatchError(); shared stops have no zone
+        $stops = Stop::withoutGlobalScope('zone')->whereIn('id', collect($stopsData)->pluck('stop_id'))->get()->keyBy('id');
         $totalDistance = 0;
         $cumulativeDistance = 0;
 
@@ -160,7 +171,8 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'SUM(CASE WHEN EXISTS (SELECT 1 FROM route_stops rs WHERE rs.vehicle_route_id = vehicle_routes.id) THEN 1 ELSE 0 END) as routes_with_stops'
         )->first();
         $totalStops = Stop::count();
-        $routeStopCount = RouteStop::count();
+        // Only stops on routes the viewer can see (route_stops has no zone scope)
+        $routeStopCount = RouteStop::whereIn('vehicle_route_id', VehicleRoute::query()->select('id'))->count();
 
         $stats = [
             'total' => (int) ($routeStats->total ?? 0),
@@ -182,7 +194,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
     public function create()
     {
         // Get all available stops
-        $stops = Stop::orderBy('name')->get();
+        $stops = Stop::selectable()->orderBy('name')->get();
         $zones = Zone::selectableBy();
 
         return Inertia::render('routes/create', [
@@ -253,7 +265,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
     public function edit(VehicleRoute $route)
     {
         $route->load(['routeStops.stop']);
-        $stops = Stop::orderBy('name')->get();
+        $stops = Stop::selectable()->orderBy('name')->get();
         $zones = Zone::selectableBy(auth()->user(), $route->zone_id);
 
         return Inertia::render('routes/edit', [

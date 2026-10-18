@@ -293,8 +293,52 @@ it('falls back to the default order for an unknown sort column or direction', fu
         ->assertInertia(fn ($page) => $page->has('routes.data', 2));
 });
 
-it('should scope the avg-stops-per-route stat to the viewer zone (RouteStop::count() is unscoped today)')
-    ->todo();
+it('counts only the viewer zone\'s route stops in the avg-stops stat', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    VehicleRoute::create(['name' => 'Dhaka Loop', 'zone_id' => $dhaka->id]);
+    $ctgRoute = VehicleRoute::create(['name' => 'Port Run', 'zone_id' => $ctg->id]);
+    foreach (range(1, 4) as $order) {
+        RouteStop::create(['vehicle_route_id' => $ctgRoute->id, 'stop_id' => Stop::create(['name' => "CTG {$order}", 'zone_id' => $ctg->id])->id, 'stop_order' => $order]);
+    }
+
+    $this->actingAs(vrcTestUser(['view-routes'], $dhaka))->get('/routes')
+        ->assertInertia(fn ($page) => $page->where('stats.total', 1)->where('stats.avg_stops_per_route', 0));
+});
+
+it('refuses another zone\'s stop from a zone-limited user, even though it is hidden from them', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    $ctgStop = Stop::create(['name' => 'Agrabad', 'zone_id' => $ctg->id]);
+    $shared = Stop::create(['name' => 'Airport', 'zone_id' => null]);
+    $user = vrcTestUser(vrcTestAllPermissions(), $dhaka);
+
+    // A crafted request, with and without a route zone
+    foreach ([$dhaka->id, null] as $zoneId) {
+        $this->actingAs($user)->post('/routes', ['name' => 'Sneaky', 'zone_id' => $zoneId, 'stops' => [['stop_id' => $ctgStop->id]]])
+            ->assertSessionHasErrors('zone_id');
+    }
+    expect(VehicleRoute::withoutGlobalScopes()->where('name', 'Sneaky')->exists())->toBeFalse();
+
+    $this->actingAs($user)->post('/routes', ['name' => 'With Shared', 'zone_id' => $dhaka->id, 'stops' => [['stop_id' => $shared->id]]])
+        ->assertSessionHasNoErrors();
+    expect(VehicleRoute::where('name', 'With Shared')->firstOrFail()->routeStops()->pluck('stop_id')->all())->toBe([$shared->id]);
+});
+
+it('offers shared stops (no zone) alongside the user\'s own on the route forms', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    Stop::create(['name' => 'Airport', 'zone_id' => null]);
+    Stop::create(['name' => 'Gulshan', 'zone_id' => $dhaka->id]);
+    Stop::create(['name' => 'Agrabad', 'zone_id' => $ctg->id]);
+    $route = VehicleRoute::create(['name' => 'Dhaka Loop', 'zone_id' => $dhaka->id]);
+
+    $user = vrcTestUser(vrcTestAllPermissions(), $dhaka);
+    $names = fn ($stops) => collect($stops)->pluck('name')->all() === ['Airport', 'Gulshan'];
+
+    $this->actingAs($user)->get('/routes/create')->assertInertia(fn ($page) => $page->where('stops', $names));
+    $this->actingAs($user)->get("/routes/{$route->id}/edit")->assertInertia(fn ($page) => $page->where('stops', $names));
+});
 
 it('enforces route permissions on every action', function () {
     $route = VehicleRoute::create(['name' => 'Guarded']);

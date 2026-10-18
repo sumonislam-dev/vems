@@ -4,6 +4,7 @@ use App\Models\Department;
 use App\Models\Trip;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleRoute;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
@@ -119,6 +120,25 @@ it('requires assign-vehicles to assign a vehicle', function () {
     $this->actingAs(workflowUser(['edit-trips']))
         ->post("/trips/{$trip->id}/reassign-vehicle", ['vehicle_id' => workflowVehicle()->id])
         ->assertForbidden();
+});
+
+it('records route history when a trip is created with a route and the route is changed', function () {
+    seedTripWorkflowPermissions();
+    $first = VehicleRoute::create(['name' => 'Morning Loop']);
+    $second = VehicleRoute::create(['name' => 'Evening Loop']);
+    $user = workflowUser(['create-trips', 'edit-trips']);
+
+    $this->actingAs($user)->post('/trips', tripRequestPayload(['vehicle_route_id' => $first->id]))->assertSessionHasNoErrors();
+    $trip = Trip::latest('id')->firstOrFail();
+    expect($trip->routeAssignments()->pluck('vehicle_route_id')->all())->toBe([$first->id]);
+
+    $this->actingAs($user)->put("/trips/{$trip->id}", tripRequestPayload(['vehicle_route_id' => $second->id]))->assertSessionHasNoErrors();
+
+    $history = $trip->routeAssignments()->orderBy('id')->get();
+    expect($history->pluck('vehicle_route_id')->all())->toBe([$first->id, $second->id])
+        ->and($history->pluck('is_current')->map(fn ($c) => (bool) $c)->all())->toBe([false, true])
+        ->and($history[0]->unassigned_at)->not->toBeNull()
+        ->and($trip->fresh()->currentRouteAssignment->vehicle_route_id)->toBe($second->id);
 });
 
 it('keeps the vehicle when someone without assign-vehicles edits the trip', function () {
