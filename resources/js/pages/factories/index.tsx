@@ -7,7 +7,7 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, DataTableColumn } from '@/types';
 import { useCan } from '@/lib/permissions';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, MapPin, Plus, Trash2 } from 'lucide-react';
+import { ArchiveRestore, ArrowLeft, Edit, Eye, MapPin, Plus, Trash2 } from 'lucide-react';
 
 interface Factory {
     id: number;
@@ -22,6 +22,7 @@ interface Factory {
     zone: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;
+    deleted_at?: string | null;
 }
 
 interface PaginatedFactories {
@@ -46,7 +47,9 @@ interface FactoriesPageProps {
         active: number;
         inactive: number;
         cities: number;
+        deleted: number;
     };
+    showDeleted: boolean;
     queryParams: {
         search?: string;
         sort?: string;
@@ -61,7 +64,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Factories', href: '/factories' },
 ];
 
-export default function FactoriesIndex({ factories, filterOptions, stats, queryParams }: FactoriesPageProps) {
+export default function FactoriesIndex({ factories, filterOptions, stats, showDeleted, queryParams }: FactoriesPageProps) {
     const can = useCan();
 
     // Define table columns
@@ -136,7 +139,25 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
         {
             key: 'actions' as keyof Factory,
             label: 'Actions',
-            render: (_, row) => (
+            render: (_, row) =>
+                showDeleted ? (
+                    // Deleted factories can only be restored
+                    can('delete-factories') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.patch(route('factories.restore', row.id), {}, { preserveScroll: true });
+                            }}
+                            title="Restore factory"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-green-50 hover:text-green-600"
+                        >
+                            <ArchiveRestore className="mr-1 h-4 w-4" />
+                            Restore
+                        </Button>
+                    )
+                ) : (
                 <div className="flex items-center space-x-1">
                     <Button
                         variant="ghost"
@@ -200,7 +221,7 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
                         </Button>
                     )}
                 </div>
-            ),
+                ),
         },
     ];
 
@@ -239,6 +260,36 @@ export default function FactoriesIndex({ factories, filterOptions, stats, queryP
                         },
                     ]}
                 />
+
+                {/* Deleted factories are kept (soft-deleted) and can be restored */}
+                {(showDeleted || stats.deleted > 0) && (
+                    <div className="flex items-center justify-between gap-2 rounded-md border bg-muted/40 px-4 py-2 text-sm">
+                        <span className="text-muted-foreground">
+                            {showDeleted
+                                ? 'Showing deleted factories. Restore one to use it again.'
+                                : `${stats.deleted} deleted ${stats.deleted === 1 ? 'factory' : 'factories'}`}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                                router.get(route('factories.index'), showDeleted ? {} : { filters: { deleted: ['only'] } })
+                            }
+                        >
+                            {showDeleted ? (
+                                <>
+                                    <ArrowLeft className="mr-1 h-4 w-4" />
+                                    Back to factories
+                                </>
+                            ) : (
+                                <>
+                                    <Trash2 className="mr-1 h-4 w-4" />
+                                    Show deleted
+                                </>
+                            )}
+                        </Button>
+                    </div>
+                )}
 
                 {/* Data Table */}
                 <ServerSideDataTable

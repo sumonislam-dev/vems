@@ -35,6 +35,9 @@ class FactoryIndexRequest extends FormRequest
             'filters.city.*' => 'string|max:255',
             'filters.zone_id' => 'nullable|array',
             'filters.zone_id.*' => 'string',
+            // Kept in the filters so the table keeps it while sorting/paging
+            'filters.deleted' => 'nullable|array',
+            'filters.deleted.*' => 'string|in:only',
         ];
     }
 

@@ -5,12 +5,14 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Factory extends Model
 {
-    use BelongsToZone, LogsActivity;
+    // Soft-deleted only, so trips and attendance history keep their factory
+    use BelongsToZone, LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {

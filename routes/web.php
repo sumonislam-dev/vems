@@ -69,6 +69,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('vendors/{vendor}/documents/{field}', [DocumentController::class, 'vendor'])
         ->whereIn('field', DocumentController::VENDOR_FIELDS)->name('vendors.document');
 
+    Route::patch('/factories/{factory}/restore', [FactoryController::class, 'restore'])
+        ->withTrashed()->name('factories.restore');
     Route::resource('factories', FactoryController::class);
 
     Route::resource('vehicles', VehicleController::class);

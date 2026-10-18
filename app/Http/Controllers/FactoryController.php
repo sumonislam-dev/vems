@@ -19,7 +19,7 @@ class FactoryController extends Controller implements HasMiddleware
             new Middleware('permission:view-factories', only: ['index', 'show']),
             new Middleware('permission:create-factories', only: ['create', 'store']),
             new Middleware('permission:edit-factories', only: ['edit', 'update']),
-            new Middleware('permission:delete-factories', only: ['destroy']),
+            new Middleware('permission:delete-factories', only: ['destroy', 'restore']),
         ];
     }
 
@@ -29,7 +29,8 @@ class FactoryController extends Controller implements HasMiddleware
     public function index(FactoryIndexRequest $request)
     {
         $validated = $request->validated();
-        $query = Factory::query();
+        $showDeleted = ! empty($validated['filters']['deleted']);
+        $query = $showDeleted ? Factory::onlyTrashed() : Factory::query();
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -89,12 +90,14 @@ class FactoryController extends Controller implements HasMiddleware
             'active' => (int) ($factoryStats->active ?? 0),
             'inactive' => (int) ($factoryStats->inactive ?? 0),
             'cities' => (int) ($factoryStats->cities ?? 0),
+            'deleted' => Factory::onlyTrashed()->count(),
         ];
 
         return Inertia::render('factories/index', [
             'factories' => $factories,
             'filterOptions' => $filterOptions,
             'stats' => $stats,
+            'showDeleted' => $showDeleted,
             'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
         ]);
     }
@@ -170,9 +173,20 @@ class FactoryController extends Controller implements HasMiddleware
             $factory->delete();
 
             return redirect()->route('factories.index')
-                ->with('success', 'Factory deleted successfully.');
+                ->with('success', 'Factory deleted. You can restore it from the Deleted view.');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete factory.');
         }
+    }
+
+    /**
+     * Bring back a deleted factory (factories are only ever soft-deleted).
+     */
+    public function restore(Factory $factory)
+    {
+        $factory->restore();
+
+        return redirect()->route('factories.index')
+            ->with('success', "Factory \"{$factory->name}\" restored.");
     }
 }

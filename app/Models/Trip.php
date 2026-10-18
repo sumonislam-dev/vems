@@ -223,6 +223,7 @@ class Trip extends Model
     public function factories(): BelongsToMany
     {
         return $this->belongsToMany(Factory::class, 'factory_trip')
+            ->withTrashed() // history keeps deleted factories
             ->withTimestamps();
     }
 

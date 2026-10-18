@@ -69,7 +69,7 @@ In-app (database channel, the navbar bell). Workflow events go through `App\Serv
 ### Users, drivers, vendors
 There is no separate `Driver` model — drivers are `User` rows with `user_type` (`driver`, `transport_manager`, `employee`, `admin`, ...) and a `driver_status` enum (`available`, `on_trip`, etc.). `User::isDriver()`, `scopeDrivers`, `scopeAvailableDrivers`, `canDrive()` encode the driver-specific rules (license expiry, status). `DriverController` is a thin, filtered view over the same `users` table/`UserController` logic (same Form Requests, same table) rather than a distinct resource.
 
-Sensitive uploads (NID/licence scans, vehicle and vendor papers) are stored on the private `local` disk via `App\Support\PrivateDocument` and served only through `DocumentController`'s permission-checked `*.document` routes; profile photos stay on the `public` disk. Vehicles are soft-deleted, and history relations use `withTrashed()`.
+Sensitive uploads (NID/licence scans, vehicle and vendor papers) are stored on the private `local` disk via `App\Support\PrivateDocument` and served only through `DocumentController`'s permission-checked `*.document` routes; profile photos stay on the `public` disk. Vehicles and factories are soft-deleted, and history relations use `withTrashed()`.
 
 `Vendor` / `VendorContactPerson` model an external vendor org; `users.vendor_id` links a user (e.g. an outsourced driver) to a `Vendor`.
 

@@ -799,7 +799,12 @@ class TripController extends Controller implements HasMiddleware
                 'department' => $u->department?->name,
             ]);
 
-        $factories = Factory::where('status', 'active')
+        // Active factories, plus any already on this trip (even if since disabled
+        // or deleted) so saving the form doesn't silently drop them
+        $currentFactoryIds = $trip->factories()->pluck('factories.id');
+        $factories = Factory::withTrashed()
+            ->where(fn ($q) => $q->where(fn ($q) => $q->where('status', 'active')->whereNull('deleted_at'))
+                ->orWhereIn('id', $currentFactoryIds))
             ->orderBy('name')
             ->get()
             ->map(fn ($f) => [

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Factory;
+use App\Models\Trip;
 use App\Models\User;
 use App\Models\Zone;
 use Illuminate\Support\Facades\Hash;
@@ -217,15 +218,75 @@ it('rejects taking another factory\'s account id on update', function () {
 
 // --- destroy ------------------------------------------------------------
 
-it('deletes a factory', function () {
-    $factory = factoryTestMake();
+it('soft-deletes a factory, keeping it on the trips that visited it', function () {
+    $factory = factoryTestMake(['name' => 'Old Mill']);
+    $trip = Trip::create([
+        'requested_by' => factoryTestUser()->id,
+        'priority' => 'medium',
+        'scheduled_date' => '2026-03-05',
+        'scheduled_start_time' => '08:00:00',
+        'scheduled_end_time' => '09:00:00',
+        'status' => 'completed',
+    ]);
+    $trip->factories()->attach($factory->id);
 
-    $this->actingAs(factoryTestUser(['delete-factories']))
+    $this->actingAs(factoryTestUser(['view-factories', 'delete-factories']))
         ->delete("/factories/{$factory->id}")
         ->assertRedirect('/factories')
         ->assertSessionHas('success');
 
-    expect(Factory::find($factory->id))->toBeNull();
+    // Gone from lists and pickers, but still in the database and the trip's history
+    expect(Factory::find($factory->id))->toBeNull()
+        ->and(Factory::withTrashed()->find($factory->id)?->trashed())->toBeTrue()
+        ->and($trip->fresh()->factories->pluck('name')->all())->toBe(['Old Mill']);
+    $this->actingAs(factoryTestUser(['view-factories']))->get('/factories')
+        ->assertInertia(fn ($page) => $page->has('factories.data', 0));
+});
+
+it('lists deleted factories on request and restores them', function () {
+    factoryTestMake(['name' => 'Still Here']);
+    $gone = factoryTestMake(['name' => 'Old Mill']);
+    $gone->delete();
+
+    $viewer = factoryTestUser(['view-factories']);
+    $this->actingAs($viewer)->get('/factories')
+        ->assertInertia(fn ($page) => $page->where('showDeleted', false)->where('stats.deleted', 1)
+            ->where('factories.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Still Here']));
+    $this->actingAs($viewer)->get('/factories?filters[deleted][0]=only&sort=name')
+        ->assertInertia(fn ($page) => $page->where('showDeleted', true)
+            ->where('factories.data', fn ($rows) => collect($rows)->pluck('name')->all() === ['Old Mill']));
+
+    // Restoring needs the same permission as deleting
+    $this->actingAs($viewer)->patch("/factories/{$gone->id}/restore")->assertForbidden();
+    $this->actingAs(factoryTestUser(['delete-factories']))->patch("/factories/{$gone->id}/restore")
+        ->assertRedirect('/factories')
+        ->assertSessionHas('success');
+
+    expect(Factory::find($gone->id))->not->toBeNull();
+});
+
+it('keeps a deleted factory selectable on a trip that already has it, so editing does not drop it', function () {
+    Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    $kept = factoryTestMake(['name' => 'Old Mill']);
+    $other = factoryTestMake(['name' => 'Gone Elsewhere']);
+    $active = factoryTestMake(['name' => 'New Mill']);
+    $user = factoryTestUser(['edit-trips']);
+    $trip = Trip::create([
+        'requested_by' => $user->id,
+        'priority' => 'medium',
+        'scheduled_date' => '2026-11-05',
+        'scheduled_start_time' => '08:00:00',
+        'scheduled_end_time' => '09:00:00',
+        'status' => 'pending',
+    ]);
+    $trip->factories()->attach($kept->id);
+    $kept->delete();
+    $other->delete();
+
+    $this->actingAs($user)->get("/trips/{$trip->id}/edit")
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page->where('factories', fn ($options) => collect($options)->pluck('value')->sort()->values()->all() === collect([$kept->id, $active->id])->sort()->values()->all()));
 });
 
 // --- zone scoping -------------------------------------------------------
