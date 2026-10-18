@@ -2,6 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreRecurringTripRequest;
+use App\Http\Requests\StoreTripRequest;
+use App\Http\Requests\TripIndexRequest;
+use App\Http\Requests\UpdateTripRequest;
 use App\Models\Department;
 use App\Models\Factory;
 use App\Models\Logistics;
@@ -230,23 +234,9 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Display a listing of trips
      */
-    public function index(Request $request)
+    public function index(TripIndexRequest $request)
     {
-        $validated = $request->validate([
-            'sort' => 'nullable|in:scheduled_date,trip_number,status,priority,created_at',
-            'direction' => 'nullable|in:asc,desc',
-            'filters' => 'nullable|array',
-            'filters.status' => 'nullable|array',
-            'filters.status.*' => 'string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
-            'filters.priority' => 'nullable|array',
-            'filters.priority.*' => 'string|in:low,medium,high,urgent',
-            'filters.schedule_type' => 'nullable|array',
-            'filters.schedule_type.*' => 'string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
-            'filters.trip_type' => 'nullable|array',
-            'filters.trip_type.*' => 'string',
-            'filters.zone_id' => 'nullable|array',
-            'filters.zone_id.*' => 'string',
-        ]);
+        $validated = $request->validated();
 
         $query = Trip::with([
             'vehicle.driver',
@@ -460,40 +450,9 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Store a newly created trip
      */
-    public function store(Request $request, TripNotifier $notifier)
+    public function store(StoreTripRequest $request, TripNotifier $notifier)
     {
-        $validated = $request->validate([
-            'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'nullable|exists:vehicles,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
-            'team_number' => 'nullable|string|max:100',
-            'description' => 'nullable|string',
-            'remarks' => 'nullable|string',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'scheduled_date' => 'required|date',
-            'scheduled_start_time' => 'required|date_format:H:i',
-            'scheduled_end_time' => 'required|date_format:H:i|after:scheduled_start_time',
-            'start_location' => 'nullable|string|max:255',
-            'end_location' => 'nullable|string|max:255',
-            'is_return' => 'boolean',
-            'is_recurring' => 'boolean',
-            'recurring_start_date' => 'nullable|date|required_if:is_recurring,true',
-            'recurring_end_date' => 'nullable|date|required_if:is_recurring,true|after_or_equal:recurring_start_date',
-            'group_name' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-            'passengers' => 'nullable|array',
-            'passengers.*.user_id' => 'required|exists:users,id',
-            'passengers.*.pickup_stop_id' => 'nullable|exists:stops,id',
-            'passengers.*.dropoff_stop_id' => 'nullable|exists:stops,id',
-            'factory_ids' => 'nullable|array',
-            'factory_ids.*' => 'exists:factories,id',
-            'department_slots' => 'nullable|array',
-            'department_slots.*.department_id' => 'required|exists:departments,id',
-            'department_slots.*.count' => 'required|integer|min:1|max:999',
-            'logistics_ids' => 'nullable|array',
-            'logistics_ids.*' => 'exists:logistics,id',
-        ]);
+        $validated = $request->validated();
 
         $validated['vehicle_id'] = $this->requestedVehicle($validated);
         if ($validated['vehicle_id']) {
@@ -562,36 +521,9 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Store multiple recurring trips
      */
-    public function storeRecurring(Request $request, TripNotifier $notifier)
+    public function storeRecurring(StoreRecurringTripRequest $request, TripNotifier $notifier)
     {
-        $validated = $request->validate([
-            'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'nullable|exists:vehicles,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
-            'team_number' => 'nullable|string|max:100',
-            'description' => 'nullable|string',
-            'remarks' => 'nullable|string',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'recurring_start_date' => 'required|date',
-            'recurring_end_date' => 'required|date|after_or_equal:recurring_start_date',
-            'scheduled_start_time' => 'required|date_format:H:i',
-            'scheduled_end_time' => 'required|date_format:H:i|after:scheduled_start_time',
-            'start_location' => 'nullable|string|max:255',
-            'end_location' => 'nullable|string|max:255',
-            'is_return' => 'boolean',
-            'group_name' => 'nullable|string|max:255',
-            'notes' => 'nullable|string',
-            'passengers' => 'nullable|array',
-            'passengers.*.user_id' => 'required|exists:users,id',
-            'factory_ids' => 'nullable|array',
-            'factory_ids.*' => 'exists:factories,id',
-            'department_slots' => 'nullable|array',
-            'department_slots.*.department_id' => 'required|exists:departments,id',
-            'department_slots.*.count' => 'required|integer|min:1|max:999',
-            'logistics_ids' => 'nullable|array',
-            'logistics_ids.*' => 'exists:logistics,id',
-        ]);
+        $validated = $request->validated();
 
         $start = Carbon::parse($validated['recurring_start_date']);
         $end = Carbon::parse($validated['recurring_end_date']);
@@ -834,41 +766,14 @@ class TripController extends Controller implements HasMiddleware
     /**
      * Update the specified trip
      */
-    public function update(Request $request, Trip $trip)
+    public function update(UpdateTripRequest $request, Trip $trip)
     {
         // Can only update pending or approved trips
-        if (! in_array($trip->status, ['pending', 'approved'])) {
+        if (! in_array($trip->status, UpdateTripRequest::EDITABLE_STATUSES, true)) {
             return back()->with('error', 'Cannot update trip in current status.');
         }
 
-        $validated = $request->validate([
-            'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
-            'vehicle_id' => 'nullable|exists:vehicles,id',
-            'department_id' => 'nullable|exists:departments,id',
-            'trip_type' => 'nullable|in:inspection,pick-up,drop-off,training,complaints,CVV,Incident Inspection,officials,Assigned',
-            'team_number' => 'nullable|string|max:100',
-            'description' => 'nullable|string',
-            'remarks' => 'nullable|string',
-            'priority' => 'required|in:low,medium,high,urgent',
-            'scheduled_date' => 'required|date',
-            'scheduled_start_time' => 'required|date_format:H:i',
-            'scheduled_end_time' => 'required|date_format:H:i|after:scheduled_start_time',
-            'start_location' => 'nullable|string|max:255',
-            'end_location' => 'nullable|string|max:255',
-            'is_return' => 'boolean',
-            'notes' => 'nullable|string',
-            'passengers' => 'nullable|array',
-            'passengers.*.user_id' => 'required|exists:users,id',
-            'passengers.*.pickup_stop_id' => 'nullable|exists:stops,id',
-            'passengers.*.dropoff_stop_id' => 'nullable|exists:stops,id',
-            'factory_ids' => 'nullable|array',
-            'factory_ids.*' => 'exists:factories,id',
-            'department_slots' => 'nullable|array',
-            'department_slots.*.department_id' => 'required|exists:departments,id',
-            'department_slots.*.count' => 'required|integer|min:1|max:999',
-            'logistics_ids' => 'nullable|array',
-            'logistics_ids.*' => 'exists:logistics,id',
-        ]);
+        $validated = $request->validated();
 
         // Only vehicle assigners (Logistics) may change the vehicle
         if (! auth()->user()->can('assign-vehicles')) {

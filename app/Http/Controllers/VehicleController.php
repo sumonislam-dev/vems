@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Exports\VehiclesExport;
+use App\Http\Requests\StoreVehicleRequest;
+use App\Http\Requests\UpdateVehicleRequest;
 use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -16,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Maatwebsite\Excel\Facades\Excel;
@@ -466,84 +467,10 @@ class VehicleController extends Controller implements HasMiddleware
     /**
      * Store a newly created resource in storage.
      */
-    public function store(Request $request)
+    public function store(StoreVehicleRequest $request)
     {
-        // Transform 'none' values to null before validation
-        $data = $request->all();
-        $data['fuel_type'] = ($data['fuel_type'] ?? null) === 'none' ? null : ($data['fuel_type'] ?? null);
-        $data['insurance_type'] = ($data['insurance_type'] ?? null) === 'none' ? null : ($data['insurance_type'] ?? null);
-        $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
-        $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
-        $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
-        $data['default_route_id'] = ($data['default_route_id'] ?? null) === 'none' ? null : ($data['default_route_id'] ?? null);
-
-        // Merge transformed data back to request
-        $request->merge($data);
-
-        // An ad-hoc hire can be booked before the actual car is known: its
-        // identity, vendor and driver may be left blank and are filled with
-        // placeholders below (see Vehicle::PLACEHOLDER_*).
-        $isAdhoc = $request->input('rental_type') === 'adhoc';
-        $identityRule = $isAdhoc ? 'nullable' : 'required';
-
-        // Validate the incoming request data
-        $validated = $request->validate([
-            'brand' => "{$identityRule}|string|max:255",
-            'model' => "{$identityRule}|string|max:255",
-            'color' => 'nullable|string|max:255', // Made optional
-            'registration_number' => "{$identityRule}|string|max:255|unique:vehicles",
-            'vehicle_type' => 'required|in:sedan,suv,van,microbus,coaster,bus,pickup,truck,other',
-            'rental_type' => 'required|in:own,pool,rental,adhoc,support',
-            'capacity' => 'nullable|integer|min:1',
-            'parking_address' => 'nullable|string',
-            'parking_latitude' => 'nullable|numeric|between:-90,90',
-            'parking_longitude' => 'nullable|numeric|between:-180,180',
-            'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
-            'vendor_id' => "{$identityRule}|exists:vendors,id", // Required service provider (except ad-hoc)
-            'driver_id' => "{$identityRule}|exists:users,id", // Required driver (except ad-hoc)
-            'zone_id' => Zone::validationRule(),
-            // Only routes the user can see (VehicleRoute is zone-scoped)
-            'default_route_id' => ['nullable', Rule::in(VehicleRoute::pluck('id')->all())],
-            'is_active' => 'boolean',
-            'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
-            // Tax Token
-            'tax_token_last_date' => 'nullable|date',
-            'tax_token_number' => 'nullable|string|max:255',
-            'tax_token_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Fitness Certificate
-            'fitness_certificate_last_date' => 'nullable|date',
-            'fitness_certificate_number' => 'nullable|string|max:255',
-            'fitness_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Insurance
-            'insurance_type' => 'nullable|in:1st_party,3rd_party,comprehensive',
-            'insurance_last_date' => 'nullable|date',
-            'insurance_policy_number' => 'nullable|string|max:255',
-            'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            'insurance_company' => 'nullable|string|max:255',
-            // Route Permit
-            'route_permit_number' => 'nullable|string|max:255',
-            'route_permit_last_date' => 'nullable|date',
-            'route_permit_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Registration Certificate & Owner Info
-            'registration_certificate_number' => 'nullable|string|max:255',
-            'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            'owner_name' => 'nullable|string|max:255',
-            'owner_address' => 'nullable|string',
-            'owner_phone' => 'nullable|string|max:20',
-            'owner_email' => 'nullable|email|max:255',
-            'owner_nid' => 'nullable|string|max:50',
-            // Additional Vehicle Info
-            'manufacture_year' => 'nullable|numeric|min:1900|max:'.(date('Y') + 1),
-            'engine_number' => 'nullable|string|max:255',
-            'chassis_number' => 'nullable|string|max:255',
-            'fuel_type' => 'nullable|in:petrol,diesel,cng,electric,hybrid',
-            // Alert Settings
-            'tax_token_alert_enabled' => 'sometimes|boolean',
-            'fitness_alert_enabled' => 'sometimes|boolean',
-            'insurance_alert_enabled' => 'sometimes|boolean',
-            'route_permit_alert_enabled' => 'sometimes|boolean',
-            'alert_days_before' => 'nullable|numeric|min:1|max:365',
-        ]);
+        $isAdhoc = $request->isAdhoc();
+        $validated = $request->validated();
 
         foreach (Vehicle::DOCUMENT_FILES as $field) {
             if ($request->hasFile($field)) {
@@ -645,85 +572,10 @@ class VehicleController extends Controller implements HasMiddleware
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, Vehicle $vehicle)
+    public function update(UpdateVehicleRequest $request, Vehicle $vehicle)
     {
-        // Transform 'none' values to null before validation
-        $data = $request->all();
-        $data['fuel_type'] = ($data['fuel_type'] ?? null) === 'none' ? null : ($data['fuel_type'] ?? null);
-        $data['insurance_type'] = ($data['insurance_type'] ?? null) === 'none' ? null : ($data['insurance_type'] ?? null);
-        $data['vendor_id'] = ($data['vendor_id'] ?? null) === 'none' ? null : ($data['vendor_id'] ?? null);
-        $data['driver_id'] = ($data['driver_id'] ?? null) === 'none' ? null : ($data['driver_id'] ?? null);
-        $data['zone_id'] = ($data['zone_id'] ?? null) === 'none' ? null : ($data['zone_id'] ?? null);
-        $data['default_route_id'] = ($data['default_route_id'] ?? null) === 'none' ? null : ($data['default_route_id'] ?? null);
-
-        // Merge transformed data back to request
-        $request->merge($data);
-
-        // Same ad-hoc leniency as store(); a blank registration on edit just
-        // keeps the vehicle's current one rather than minting a new placeholder.
-        $isAdhoc = $request->input('rental_type') === 'adhoc';
-        $identityRule = $isAdhoc ? 'nullable' : 'required';
-
-        $validated = $request->validate([
-            'brand' => "{$identityRule}|string|max:255",
-            'model' => "{$identityRule}|string|max:255",
-            'color' => 'nullable|string|max:255', // Made optional
-            'registration_number' => "{$identityRule}|string|max:255|unique:vehicles,registration_number,".$vehicle->id,
-            'vehicle_type' => 'required|in:sedan,suv,van,microbus,coaster,bus,pickup,truck,other',
-            'rental_type' => 'required|in:own,pool,rental,adhoc,support',
-            'capacity' => 'nullable|integer|min:1',
-            'parking_address' => 'nullable|string',
-            'parking_latitude' => 'nullable|numeric|between:-90,90',
-            'parking_longitude' => 'nullable|numeric|between:-180,180',
-            'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
-            // A vehicle can become vendor/driver-less via the "Assign Driver"
-            // unassign flow, so editing it afterward must not force one back.
-            'vendor_id' => 'nullable|exists:vendors,id',
-            'driver_id' => 'nullable|exists:users,id',
-            'zone_id' => Zone::validationRule(),
-            // Only routes the user can see (VehicleRoute is zone-scoped)
-            // ...plus whatever it already has, so an unrelated edit doesn't fail
-            'default_route_id' => ['nullable', Rule::in([...VehicleRoute::pluck('id')->all(), $vehicle->default_route_id])],
-            'is_active' => 'boolean',
-            'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
-            // Tax Token
-            'tax_token_last_date' => 'nullable|date',
-            'tax_token_number' => 'nullable|string|max:255',
-            'tax_token_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Fitness Certificate
-            'fitness_certificate_last_date' => 'nullable|date',
-            'fitness_certificate_number' => 'nullable|string|max:255',
-            'fitness_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Insurance
-            'insurance_type' => 'nullable|in:1st_party,3rd_party,comprehensive',
-            'insurance_last_date' => 'nullable|date',
-            'insurance_policy_number' => 'nullable|string|max:255',
-            'insurance_policy_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            'insurance_company' => 'nullable|string|max:255',
-            // Route Permit
-            'route_permit_number' => 'nullable|string|max:255',
-            'route_permit_last_date' => 'nullable|date',
-            'route_permit_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            // Registration Certificate & Owner Info
-            'registration_certificate_number' => 'nullable|string|max:255',
-            'registration_certificate_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
-            'owner_name' => 'nullable|string|max:255',
-            'owner_address' => 'nullable|string',
-            'owner_phone' => 'nullable|string|max:20',
-            'owner_email' => 'nullable|email|max:255',
-            'owner_nid' => 'nullable|string|max:50',
-            // Additional Vehicle Info
-            'manufacture_year' => 'nullable|integer|min:1900|max:'.(date('Y') + 1),
-            'engine_number' => 'nullable|string|max:255',
-            'chassis_number' => 'nullable|string|max:255',
-            'fuel_type' => 'nullable|in:petrol,diesel,cng,electric,hybrid',
-            // Alert Settings
-            'tax_token_alert_enabled' => 'boolean',
-            'fitness_alert_enabled' => 'boolean',
-            'insurance_alert_enabled' => 'boolean',
-            'route_permit_alert_enabled' => 'boolean',
-            'alert_days_before' => 'nullable|integer|min:1|max:365',
-        ]);
+        $isAdhoc = $request->isAdhoc();
+        $validated = $request->validated();
 
         foreach (Vehicle::DOCUMENT_FILES as $field) {
             if ($request->hasFile($field)) {
