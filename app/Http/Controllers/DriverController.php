@@ -8,12 +8,11 @@ use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
 use App\Models\Department;
-use App\Models\TripRecurringGroup;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Vendor;
 use App\Models\Zone;
-use App\Support\PrivateDocument;
+use App\Services\UserSaver;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -21,8 +20,6 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -393,42 +390,20 @@ class DriverController extends Controller implements HasMiddleware
     /**
      * Store a newly created driver.
      */
-    public function store(StoreUserRequest $request): RedirectResponse
+    public function store(StoreUserRequest $request, UserSaver $saver): RedirectResponse
     {
         // All-or-nothing: the record and its roles/zones/related rows
-        return DB::transaction(function () use ($request) {
+        return DB::transaction(function () use ($request, $saver) {
             $validated = $request->validated();
-            $zoneAccess = $validated['zone_access'] ?? null;
-            $zoneIds = $validated['zone_ids'] ?? [];
-            unset($validated['zone_access'], $validated['zone_ids']);
 
             // Driver module is fixed to driver user type
             $validated['user_type'] = 'driver';
 
-            // Handle file uploads
-            if ($request->hasFile('image')) {
-                $validated['image'] = $request->file('image')->store('users/images', 'public');
-            }
-
-            if ($request->hasFile('photo')) {
-                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-            }
-
-            // NID/licence scans are private (see DocumentController)
-            foreach (['driving_license_file', 'nid_file'] as $field) {
-                if ($request->hasFile($field)) {
-                    $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
-                }
-            }
-
-            // Auto-generate password if not provided
+            // Auto-generate password if not provided (shown once below)
             $generatedPassword = null;
             if (empty($validated['password'])) {
-                // Generate strong password: 12 characters with letters, numbers, and symbols
                 $generatedPassword = Str::random(12);
-                $validated['password'] = Hash::make($generatedPassword);
-            } else {
-                $validated['password'] = Hash::make($validated['password']);
+                $validated['password'] = $generatedPassword;
             }
 
             // Set default driver status
@@ -442,19 +417,12 @@ class DriverController extends Controller implements HasMiddleware
                 $validated['department_id'] = $defaultDepartment?->id;
             }
 
-            // Accounts provisioned by an admin are trusted without an email-click loop.
-            $validated['email_verified_at'] = now();
-
-            $user = User::create($validated);
+            $user = $saver->create($request, $validated);
 
             // Driver module is fixed to Driver role
             $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
             if ($driverRole) {
                 $user->syncRoles([$driverRole->id]);
-            }
-
-            if ($request->has('zone_access')) {
-                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
             }
 
             return redirect()->route('drivers.index')->with('success', $generatedPassword
@@ -560,60 +528,25 @@ class DriverController extends Controller implements HasMiddleware
     /**
      * Update the specified driver.
      */
-    public function update(UpdateUserRequest $request, User $driver): RedirectResponse
+    public function update(UpdateUserRequest $request, User $driver, UserSaver $saver): RedirectResponse
     {
         // All-or-nothing: the record and its roles/zones/related rows
-        return DB::transaction(function () use ($request, $driver) {
+        return DB::transaction(function () use ($request, $driver, $saver) {
             if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
                 abort(404, 'Driver not found');
             }
 
             $validated = $request->validated();
-            $zoneAccess = $validated['zone_access'] ?? null;
-            $zoneIds = $validated['zone_ids'] ?? [];
-            unset($validated['zone_access'], $validated['zone_ids']);
 
             // Driver module is fixed to driver user type
             $validated['user_type'] = 'driver';
 
-            // Handle file uploads
-            if ($request->hasFile('image')) {
-                if ($driver->image) {
-                    Storage::disk('public')->delete($driver->image);
-                }
-                $validated['image'] = $request->file('image')->store('users/images', 'public');
-            }
-
-            if ($request->hasFile('photo')) {
-                if ($driver->photo) {
-                    Storage::disk('public')->delete($driver->photo);
-                }
-                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-            }
-
-            foreach (['driving_license_file', 'nid_file'] as $field) {
-                if ($request->hasFile($field)) {
-                    $validated[$field] = PrivateDocument::replace($driver->{$field}, $request->file($field), 'driver_documents');
-                }
-            }
-
-            // Hash password if provided
-            if (! empty($validated['password'])) {
-                $validated['password'] = Hash::make($validated['password']);
-            } else {
-                unset($validated['password']);
-            }
-
-            $driver->update($validated);
+            $saver->update($request, $driver, $validated);
 
             // Driver module is fixed to Driver role
             $driverRole = Role::whereRaw('LOWER(name) = ?', ['driver'])->first();
             if ($driverRole) {
                 $driver->syncRoles([$driverRole->id]);
-            }
-
-            if ($request->has('zone_access')) {
-                Zone::applyAccess($driver, $zoneAccess ?? 'specific', $zoneIds);
             }
 
             return redirect()->route('drivers.index')->with('success', 'Driver updated successfully.');
@@ -623,39 +556,24 @@ class DriverController extends Controller implements HasMiddleware
     /**
      * Remove the specified driver.
      */
-    public function destroy(User $driver): RedirectResponse
+    public function destroy(User $driver, UserSaver $saver): RedirectResponse
     {
         if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
             abort(404, 'Driver not found');
         }
 
-        // Check if driver has active trips
-        if ($driver->driverTrips()->whereIn('status', TripStatus::open())->exists()) {
-            return redirect()->back()->withErrors(['error' => 'Cannot delete driver with active trips.']);
+        $blocked = match ($saver->deletionBlocker($driver)) {
+            'active_trips' => 'Cannot delete driver with active trips.',
+            'requested_trips' => 'Cannot delete driver: they have requested trips on record. Deactivate the account instead.',
+            'recurring_groups' => 'Cannot delete driver: they created recurring trip groups on record. Deactivate the account instead.',
+            default => null,
+        };
+
+        if ($blocked) {
+            return redirect()->back()->withErrors(['error' => $blocked]);
         }
 
-        // trips.requested_by and trip_recurring_groups.created_by now restrict
-        // deletion (a hard delete previously cascaded and silently wiped that
-        // trip history). Surface a clear message instead of a raw DB error.
-        if ($driver->requestedTrips()->exists()) {
-            return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they have requested trips on record. Deactivate the account instead.']);
-        }
-
-        if (TripRecurringGroup::where('created_by', $driver->id)->exists()) {
-            return redirect()->back()->withErrors(['error' => 'Cannot delete driver: they created recurring trip groups on record. Deactivate the account instead.']);
-        }
-
-        // Delete images
-        if ($driver->image) {
-            Storage::disk('public')->delete($driver->image);
-        }
-        if ($driver->photo) {
-            Storage::disk('public')->delete($driver->photo);
-        }
-        PrivateDocument::delete($driver->driving_license_file);
-        PrivateDocument::delete($driver->nid_file);
-
-        $driver->delete();
+        $saver->delete($driver);
 
         return redirect()->route('drivers.index')->with('success', 'Driver deleted successfully.');
     }

@@ -2,25 +2,23 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\TripStatus;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
 use App\Imports\UsersImport;
 use App\Models\Department;
-use App\Models\TripRecurringGroup;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
-use App\Support\PrivateDocument;
+use App\Services\UserSaver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -246,38 +244,18 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Store a newly created user in storage.
      */
-    public function store(StoreUserRequest $request): RedirectResponse
+    public function store(StoreUserRequest $request, UserSaver $saver): RedirectResponse
     {
         // All-or-nothing: the record and its roles/zones/related rows
-        return DB::transaction(function () use ($request) {
+        return DB::transaction(function () use ($request, $saver) {
             $validated = $request->validated();
-            $zoneAccess = $validated['zone_access'] ?? null;
-            $zoneIds = $validated['zone_ids'] ?? [];
-            unset($validated['zone_access'], $validated['zone_ids']);
 
-            // Handle file uploads
-            if ($request->hasFile('image')) {
-                $validated['image'] = $request->file('image')->store('users/images', 'public');
+            // No password chosen: an unknown random one until it's reset
+            if (blank($validated['password'] ?? null)) {
+                $validated['password'] = Str::random(32);
             }
 
-            if ($request->hasFile('photo')) {
-                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-            }
-
-            // NID/licence scans are private (see DocumentController)
-            foreach (['driving_license_file', 'nid_file'] as $field) {
-                if ($request->hasFile($field)) {
-                    $validated[$field] = PrivateDocument::replace(null, $request->file($field), 'driver_documents');
-                }
-            }
-
-            // Hash password
-            $validated['password'] = Hash::make($validated['password']);
-
-            // Accounts provisioned by an admin are trusted without an email-click loop.
-            $validated['email_verified_at'] = now();
-
-            $user = User::create($validated);
+            $user = $saver->create($request, $validated);
 
             // Choosing roles needs manage-user-roles; otherwise the new user gets
             // the default role for their user type (never admin — see below).
@@ -291,10 +269,6 @@ class UserController extends Controller implements HasMiddleware
             }
 
             $this->logRoleChange($user, []);
-
-            if ($request->has('zone_access')) {
-                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
-            }
 
             return redirect()->route('users.index')
                 ->with('success', 'User created successfully.');
@@ -402,46 +376,14 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Update the specified user in storage.
      */
-    public function update(UpdateUserRequest $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user, UserSaver $saver): RedirectResponse
     {
         // All-or-nothing: the record and its roles/zones/related rows
-        return DB::transaction(function () use ($request, $user) {
+        return DB::transaction(function () use ($request, $user, $saver) {
             $validated = $request->validated();
-            $zoneAccess = $validated['zone_access'] ?? null;
-            $zoneIds = $validated['zone_ids'] ?? [];
-            unset($validated['zone_access'], $validated['zone_ids']);
-
-            // Handle file uploads
-            if ($request->hasFile('image')) {
-                if ($user->image) {
-                    Storage::disk('public')->delete($user->image);
-                }
-                $validated['image'] = $request->file('image')->store('users/images', 'public');
-            }
-
-            if ($request->hasFile('photo')) {
-                if ($user->photo) {
-                    Storage::disk('public')->delete($user->photo);
-                }
-                $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-            }
-
-            foreach (['driving_license_file', 'nid_file'] as $field) {
-                if ($request->hasFile($field)) {
-                    $validated[$field] = PrivateDocument::replace($user->{$field}, $request->file($field), 'driver_documents');
-                }
-            }
-
-            // Hash password if provided
-            if (! empty($validated['password'])) {
-                $validated['password'] = Hash::make($validated['password']);
-            } else {
-                unset($validated['password']);
-            }
-
             $oldRoleNames = $user->roles->pluck('name')->all();
 
-            $user->update($validated);
+            $saver->update($request, $user, $validated);
 
             // A plain user editing their own profile (see UpdateUserRequest's
             // self-edit branch) never has 'roles'/'user_type' in $validated at
@@ -464,10 +406,6 @@ class UserController extends Controller implements HasMiddleware
                 $this->logRoleChange($user, $oldRoleNames);
             }
 
-            if ($request->has('zone_access')) {
-                Zone::applyAccess($user, $zoneAccess ?? 'specific', $zoneIds);
-            }
-
             return redirect()->route('users.index')
                 ->with('success', 'User updated successfully.');
         });
@@ -476,38 +414,20 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Remove the specified user from storage.
      */
-    public function destroy(User $user): RedirectResponse
+    public function destroy(User $user, UserSaver $saver): RedirectResponse
     {
-        // Check if user has any active trips
-        if ($user->isDriver() && $user->driverTrips()->whereIn('status', TripStatus::valuesOf(TripStatus::Pending, TripStatus::Approved, TripStatus::InProgress))->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
+        $blocked = match ($saver->deletionBlocker($user)) {
+            'active_trips' => 'Cannot delete user with active trips. Please complete or reassign trips first.',
+            'requested_trips' => 'Cannot delete user: they have requested trips on record. Deactivate the account instead.',
+            'recurring_groups' => 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.',
+            default => null,
+        };
+
+        if ($blocked) {
+            return redirect()->back()->with('error', $blocked);
         }
 
-        // trips.requested_by and trip_recurring_groups.created_by now restrict
-        // deletion (a hard delete previously cascaded and silently wiped that
-        // trip history). Surface a clear message instead of a raw DB error.
-        if ($user->requestedTrips()->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user: they have requested trips on record. Deactivate the account instead.');
-        }
-
-        if (TripRecurringGroup::where('created_by', $user->id)->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.');
-        }
-
-        // Delete associated files
-        if ($user->image) {
-            Storage::disk('public')->delete($user->image);
-        }
-        if ($user->photo) {
-            Storage::disk('public')->delete($user->photo);
-        }
-        PrivateDocument::delete($user->driving_license_file);
-        PrivateDocument::delete($user->nid_file);
-
-        $user->delete();
+        $saver->delete($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
