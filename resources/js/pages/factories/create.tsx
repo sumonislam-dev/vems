@@ -1,5 +1,6 @@
 import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
 import { PageHeader } from '@/base-components/page-header';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { commonValidationRules, useFormValidation, ValidationRules } from '@/hooks/use-form-validation';
@@ -142,7 +143,7 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
             <Head title="Create Factory" />
 
-            <div className="space-y-6">
+            <div className="space-y-4">
                 <PageHeader
                     title="Create Factory"
                     description="Add a new factory to the system"
@@ -157,16 +158,34 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                 />
 
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center">
-                            <Building2 className="mr-2 h-5 w-5" />
-                            Factory Details
-                        </CardTitle>
-                        <CardDescription>Enter the factory information below</CardDescription>
+                    <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="space-y-1.5">
+                            <CardTitle className="flex items-center gap-2">
+                                <Building2 className="h-5 w-5" />
+                                Factory Details
+                            </CardTitle>
+                            <CardDescription>Enter the factory information below</CardDescription>
+                        </div>
+                        {/* Zone sits in the title bar, as on the route form */}
+                        <div className="flex items-center gap-2 sm:w-64">
+                            <span className="text-sm font-medium text-muted-foreground">Zone</span>
+                            <div className="flex-1">
+                                <SearchableSelect
+                                    label="Zone"
+                                    name="zone_id"
+                                    value={data.zone_id}
+                                    onChange={(value) => handleFieldChange('zone_id', value === 'none' ? '' : value)}
+                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                    error={getFieldError('zone_id')}
+                                    placeholder="Select zone..."
+                                    hideLabel
+                                />
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent>
                         <BaseForm onSubmit={submit}>
-                            <div className="grid gap-6 md:grid-cols-2">
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 <FormField
                                     label="Account ID"
                                     name="account_id"
@@ -175,18 +194,19 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                                     error={getFieldError('account_id')}
                                     required
                                     placeholder="e.g., 9178"
-                                    description="Unique identifier for this factory"
                                 />
 
-                                <FormField
-                                    label="Factory Name"
-                                    name="name"
-                                    value={data.name}
-                                    onChange={(e) => handleFieldChange('name', e)}
-                                    error={getFieldError('name')}
-                                    required
-                                    placeholder="e.g., A.K.M. KNIT WEAR LTD."
-                                />
+                                <div className="sm:col-span-2">
+                                    <FormField
+                                        label="Factory Name"
+                                        name="name"
+                                        value={data.name}
+                                        onChange={(e) => handleFieldChange('name', e)}
+                                        error={getFieldError('name')}
+                                        required
+                                        placeholder="e.g., A.K.M. KNIT WEAR LTD."
+                                    />
+                                </div>
 
                                 <FormSelect
                                     label="Status"
@@ -207,29 +227,6 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                                     placeholder="e.g., Dhaka"
                                 />
 
-                                <FormSelect
-                                    label="Zone"
-                                    name="zone_id"
-                                    value={data.zone_id}
-                                    onChange={(e) => handleFieldChange('zone_id', e)}
-                                    options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
-                                    error={getFieldError('zone_id')}
-                                    placeholder="Select zone..."
-                                />
-                            </div>
-
-                            <FormTextarea
-                                label="Address"
-                                name="address"
-                                value={data.address}
-                                onChange={(e) => handleFieldChange('address', e)}
-                                error={getFieldError('address')}
-                                placeholder="e.g., 14 No. Genda, Karnopara, Ulail, Savar"
-                                rows={3}
-                                description="Full street address"
-                            />
-
-                            <div className="grid gap-6 md:grid-cols-3">
                                 <FormField
                                     label="Latitude"
                                     name="latitude"
@@ -238,7 +235,6 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                                     onChange={(e) => handleFieldChange('latitude', e)}
                                     error={getFieldError('latitude')}
                                     placeholder="e.g., 23.82743"
-                                    description="Decimal degrees (-90 to 90)"
                                 />
 
                                 <FormField
@@ -249,19 +245,29 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                                     onChange={(e) => handleFieldChange('longitude', e)}
                                     error={getFieldError('longitude')}
                                     placeholder="e.g., 90.25867"
-                                    description="Decimal degrees (-180 to 180)"
                                 />
 
                                 <FormField
-                                    label="Mileage (km)"
+                                    label="Mileage (km, one way)"
                                     name="mileage_km"
                                     type="number"
                                     value={data.mileage_km}
                                     onChange={(e) => handleFieldChange('mileage_km', e)}
                                     error={getFieldError('mileage_km')}
                                     placeholder="e.g., 24.00"
-                                    description="Single way distance"
                                 />
+
+                                <div className="sm:col-span-2 lg:col-span-4">
+                                    <FormTextarea
+                                        label="Address"
+                                        name="address"
+                                        value={data.address}
+                                        onChange={(e) => handleFieldChange('address', e)}
+                                        error={getFieldError('address')}
+                                        placeholder="e.g., 14 No. Genda, Karnopara, Ulail, Savar"
+                                        rows={2}
+                                    />
+                                </div>
                             </div>
 
                             <div className="flex justify-end space-x-4">
