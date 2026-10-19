@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface Option {
     label: string;
@@ -16,6 +16,8 @@ interface SearchableSelectProps {
     placeholder?: string;
     required?: boolean;
     disabled?: boolean;
+    /** Keep the label for screen readers only, e.g. when a heading beside it already names the field */
+    hideLabel?: boolean;
 }
 
 export function SearchableSelect({
@@ -25,9 +27,10 @@ export function SearchableSelect({
     onChange,
     options,
     error,
-    placeholder = "Search and select...",
+    placeholder = 'Search and select...',
     required = false,
     disabled = false,
+    hideLabel = false,
 }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -36,15 +39,13 @@ export function SearchableSelect({
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Get the display value
-    const selectedOption = options.find(option => String(option.value) === String(value));
+    const selectedOption = options.find((option) => String(option.value) === String(value));
     const displayValue = selectedOption ? selectedOption.label : '';
 
     // Filter options based on search term
     useEffect(() => {
         if (searchTerm) {
-            const filtered = options.filter(option =>
-                option.label.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const filtered = options.filter((option) => option.label.toLowerCase().includes(searchTerm.toLowerCase()));
             setFilteredOptions(filtered);
         } else {
             setFilteredOptions(options);
@@ -89,56 +90,55 @@ export function SearchableSelect({
 
     return (
         <div className="space-y-2">
-            <label
-                htmlFor={name}
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            {/* The trigger is a div, not a form control, so this is a plain
+                span it points to with aria-labelledby (a <label> would need one) */}
+            <span id={`${name}-label`} className={hideLabel ? 'sr-only' : 'block text-sm leading-none font-medium'}>
                 {label}
-                {required && <span className="text-red-500 ml-1">*</span>}
-            </label>
+                {required && <span className="ml-1 text-red-500">*</span>}
+            </span>
 
-            <div className="relative" ref={dropdownRef}>
+            <div className={hideLabel ? 'relative !mt-0' : 'relative'} ref={dropdownRef}>
                 <div
-                    className={`
-                        relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm
-                        ${error
-                            ? 'border-red-300 focus-within:border-red-500 focus-within:ring-red-500'
-                            : 'border-input focus-within:border-indigo-500 focus-within:ring-indigo-500'
-                        }
-                        ${disabled ? 'cursor-not-allowed bg-muted/70' : 'hover:border-border'}
-                        focus-within:ring-1 transition-colors
-                    `}
+                    className={`relative flex h-9 w-full cursor-pointer items-center rounded-md border bg-transparent px-3 text-left text-sm shadow-xs transition-[color,box-shadow] focus-within:ring-[3px] ${
+                        error
+                            ? 'border-destructive focus-within:ring-destructive/20'
+                            : 'border-input focus-within:border-ring focus-within:ring-ring/50'
+                    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                     onClick={handleToggle}
+                    role="combobox"
+                    aria-labelledby={`${name}-label`}
+                    aria-expanded={isOpen}
+                    aria-invalid={!!error}
+                    aria-disabled={disabled}
                 >
                     {isOpen ? (
-                        <div className="flex items-center">
-                            <Search className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
+                        <div className="flex w-full items-center">
+                            <Search className="mr-2 h-4 w-4 text-muted-foreground" />
                             <input
                                 ref={inputRef}
                                 type="text"
-                                className="flex-1 border-none bg-transparent p-0 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0"
+                                className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm placeholder:text-muted-foreground focus:ring-0 focus:outline-none"
+                                id={`${name}-search`}
+                                name={`${name}-search`}
                                 placeholder="Type to search..."
+                                aria-labelledby={`${name}-label`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onClick={(e) => e.stopPropagation()}
                             />
                         </div>
                     ) : (
-                        <div className="flex items-center justify-between">
-                            <span className={`block truncate ${displayValue ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
-                                {displayValue || placeholder}
-                            </span>
-                            <div className="flex items-center space-x-1">
+                        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                            <span className={`block truncate ${displayValue ? '' : 'text-muted-foreground'}`}>{displayValue || placeholder}</span>
+                            <div className="flex shrink-0 items-center space-x-1">
                                 {value && value !== 'none' && (
-                                    <button
-                                        type="button"
-                                        onClick={handleClear}
-                                        className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                                    >
+                                    <button type="button" onClick={handleClear} className="text-muted-foreground hover:text-foreground">
                                         <X className="h-4 w-4" />
                                     </button>
                                 )}
-                                <ChevronDown className={`h-4 w-4 text-gray-400 dark:text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown
+                                    className={`h-4 w-4 text-muted-foreground opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                                />
                             </div>
                         </div>
                     )}
@@ -151,31 +151,25 @@ export function SearchableSelect({
                                 filteredOptions.map((option) => (
                                     <div
                                         key={option.value}
-                                        className={`
-                                            cursor-pointer select-none px-3 py-2 text-sm
-                                            ${option.value === value
-                                                ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-100'
-                                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                            }
-                                        `}
+                                        className={`cursor-pointer px-3 py-2 text-sm select-none ${
+                                            option.value === value
+                                                ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100'
+                                                : 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700'
+                                        } `}
                                         onClick={() => handleSelect(option)}
                                     >
                                         {option.label}
                                     </div>
                                 ))
                             ) : (
-                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                                    No options found
-                                </div>
+                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No options found</div>
                             )}
                         </div>
                     </div>
                 )}
             </div>
 
-            {error && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
     );
 }

@@ -1,6 +1,6 @@
+import { SortDirection } from '@/types';
 import { router } from '@inertiajs/react';
 import { useCallback, useMemo } from 'react';
-import { SortDirection } from '@/types';
 
 interface ServerSideTableParams {
     search?: string;
@@ -18,15 +18,8 @@ interface UseServerSideTableOptions {
     replace?: boolean;
 }
 
-export function useServerSideTable(
-    currentParams: ServerSideTableParams = {},
-    options: UseServerSideTableOptions = {}
-) {
-    const {
-        preserveState = true,
-        preserveScroll = true,
-        replace = false,
-    } = options;
+export function useServerSideTable(currentParams: ServerSideTableParams = {}, options: UseServerSideTableOptions = {}) {
+    const { preserveState = true, preserveScroll = true, replace = false } = options;
 
     // Build URL with parameters
     const buildUrl = useCallback((params: ServerSideTableParams) => {
@@ -70,63 +63,74 @@ export function useServerSideTable(
     }, []);
 
     // Navigate to new URL with parameters
-    const navigate = useCallback((params: Partial<ServerSideTableParams>) => {
-        const newParams = { ...currentParams, ...params };
+    const navigate = useCallback(
+        (params: Partial<ServerSideTableParams>) => {
+            const newParams = { ...currentParams, ...params };
 
-        // Reset page when search or filters change
-        if (params.search !== undefined || params.filters !== undefined) {
-            newParams.page = 1;
-        }
+            // Reset page when search or filters change
+            if (params.search !== undefined || params.filters !== undefined) {
+                newParams.page = 1;
+            }
 
-        const url = buildUrl(newParams);
+            const url = buildUrl(newParams);
 
-        router.visit(url, {
-            preserveState,
-            preserveScroll,
-            replace,
-        });
-    }, [currentParams, buildUrl, preserveState, preserveScroll, replace]);
+            router.visit(url, {
+                preserveState,
+                preserveScroll,
+                replace,
+            });
+        },
+        [currentParams, buildUrl, preserveState, preserveScroll, replace],
+    );
 
     // Search functionality
-    const handleSearch = useCallback((search: string) => {
-        navigate({ search });
-    }, [navigate]);
+    const handleSearch = useCallback(
+        (search: string) => {
+            navigate({ search });
+        },
+        [navigate],
+    );
 
     // Sorting functionality
-    const handleSort = useCallback((column: string) => {
-        const currentSort = currentParams.sort;
-        const currentDirection = currentParams.direction || 'desc';
+    const handleSort = useCallback(
+        (column: string) => {
+            const currentSort = currentParams.sort;
+            const currentDirection = currentParams.direction || 'desc';
 
-        let newDirection: SortDirection;
+            let newDirection: SortDirection;
 
-        if (currentSort === column) {
-            // Cycle through: desc -> asc -> null
-            newDirection = currentDirection === 'desc' ? 'asc' :
-                          currentDirection === 'asc' ? null : 'desc';
-        } else {
-            // New column, start with desc
-            newDirection = 'desc';
-        }
+            if (currentSort === column) {
+                // Cycle through: desc -> asc -> null
+                newDirection = currentDirection === 'desc' ? 'asc' : currentDirection === 'asc' ? null : 'desc';
+            } else {
+                // New column, start with desc
+                newDirection = 'desc';
+            }
 
-        if (newDirection === null) {
-            navigate({ sort: undefined, direction: undefined });
-        } else {
-            navigate({ sort: column, direction: newDirection });
-        }
-    }, [currentParams.sort, currentParams.direction, navigate]);
+            if (newDirection === null) {
+                navigate({ sort: undefined, direction: undefined });
+            } else {
+                navigate({ sort: column, direction: newDirection });
+            }
+        },
+        [currentParams.sort, currentParams.direction, navigate],
+    );
 
     // Filter functionality
-    const handleFilter = useCallback((key: string, values: (string | number)[]) => {
-        const newFilters = { ...currentParams.filters };
+    const handleFilter = useCallback(
+        (key: string, values: (string | number)[]) => {
+            const newFilters = { ...currentParams.filters };
 
-        if (values.length === 0) {
-            delete newFilters[key];
-        } else {
-            newFilters[key] = values;
-        }
+            if (values.length === 0) {
+                delete newFilters[key];
+            } else {
+                newFilters[key] = values;
+            }
 
-        navigate({ filters: Object.keys(newFilters).length > 0 ? newFilters : undefined });
-    }, [currentParams.filters, navigate]);
+            navigate({ filters: Object.keys(newFilters).length > 0 ? newFilters : undefined });
+        },
+        [currentParams.filters, navigate],
+    );
 
     // Clear all filters
     const clearFilters = useCallback(() => {
@@ -139,23 +143,35 @@ export function useServerSideTable(
     }, [navigate]);
 
     // Pagination
-    const handlePageChange = useCallback((page: number) => {
-        navigate({ page });
-    }, [navigate]);
+    const handlePageChange = useCallback(
+        (page: number) => {
+            navigate({ page });
+        },
+        [navigate],
+    );
 
-    const handlePerPageChange = useCallback((perPage: number) => {
-        navigate({ per_page: perPage, page: 1 });
-    }, [navigate]);
+    const handlePerPageChange = useCallback(
+        (perPage: number) => {
+            navigate({ per_page: perPage, page: 1 });
+        },
+        [navigate],
+    );
 
     // Get current sort direction for a column
-    const getSortDirection = useCallback((column: string): SortDirection => {
-        return currentParams.sort === column ? (currentParams.direction || 'desc') : null;
-    }, [currentParams.sort, currentParams.direction]);
+    const getSortDirection = useCallback(
+        (column: string): SortDirection => {
+            return currentParams.sort === column ? currentParams.direction || 'desc' : null;
+        },
+        [currentParams.sort, currentParams.direction],
+    );
 
     // Get current filter values for a key
-    const getFilterValues = useCallback((key: string): (string | number)[] => {
-        return (currentParams.filters?.[key] as (string | number)[] | undefined) || [];
-    }, [currentParams.filters]);
+    const getFilterValues = useCallback(
+        (key: string): (string | number)[] => {
+            return (currentParams.filters?.[key] as (string | number)[] | undefined) || [];
+        },
+        [currentParams.filters],
+    );
 
     // Check if any filters are active
     const hasActiveFilters = useMemo(() => {

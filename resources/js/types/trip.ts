@@ -1,16 +1,21 @@
+import type { Department, Factory, Logistics, Stop, VehicleRoute, Zone } from './common';
 import type { User } from './user';
 import type { Vehicle } from './vehicle';
-import type { VehicleRoute, Stop, Department, Factory, Logistics } from './common';
 
 export interface Trip {
     id: number;
     trip_number: string;
     vehicle_route_id?: number;
     vehicle_id?: number;
+    zone_id?: number;
     driver_id?: number;
     department_id?: number;
     requested_by: number;
     approved_by?: number;
+    approved_at?: string;
+    /** Set on trips list rows: may the current user approve/reject this trip */
+    can_approve?: boolean;
+    can_reject?: boolean;
     purpose: string;
     trip_type?: 'inspection' | 'pick-up' | 'drop-off' | 'training' | 'complaints' | 'CVV' | 'Incident Inspection' | 'officials' | 'Assigned';
     remarks?: string;
@@ -55,7 +60,14 @@ export interface Trip {
     other_costs?: number;
     total_cost?: number;
     status: 'pending' | 'approved' | 'rejected' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-    cancellation_reason?: 'passenger_no_show' | 'vehicle_breakdown' | 'driver_unavailable' | 'route_blocked' | 'weather_conditions' | 'emergency' | 'other';
+    cancellation_reason?:
+        | 'passenger_no_show'
+        | 'vehicle_breakdown'
+        | 'driver_unavailable'
+        | 'route_blocked'
+        | 'weather_conditions'
+        | 'emergency'
+        | 'other';
     cancellation_notes?: string;
     cancelled_by?: number;
     cancelled_at?: string;
@@ -77,10 +89,12 @@ export interface Trip {
     // Relationships
     requester?: User;
     approver?: User;
+    cancelled_by_user?: User;
     vehicle?: Vehicle;
     driver?: User;
     department?: Department;
     departments?: Department[];
+    zone?: Zone;
     logistics?: Logistics[];
     passengers?: TripPassenger[];
     trip_stops?: TripStop[];

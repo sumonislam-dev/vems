@@ -28,7 +28,7 @@ class VehicleDriverAssignment extends Model
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
     }
 
     public function driver(): BelongsTo

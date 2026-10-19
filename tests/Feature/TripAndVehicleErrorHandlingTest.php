@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Trip;
+use App\Models\TripPassenger;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Vendor;
@@ -141,6 +142,8 @@ it('shows a generic message and logs the real error when updating a trip fails u
     ]);
 
     Log::spy();
+    // Duplicate passengers are merged on update, so force a failure instead
+    TripPassenger::creating(fn () => throw new RuntimeException('SQLSTATE[HY000]: simulated failure'));
 
     $response = $this->actingAs($editor)->put("/trips/{$trip->id}", [
         'vehicle_id' => $vehicle->id,
@@ -148,7 +151,7 @@ it('shows a generic message and logs the real error when updating a trip fails u
         'scheduled_date' => '2026-06-01',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',
-        'passengers' => duplicatePassengerPayload($passenger->id),
+        'passengers' => [['user_id' => $passenger->id]],
     ]);
 
     $response->assertSessionHasErrors([
@@ -176,6 +179,7 @@ it('shows a generic message and logs the real error when creating a vehicle fail
 
     try {
         $response = $this->actingAs($actor)->post('/vehicles', [
+            'zone_id' => testZoneId(),
             'brand' => 'Toyota',
             'model' => 'Camry',
             'registration_number' => 'ERR-'.uniqid(),

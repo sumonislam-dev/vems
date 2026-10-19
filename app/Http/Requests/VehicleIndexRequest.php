@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class VehicleIndexRequest extends FormRequest
@@ -17,7 +18,7 @@ class VehicleIndexRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -39,10 +40,14 @@ class VehicleIndexRequest extends FormRequest
             'filters.fuel_type.*' => ['string'],
             'filters.vendor_id' => ['nullable', 'array'],
             'filters.vendor_id.*' => ['string'],
+            'filters.zone_id' => ['nullable', 'array'],
+            'filters.zone_id.*' => ['string'],
             'filters.is_active' => ['nullable', 'array'],
             'filters.is_active.*' => ['nullable'],
             'filters.status' => ['nullable', 'array'],
             'filters.status.*' => ['string'],
+            'filters.details' => ['nullable', 'array'],
+            'filters.details.*' => ['string', 'in:pending,complete'],
             'format' => ['nullable', 'string', 'in:csv,excel,pdf'],
             'template_id' => ['nullable', 'integer', 'exists:export_templates,id'],
         ];
@@ -62,7 +67,7 @@ class VehicleIndexRequest extends FormRequest
 
         // Convert is_active filter values to proper boolean
         if (isset($validated['filters']['is_active']) && is_array($validated['filters']['is_active'])) {
-            $validated['filters']['is_active'] = array_map(function($value) {
+            $validated['filters']['is_active'] = array_map(function ($value) {
                 if (is_bool($value)) {
                     return $value;
                 }
@@ -72,6 +77,7 @@ class VehicleIndexRequest extends FormRequest
                 if ($value === 'false' || $value === '0' || $value === 0) {
                     return false;
                 }
+
                 return filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
             }, $validated['filters']['is_active']);
         }

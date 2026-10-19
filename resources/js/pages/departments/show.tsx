@@ -1,22 +1,12 @@
-import React from 'react';
-import { Head, router } from '@inertiajs/react';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import {
-    ArrowLeft,
-    Edit,
-    Trash2,
-    Building,
-    MapPin,
-    Phone,
-    Mail,
-    User,
-    Users,
-    Calendar
-} from 'lucide-react';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
+import { Head, router } from '@inertiajs/react';
+import { ArrowLeft, Building, Calendar, Edit, Mail, MapPin, Phone, Trash2, User, Users } from 'lucide-react';
 
 interface Department {
     id: number;
@@ -58,8 +48,9 @@ interface Props {
 }
 
 export default function DepartmentShow({ department, stats }: Props) {
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${department.name}?`)) {
+    const can = useCan();
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${department.name}?`)) {
             router.delete(`/departments/${department.id}`);
         }
     };
@@ -83,6 +74,7 @@ export default function DepartmentShow({ department, stats }: Props) {
                             label: 'Edit Department',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: `/departments/${department.id}/edit`,
+                            permission: 'edit-departments',
                         },
                     ]}
                 />
@@ -203,9 +195,9 @@ export default function DepartmentShow({ department, stats }: Props) {
                             {department.users.length > 0 ? (
                                 <div className="space-y-3">
                                     {department.users.slice(0, 10).map((user) => (
-                                        <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                        <div key={user.id} className="flex items-center justify-between rounded-lg border p-3">
                                             <div className="flex items-center space-x-3">
-                                                <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
+                                                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
                                                     <User className="h-4 w-4 text-gray-600" />
                                                 </div>
                                                 <div>
@@ -215,9 +207,7 @@ export default function DepartmentShow({ department, stats }: Props) {
                                             </div>
                                             <div className="flex items-center space-x-2">
                                                 <Badge variant="outline">{user.user_type}</Badge>
-                                                <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>
-                                                    {user.status}
-                                                </Badge>
+                                                <Badge variant={user.status === 'active' ? 'default' : 'secondary'}>{user.status}</Badge>
                                             </div>
                                         </div>
                                     ))}
@@ -228,34 +218,32 @@ export default function DepartmentShow({ department, stats }: Props) {
                                     )}
                                 </div>
                             ) : (
-                                <div className="text-center text-muted-foreground py-8">
-                                    No users assigned to this department
-                                </div>
+                                <div className="py-8 text-center text-muted-foreground">No users assigned to this department</div>
                             )}
                         </CardContent>
                     </Card>
                 </div>
 
                 {/* Danger Zone */}
-                <Card className="border-destructive">
-                    <CardHeader>
-                        <CardTitle className="text-destructive">Danger Zone</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h4 className="font-medium">Delete Department</h4>
-                                <p className="text-sm text-muted-foreground">
-                                    Permanently delete this department. This action cannot be undone.
-                                </p>
+                {can('delete-departments') && (
+                    <Card className="border-destructive">
+                        <CardHeader>
+                            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h4 className="font-medium">Delete Department</h4>
+                                    <p className="text-sm text-muted-foreground">Permanently delete this department. This action cannot be undone.</p>
+                                </div>
+                                <Button variant="destructive" onClick={handleDelete}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Department
+                                </Button>
                             </div>
-                            <Button variant="destructive" onClick={handleDelete}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Department
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                )}
             </div>
         </AppSidebarLayout>
     );

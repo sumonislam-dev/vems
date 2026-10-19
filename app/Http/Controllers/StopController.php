@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Stop;
+use App\Models\Zone;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -28,6 +29,7 @@ class StopController extends Controller implements HasMiddleware
             'description' => 'nullable|string|max:500',
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'zone_id' => Zone::validationRule(),
         ]);
 
         $stop = Stop::create($validated);
@@ -35,7 +37,7 @@ class StopController extends Controller implements HasMiddleware
         return response()->json([
             'success' => true,
             'message' => 'Stop created successfully',
-            'data' => $stop
+            'data' => $stop,
         ], 201);
     }
 
@@ -44,13 +46,14 @@ class StopController extends Controller implements HasMiddleware
      */
     public function index(): JsonResponse
     {
-        $stops = Stop::select('id', 'name', 'description', 'latitude', 'longitude')
+        $stops = Stop::selectable()
+            ->select('id', 'name', 'description', 'latitude', 'longitude', 'zone_id')
             ->orderBy('name')
             ->get();
 
         return response()->json([
             'success' => true,
-            'data' => $stops
+            'data' => $stops,
         ]);
     }
 }

@@ -5,13 +5,15 @@ use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedTripSchedulingPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'create-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    Permission::firstOrCreate(['name' => 'assign-vehicles', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeSchedulingUser(string $username): User
@@ -51,7 +53,7 @@ function tripPayload(array $overrides = []): array
 it('refuses to create a trip that overlaps another trip already booked on the same vehicle', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-1');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle();
 
     Trip::create([
@@ -78,7 +80,7 @@ it('refuses to create a trip that overlaps another trip already booked on the sa
 it('allows creating a trip on the same vehicle for a non-overlapping time window', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-2');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle();
 
     Trip::create([
@@ -105,7 +107,7 @@ it('allows creating a trip on the same vehicle for a non-overlapping time window
 it('ignores a cancelled trip when checking for a vehicle double-booking', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-3');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle();
 
     Trip::create([
@@ -132,7 +134,7 @@ it('ignores a cancelled trip when checking for a vehicle double-booking', functi
 it('refuses to create a trip that seats more passengers than the vehicle allows', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-4');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle(['capacity' => 2]);
 
     $p1 = makeSchedulingUser('rider-1');
@@ -155,7 +157,7 @@ it('refuses to create a trip that seats more passengers than the vehicle allows'
 it('allows a trip within the vehicle capacity, and skips the check when capacity is unset', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-5');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle(['capacity' => null]);
 
     $riders = collect(range(1, 5))->map(fn ($i) => makeSchedulingUser("rider-cap-{$i}"));
@@ -172,7 +174,7 @@ it('allows a trip within the vehicle capacity, and skips the check when capacity
 it('does not treat a trip as conflicting with its own current row when updating', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-6');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $requester->givePermissionTo('edit-trips');
     $vehicle = makeSchedulingVehicle();
 
@@ -200,7 +202,7 @@ it('does not treat a trip as conflicting with its own current row when updating'
 it('refuses to reassign a trip onto a vehicle already booked at that time', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-7');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $requester->givePermissionTo('edit-trips');
 
     $vehicleA = makeSchedulingVehicle();
@@ -241,7 +243,7 @@ it('refuses to reassign a trip onto a vehicle already booked at that time', func
 it('rejects the whole recurring batch if any single day would double-book the vehicle', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-8');
-    $requester->givePermissionTo('create-trips');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
     $vehicle = makeSchedulingVehicle();
 
     // Blocks the middle day (2026-06-02) of a 3-day recurring range.

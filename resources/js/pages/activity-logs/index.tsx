@@ -1,11 +1,10 @@
-import React from 'react';
-import { Head } from '@inertiajs/react';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { DataTableColumn, ColumnFilter } from '@/types';
-import { ActivityLogEntry } from '@/types/activity-log';
+import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { ColumnFilter, DataTableColumn } from '@/types';
+import { ActivityLogEntry } from '@/types/activity-log';
+import { Head } from '@inertiajs/react';
 
 interface Props {
     activities: {
@@ -53,8 +52,8 @@ function ChangesSummary({ properties }: { properties: ActivityLogEntry['properti
                 {keys.slice(0, 6).map((key) => (
                     <div key={key}>
                         <span className="font-medium">{key}:</span>{' '}
-                        <span className="text-muted-foreground line-through">{formatValue(old[key])}</span>{' '}
-                        <span>&rarr;</span> <span>{formatValue(next[key])}</span>
+                        <span className="text-muted-foreground line-through">{formatValue(old[key])}</span> <span>&rarr;</span>{' '}
+                        <span>{formatValue(next[key])}</span>
                     </div>
                 ))}
                 {keys.length > 6 && <div className="text-muted-foreground">+{keys.length - 6} more</div>}
@@ -65,11 +64,13 @@ function ChangesSummary({ properties }: { properties: ActivityLogEntry['properti
     if (next) {
         return (
             <div className="space-y-1 text-xs">
-                {Object.entries(next).slice(0, 6).map(([key, value]) => (
-                    <div key={key}>
-                        <span className="font-medium">{key}:</span> <span>{formatValue(value)}</span>
-                    </div>
-                ))}
+                {Object.entries(next)
+                    .slice(0, 6)
+                    .map(([key, value]) => (
+                        <div key={key}>
+                            <span className="font-medium">{key}:</span> <span>{formatValue(value)}</span>
+                        </div>
+                    ))}
             </div>
         );
     }

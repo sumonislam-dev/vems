@@ -65,21 +65,26 @@ export function PassengerAttendanceCard({
                                             )}
                                             <div className="grid grid-cols-1 gap-3 text-sm text-gray-600 md:grid-cols-2">
                                                 <p>
-                                                    Planned pickup: <span className="font-medium text-gray-900">{passenger.pickup_stop?.name ?? 'Not set'}</span>
+                                                    Planned pickup:{' '}
+                                                    <span className="font-medium text-gray-900">{passenger.pickup_stop?.name ?? 'Not set'}</span>
                                                 </p>
                                                 <p>
-                                                    Planned dropoff: <span className="font-medium text-gray-900">{passenger.dropoff_stop?.name ?? 'Not set'}</span>
+                                                    Planned dropoff:{' '}
+                                                    <span className="font-medium text-gray-900">{passenger.dropoff_stop?.name ?? 'Not set'}</span>
                                                 </p>
                                                 <p>
-                                                    Actual check-in: <span className="font-medium text-gray-900">{formatDateTime(passenger.boarded_at)}</span>
+                                                    Actual check-in:{' '}
+                                                    <span className="font-medium text-gray-900">{formatDateTime(passenger.boarded_at)}</span>
                                                 </p>
                                                 <p>
-                                                    Actual check-out: <span className="font-medium text-gray-900">{formatDateTime(passenger.dropped_at)}</span>
+                                                    Actual check-out:{' '}
+                                                    <span className="font-medium text-gray-900">{formatDateTime(passenger.dropped_at)}</span>
                                                 </p>
                                             </div>
                                             {latestEvent && (
                                                 <p className="text-xs text-gray-500">
-                                                    Latest event: {latestEvent.event_type.replace('_', ' ')} at {formatDateTime(latestEvent.event_time)}
+                                                    Latest event: {latestEvent.event_type.replace('_', ' ')} at{' '}
+                                                    {formatDateTime(latestEvent.event_time)}
                                                     {latestEvent.area_name ? ` from ${latestEvent.area_name}` : ''}
                                                 </p>
                                             )}

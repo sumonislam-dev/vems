@@ -12,24 +12,6 @@ class UpdateDepartmentRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        $department = $this->route('department');
-
-        // Super Admin can edit any department
-        if (auth()->user()->hasRole('Super Admin')) {
-            return true;
-        }
-
-        // Admin users can edit departments
-        if (auth()->user()->user_type === 'admin') {
-            return true;
-        }
-
-        // Department heads can edit their own department
-        if ($department && $department->head_id === auth()->id()) {
-            return true;
-        }
-
-        // Check if user has specific permission
         return auth()->user()->can('edit-departments');
     }
 
@@ -40,7 +22,7 @@ class UpdateDepartmentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $budget = $this->input('budget_allocation');
-        if (!is_array($budget)) {
+        if (! is_array($budget)) {
             $this->merge(['budget_allocation' => null]);
         }
     }

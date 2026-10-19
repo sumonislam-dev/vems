@@ -6,6 +6,12 @@ import type { SharedData } from '@/types';
 
 export function NotificationButton() {
     const { notifications } = usePage<SharedData>().props;
+
+    // Not shared for users without view-notifications
+    if (!notifications) {
+        return null;
+    }
+
     const count = notifications.unread_count;
 
     const openNotification = (id: string, url: string | null) => {

@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Department;
-use App\Models\User;
+use App\Http\Requests\DepartmentIndexRequest;
 use App\Http\Requests\StoreDepartmentRequest;
 use App\Http\Requests\UpdateDepartmentRequest;
-use App\Http\Requests\DepartmentIndexRequest;
 use App\Imports\DepartmentsImport;
-use Illuminate\Http\Request;
+use App\Models\Department;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
@@ -21,8 +21,10 @@ class DepartmentController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-departments', only: ['index', 'show', 'export']),
-            new Middleware('permission:create-departments', only: ['create', 'store', 'import']),
+            new Middleware('permission:view-departments', only: ['index', 'show']),
+            new Middleware('permission:export-departments', only: ['export']),
+            new Middleware('permission:create-departments', only: ['create', 'store']),
+            new Middleware('permission:import-departments', only: ['import']),
             new Middleware('permission:edit-departments', only: ['edit', 'update', 'toggleStatus']),
             new Middleware('permission:delete-departments', only: ['destroy']),
         ];
@@ -35,24 +37,24 @@ class DepartmentController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
 
-        $query = Department::with(['users', 'head']);
+        $query = Department::with('head')->withCount('users');
 
         // Apply search
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('code', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%")
-                  ->orWhere('location', 'like', "%{$search}%");
+                    ->orWhere('code', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%");
             });
         }
 
         // Apply filters
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $statuses = $filters['status'];
                 $query->where(function ($q) use ($statuses) {
                     foreach ($statuses as $status) {
@@ -90,7 +92,7 @@ class DepartmentController extends Controller implements HasMiddleware
                 'email' => $department->email,
                 'is_active' => $department->is_active,
                 'status' => $department->is_active ? 'active' : 'inactive',
-                'users_count' => $department->users->count(),
+                'users_count' => $department->users_count,
                 'head' => $department->head ? [
                     'id' => $department->head->id,
                     'name' => $department->head->name,
@@ -128,6 +130,7 @@ class DepartmentController extends Controller implements HasMiddleware
         try {
             $validated = $request->validated();
             Department::create($validated);
+
             return redirect()->route('departments.index')
                 ->with('success', 'Department created successfully.');
         } catch (\Exception $e) {
@@ -146,11 +149,11 @@ class DepartmentController extends Controller implements HasMiddleware
         $stats = [
             'total_users' => $department->users->count(),
             'active_users' => $department->users->where('status', 'active')->count(),
-            'drivers' => $department->users->filter(function($user) {
+            'drivers' => $department->users->filter(function ($user) {
                 return $user->roles->contains('name', 'Driver') ||
                        in_array($user->user_type, ['driver', 'transport_manager']);
             })->count(),
-            'managers' => $department->users->filter(function($user) {
+            'managers' => $department->users->filter(function ($user) {
                 return $user->roles->contains('name', 'Manager');
             })->count(),
         ];
@@ -216,6 +219,7 @@ class DepartmentController extends Controller implements HasMiddleware
     {
         try {
             $department->update($request->validated());
+
             return redirect()->route('departments.index')
                 ->with('success', 'Department updated successfully.');
         } catch (\Exception $e) {
@@ -233,6 +237,7 @@ class DepartmentController extends Controller implements HasMiddleware
         }
         try {
             $department->delete();
+
             return redirect()->route('departments.index')
                 ->with('success', 'Department deleted successfully.');
         } catch (\Exception $e) {
@@ -246,13 +251,13 @@ class DepartmentController extends Controller implements HasMiddleware
     public function toggleStatus(Department $department): RedirectResponse
     {
         $department->update([
-            'is_active' => !$department->is_active
+            'is_active' => ! $department->is_active,
         ]);
 
         $status = $department->is_active ? 'activated' : 'deactivated';
 
         return redirect()->back()
-                        ->with('success', "Department {$status} successfully.");
+            ->with('success', "Department {$status} successfully.");
     }
 
     /**

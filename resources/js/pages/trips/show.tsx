@@ -1,7 +1,10 @@
+import { confirmAction } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
-import { AttendanceHistoryCard } from '@/components/trip-attendance-history';
 import { TripActionButtons } from '@/components/trip-action-buttons';
+import { TripAssignVehicleDialog, type AssignableVehicleOption } from '@/components/trip-assign-vehicle-dialog';
+import { AttendanceHistoryCard } from '@/components/trip-attendance-history';
 import { AttendanceTripPassenger, PassengerAttendanceCard } from '@/components/trip-passenger-attendance-card';
+import { TripRejectDialog } from '@/components/trip-reject-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,8 +15,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
-import { BreadcrumbItem, Trip, TripAuditLog, TripFeedback, TripPassengerEvent, TripRouteAssignment, TripVehicleAssignment, User as UserType } from '@/types';
+import {
+    BreadcrumbItem,
+    Trip,
+    TripAuditLog,
+    TripFeedback,
+    TripPassengerEvent,
+    TripRouteAssignment,
+    TripVehicleAssignment,
+    User as UserType,
+} from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
 import {
     Ban,
@@ -80,13 +93,41 @@ type TripDetails = Trip & {
 
 const getStatusBadge = (status: Trip['status']) => {
     const config = {
-        pending: { label: 'Pending', className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300', icon: Clock },
-        approved: { label: 'Approved', className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300', icon: CheckCircle },
-        rejected: { label: 'Rejected', className: 'border-red-200 bg-red-100 text-red-800 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300', icon: XCircle },
-        assigned: { label: 'Assigned', className: 'border-cyan-200 bg-cyan-100 text-cyan-800 dark:border-cyan-500/30 dark:bg-cyan-500/15 dark:text-cyan-300', icon: CheckCircle },
-        in_progress: { label: 'In Progress', className: 'border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300', icon: Clock },
-        completed: { label: 'Completed', className: 'border-green-200 bg-green-100 text-green-800 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300', icon: CheckCircle },
-        cancelled: { label: 'Cancelled', className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300', icon: XCircle },
+        pending: {
+            label: 'Pending',
+            className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300',
+            icon: Clock,
+        },
+        approved: {
+            label: 'Approved',
+            className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300',
+            icon: CheckCircle,
+        },
+        rejected: {
+            label: 'Rejected',
+            className: 'border-red-200 bg-red-100 text-red-800 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300',
+            icon: XCircle,
+        },
+        assigned: {
+            label: 'Assigned',
+            className: 'border-cyan-200 bg-cyan-100 text-cyan-800 dark:border-cyan-500/30 dark:bg-cyan-500/15 dark:text-cyan-300',
+            icon: CheckCircle,
+        },
+        in_progress: {
+            label: 'In Progress',
+            className: 'border-violet-200 bg-violet-100 text-violet-800 dark:border-violet-500/30 dark:bg-violet-500/15 dark:text-violet-300',
+            icon: Clock,
+        },
+        completed: {
+            label: 'Completed',
+            className: 'border-green-200 bg-green-100 text-green-800 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300',
+            icon: CheckCircle,
+        },
+        cancelled: {
+            label: 'Cancelled',
+            className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300',
+            icon: XCircle,
+        },
     };
     const { label, className, icon: Icon } = config[status] || config.pending;
 
@@ -100,10 +141,26 @@ const getStatusBadge = (status: Trip['status']) => {
 
 const getPriorityBadge = (priority: Trip['priority']) => {
     const config = {
-        urgent: { label: 'Urgent', className: 'border-red-300 bg-red-100 text-red-800 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300', icon: Flag },
-        high: { label: 'High', className: 'border-orange-200 bg-orange-100 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300', icon: Flag },
-        medium: { label: 'Medium', className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300', icon: Flag },
-        low: { label: 'Low', className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300', icon: Flag },
+        urgent: {
+            label: 'Urgent',
+            className: 'border-red-300 bg-red-100 text-red-800 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300',
+            icon: Flag,
+        },
+        high: {
+            label: 'High',
+            className: 'border-orange-200 bg-orange-100 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300',
+            icon: Flag,
+        },
+        medium: {
+            label: 'Medium',
+            className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300',
+            icon: Flag,
+        },
+        low: {
+            label: 'Low',
+            className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300',
+            icon: Flag,
+        },
     };
     const { label, className, icon: Icon } = config[priority] || config.medium;
 
@@ -166,15 +223,13 @@ const getDefaultStopId = (mode: AttendanceMode, passenger: AttendanceTripPasseng
     return '';
 };
 
-/**
- * Check if the current user has a specific permission
- */
-const checkPermission = (permission: string, permissions: string[] = []): boolean => {
-    return permissions.includes(permission);
-};
-
 const buildFormDefaults = (mode: AttendanceMode, passenger: AttendanceTripPassenger, event?: TripPassengerEvent): AttendanceFormShape => ({
-    event_type: (mode === 'correct' ? event?.event_type : mode) === 'check_out' ? 'check_out' : (mode === 'correct' ? event?.event_type : mode) === 'no_show' ? 'no_show' : 'check_in',
+    event_type:
+        (mode === 'correct' ? event?.event_type : mode) === 'check_out'
+            ? 'check_out'
+            : (mode === 'correct' ? event?.event_type : mode) === 'no_show'
+              ? 'no_show'
+              : 'check_in',
     event_time: toLocalDateTimeValue(event?.event_time),
     stop_id: getDefaultStopId(mode, passenger, event),
     latitude: event?.latitude ? String(event.latitude) : '',
@@ -191,21 +246,40 @@ type ShowTripProps = {
     vehicleAssignments?: TripVehicleAssignment[];
     routeAssignments?: TripRouteAssignment[];
     auditLogs?: TripAuditLog[];
+    availableVehicles?: AssignableVehicleOption[];
+    /** approve-trips, or a department head deciding on their own department's trip */
+    canApprove?: boolean;
+    canReject?: boolean;
 };
 
 const formatAuditAction = (action: string) => action.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
-export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignments = [], auditLogs = [] }: ShowTripProps) {
-    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number }; permissions?: string[]; roles?: string[] } };
-    const permissions = pageProps.auth?.permissions ?? [];
+export default function ShowTrip({
+    trip,
+    vehicleAssignments = [],
+    routeAssignments = [],
+    auditLogs = [],
+    availableVehicles = [],
+    canApprove = false,
+    canReject = false,
+}: ShowTripProps) {
+    const pageProps = usePage().props as unknown as { auth?: { user?: { id?: number } } };
     const currentUserId = pageProps.auth?.user?.id;
+    const can = useCan();
     const passengers = (trip.passengers ?? []) as AttendanceTripPassenger[];
     const canManageAttendance = !['cancelled', 'rejected'].includes(trip.status);
-    const canCaptureAttendance = checkPermission('capture-passenger-attendance', permissions);
-    const canCorrectAttendance = checkPermission('correct-passenger-attendance', permissions);
-    const canCreateComplaint = checkPermission('create-complaints', permissions);
-    const canEditTrips = checkPermission('edit-trips', permissions);
+    const canCaptureAttendance = can('capture-passenger-attendance');
+    const canCorrectAttendance = can('correct-passenger-attendance');
+    const canCreateComplaint = can('create-complaints');
+    const canEditTrips = can('edit-trips');
     const isAssignedDriver = !!currentUserId && trip.vehicle?.driver_id === currentUserId;
+    const showApprove = trip.status === 'pending' && canApprove;
+    const showReject = trip.status === 'pending' && canReject;
+    // A trip can't start until Logistics has assigned a vehicle
+    const showStart = canStartTrip(trip.status) && !!trip.vehicle_id && (canEditTrips || (isAssignedDriver && can('check-in-trips')));
+    const canAssignVehicle = can('assign-vehicles') && ['pending', 'approved', 'assigned', 'in_progress'].includes(trip.status);
+    const showComplete = canCompleteTrip(trip.status) && (canEditTrips || (isAssignedDriver && can('check-out-trips')));
+    const showCancel = canCancelTrip(trip.status) && canEditTrips;
     const [dialogState, setDialogState] = useState<{
         mode: AttendanceMode;
         passenger: AttendanceTripPassenger;
@@ -398,7 +472,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         </div>
                         {trip.team_number && <p className="text-sm text-gray-600">Team: {trip.team_number}</p>}
                     </div>
-                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} />
+                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} canEdit={canEditTrips} canStart={showStart} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -516,27 +590,27 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             <CardContent>
                                 <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-6">
                                     <div className="rounded-lg border bg-slate-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-slate-500">Passengers</p>
+                                        <p className="text-xs tracking-wide text-slate-500 uppercase">Passengers</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.totalPassengers}</p>
                                     </div>
                                     <div className="rounded-lg border bg-emerald-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-emerald-700">Boarded</p>
+                                        <p className="text-xs tracking-wide text-emerald-700 uppercase">Boarded</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.boarded}</p>
                                     </div>
                                     <div className="rounded-lg border bg-blue-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-blue-700">Completed</p>
+                                        <p className="text-xs tracking-wide text-blue-700 uppercase">Completed</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.completed}</p>
                                     </div>
                                     <div className="rounded-lg border bg-rose-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-rose-700">No Show</p>
+                                        <p className="text-xs tracking-wide text-rose-700 uppercase">No Show</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.noShow}</p>
                                     </div>
                                     <div className="rounded-lg border bg-amber-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-amber-700">Events</p>
+                                        <p className="text-xs tracking-wide text-amber-700 uppercase">Events</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.totalEvents}</p>
                                     </div>
                                     <div className="rounded-lg border bg-violet-50 p-3">
-                                        <p className="text-xs uppercase tracking-wide text-violet-700">Voided</p>
+                                        <p className="text-xs tracking-wide text-violet-700 uppercase">Voided</p>
                                         <p className="mt-2 text-2xl font-semibold">{attendanceSummary.invalidEvents}</p>
                                     </div>
                                 </div>
@@ -544,11 +618,14 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         </Card>
 
                         <Card>
-                            <CardHeader>
+                            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0">
                                 <CardTitle className="flex items-center gap-2">
                                     <Car className="h-5 w-5" />
                                     Vehicle & Driver
                                 </CardTitle>
+                                {canAssignVehicle && (
+                                    <TripAssignVehicleDialog tripId={trip.id} hasVehicle={!!trip.vehicle} vehicles={availableVehicles} />
+                                )}
                             </CardHeader>
                             <CardContent>
                                 {trip.vehicle ? (
@@ -560,7 +637,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                             <div className="flex-1">
                                                 <p className="text-sm font-medium text-gray-600">Vehicle</p>
                                                 <p className="text-lg font-semibold">{trip.vehicle.registration_number}</p>
-                                                <p className="text-sm text-gray-500">{trip.vehicle.brand} {trip.vehicle.model}</p>
+                                                <p className="text-sm text-gray-500">
+                                                    {trip.vehicle.brand} {trip.vehicle.model}
+                                                </p>
                                             </div>
                                         </div>
                                         {trip.driver && (
@@ -573,7 +652,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                                     <div className="flex-1">
                                                         <p className="text-sm font-medium text-gray-600">Driver</p>
                                                         <p className="text-lg font-semibold">{trip.driver.name}</p>
-                                                        {trip.driver.official_phone && <p className="text-sm text-gray-500">{trip.driver.official_phone}</p>}
+                                                        {trip.driver.official_phone && (
+                                                            <p className="text-sm text-gray-500">{trip.driver.official_phone}</p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </>
@@ -583,6 +664,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                     <div className="py-8 text-center text-gray-500">
                                         <Car className="mx-auto mb-2 h-12 w-12 opacity-30" />
                                         <p className="text-sm">No vehicle assigned yet</p>
+                                        <p className="text-xs">Logistics assigns one after the request is approved.</p>
                                     </div>
                                 )}
                             </CardContent>
@@ -713,6 +795,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                         <div>
                                             <label className="text-xs font-medium text-gray-600">Approved By</label>
                                             <p className="mt-1 text-sm font-medium">{trip.approver.name}</p>
+                                            {trip.approved_at && (
+                                                <p className="text-xs text-gray-500">{new Date(trip.approved_at).toLocaleString()}</p>
+                                            )}
                                         </div>
                                     </>
                                 )}
@@ -732,7 +817,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                             <label className="text-xs font-medium text-gray-600">Cancelled By</label>
                                             <p className="mt-1 text-sm font-medium">{trip.cancelled_by_user?.name ?? 'Unknown'}</p>
                                             {trip.cancellation_reason && (
-                                                <p className="text-sm capitalize text-gray-700">{trip.cancellation_reason.replace(/_/g, ' ')}</p>
+                                                <p className="text-sm text-gray-700 capitalize">{trip.cancellation_reason.replace(/_/g, ' ')}</p>
                                             )}
                                             {trip.cancellation_notes && <p className="text-xs text-gray-500">{trip.cancellation_notes}</p>}
                                         </div>
@@ -741,70 +826,63 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             </CardContent>
                         </Card>
 
-                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">Actions</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                    {trip.status === 'pending' && (
-                                        <>
-                                            <Button onClick={() => router.post(route('trips.approve', trip.id))} className="w-full bg-green-600 hover:bg-green-700">
+                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) &&
+                            (showApprove || showReject || showStart || showComplete || showCancel) && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-base">Actions</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="space-y-2">
+                                        {showApprove && (
+                                            <Button
+                                                onClick={async () =>
+                                                    (await confirmAction({ title: `Approve trip ${trip.trip_number}?`, confirmLabel: 'Approve' })) &&
+                                                    router.post(route('trips.approve', trip.id))
+                                                }
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                            >
                                                 <CheckCircle className="mr-2 h-4 w-4" />
                                                 Approve Trip
                                             </Button>
+                                        )}
+                                        {showReject && <TripRejectDialog tripId={trip.id} />}
+
+                                        {showStart && (
+                                            <Button
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                                onClick={openStartTripDialog}
+                                                disabled={startTripProcessing}
+                                            >
+                                                <Play className="mr-2 h-4 w-4" />
+                                                Start Trip
+                                            </Button>
+                                        )}
+
+                                        {showComplete && (
+                                            <Button
+                                                className="w-full bg-green-600 hover:bg-green-700"
+                                                onClick={openCompleteTripDialog}
+                                                disabled={completeTripProcessing}
+                                            >
+                                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                                Complete Trip
+                                            </Button>
+                                        )}
+
+                                        {showCancel && (
                                             <Button
                                                 variant="outline"
-                                                className="w-full"
-                                                onClick={() => {
-                                                    const reason = prompt('Rejection reason:');
-                                                    if (reason) {
-                                                        router.post(route('trips.reject', trip.id), { rejection_reason: reason });
-                                                    }
-                                                }}
+                                                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                onClick={openCancelTripDialog}
+                                                disabled={cancelTripProcessing}
                                             >
-                                                <XCircle className="mr-2 h-4 w-4" />
-                                                Reject Trip
+                                                <Ban className="mr-2 h-4 w-4" />
+                                                Cancel Trip
                                             </Button>
-                                        </>
-                                    )}
-
-                                    {canStartTrip(trip.status) && (
-                                        <Button
-                                            className="w-full bg-green-600 hover:bg-green-700"
-                                            onClick={openStartTripDialog}
-                                            disabled={startTripProcessing}
-                                        >
-                                            <Play className="mr-2 h-4 w-4" />
-                                            Start Trip
-                                        </Button>
-                                    )}
-
-                                    {canCompleteTrip(trip.status) && (canEditTrips || isAssignedDriver) && (
-                                        <Button
-                                            className="w-full bg-green-600 hover:bg-green-700"
-                                            onClick={openCompleteTripDialog}
-                                            disabled={completeTripProcessing}
-                                        >
-                                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                                            Complete Trip
-                                        </Button>
-                                    )}
-
-                                    {canCancelTrip(trip.status) && canEditTrips && (
-                                        <Button
-                                            variant="outline"
-                                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                            onClick={openCancelTripDialog}
-                                            disabled={cancelTripProcessing}
-                                        >
-                                            <Ban className="mr-2 h-4 w-4" />
-                                            Cancel Trip
-                                        </Button>
-                                    )}
-                                </CardContent>
-                            </Card>
-                        )}
+                                        )}
+                                    </CardContent>
+                                </Card>
+                            )}
 
                         <Card>
                             <CardHeader>
@@ -820,10 +898,12 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                 {(trip.feedbackEntries ?? []).map((entry) => (
                                     <div key={entry.id} className="rounded-md border p-2">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-sm font-medium line-clamp-1">{entry.subject}</span>
-                                            <Badge variant="outline" className="shrink-0 text-xs capitalize">{entry.status.replace('_', ' ')}</Badge>
+                                            <span className="line-clamp-1 text-sm font-medium">{entry.subject}</span>
+                                            <Badge variant="outline" className="shrink-0 text-xs capitalize">
+                                                {entry.status.replace('_', ' ')}
+                                            </Badge>
                                         </div>
-                                        <p className="mt-1 text-xs capitalize text-gray-500">{entry.type}</p>
+                                        <p className="mt-1 text-xs text-gray-500 capitalize">{entry.type}</p>
                                     </div>
                                 ))}
                                 {canCreateComplaint && (
@@ -868,7 +948,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                                 <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
                                                 <td className="px-3 py-2 capitalize">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
-                                                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    <span
+                                                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
                                                         {a.is_current ? 'Current' : 'Past'}
                                                     </span>
                                                 </td>
@@ -908,7 +990,9 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                                 <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
                                                 <td className="px-3 py-2">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
-                                                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    <span
+                                                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
                                                         {a.is_current ? 'Current' : 'Past'}
                                                     </span>
                                                 </td>
@@ -1010,7 +1094,7 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                             />
                             <InputError message={completeTripErrors.odometer_end} />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="fuel_consumed">Fuel consumed</Label>
                                 <Input
@@ -1164,7 +1248,12 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="event_time">Event time</Label>
-                                <Input id="event_time" type="datetime-local" value={data.event_time} onChange={(event) => setData('event_time', event.target.value)} />
+                                <Input
+                                    id="event_time"
+                                    type="datetime-local"
+                                    value={data.event_time}
+                                    onChange={(event) => setData('event_time', event.target.value)}
+                                />
                                 <InputError message={errors.event_time} />
                             </div>
                             <div className="space-y-2">
@@ -1179,41 +1268,75 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                                     {dialogState?.passenger.pickup_stop_id && dialogState.passenger.pickup_stop && (
                                         <option value={dialogState.passenger.pickup_stop_id}>Pickup: {dialogState.passenger.pickup_stop.name}</option>
                                     )}
-                                    {dialogState?.passenger.dropoff_stop_id && dialogState.passenger.dropoff_stop && dialogState.passenger.dropoff_stop_id !== dialogState.passenger.pickup_stop_id && (
-                                        <option value={dialogState.passenger.dropoff_stop_id}>Dropoff: {dialogState.passenger.dropoff_stop.name}</option>
-                                    )}
+                                    {dialogState?.passenger.dropoff_stop_id &&
+                                        dialogState.passenger.dropoff_stop &&
+                                        dialogState.passenger.dropoff_stop_id !== dialogState.passenger.pickup_stop_id && (
+                                            <option value={dialogState.passenger.dropoff_stop_id}>
+                                                Dropoff: {dialogState.passenger.dropoff_stop.name}
+                                            </option>
+                                        )}
                                 </select>
                                 <InputError message={errors.stop_id} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="area_name">Area or landmark</Label>
-                                <Input id="area_name" value={data.area_name} onChange={(event) => setData('area_name', event.target.value)} placeholder="Factory gate, terminal, checkpoint" />
+                                <Input
+                                    id="area_name"
+                                    value={data.area_name}
+                                    onChange={(event) => setData('area_name', event.target.value)}
+                                    placeholder="Factory gate, terminal, checkpoint"
+                                />
                                 <InputError message={errors.area_name} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="device_id">Device ID</Label>
-                                <Input id="device_id" value={data.device_id} onChange={(event) => setData('device_id', event.target.value)} placeholder="Driver phone or scanner ID" />
+                                <Input
+                                    id="device_id"
+                                    value={data.device_id}
+                                    onChange={(event) => setData('device_id', event.target.value)}
+                                    placeholder="Driver phone or scanner ID"
+                                />
                                 <InputError message={errors.device_id} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="latitude">Latitude</Label>
-                                <Input id="latitude" value={data.latitude} onChange={(event) => setData('latitude', event.target.value)} placeholder="23.8103" />
+                                <Input
+                                    id="latitude"
+                                    value={data.latitude}
+                                    onChange={(event) => setData('latitude', event.target.value)}
+                                    placeholder="23.8103"
+                                />
                                 <InputError message={errors.latitude} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="longitude">Longitude</Label>
-                                <Input id="longitude" value={data.longitude} onChange={(event) => setData('longitude', event.target.value)} placeholder="90.4125" />
+                                <Input
+                                    id="longitude"
+                                    value={data.longitude}
+                                    onChange={(event) => setData('longitude', event.target.value)}
+                                    placeholder="90.4125"
+                                />
                                 <InputError message={errors.longitude} />
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="gps_accuracy_meters">GPS accuracy (meters)</Label>
-                                <Input id="gps_accuracy_meters" value={data.gps_accuracy_meters} onChange={(event) => setData('gps_accuracy_meters', event.target.value)} placeholder="15" />
+                                <Input
+                                    id="gps_accuracy_meters"
+                                    value={data.gps_accuracy_meters}
+                                    onChange={(event) => setData('gps_accuracy_meters', event.target.value)}
+                                    placeholder="15"
+                                />
                                 <InputError message={errors.gps_accuracy_meters} />
                             </div>
                             {dialogState?.mode !== 'correct' && (
                                 <div className="space-y-2">
                                     <Label htmlFor="idempotency_key">Idempotency key</Label>
-                                    <Input id="idempotency_key" value={data.idempotency_key} onChange={(event) => setData('idempotency_key', event.target.value)} placeholder="Optional retry key" />
+                                    <Input
+                                        id="idempotency_key"
+                                        value={data.idempotency_key}
+                                        onChange={(event) => setData('idempotency_key', event.target.value)}
+                                        placeholder="Optional retry key"
+                                    />
                                     <InputError message={errors.idempotency_key} />
                                 </div>
                             )}
@@ -1222,7 +1345,13 @@ export default function ShowTrip({ trip, vehicleAssignments = [], routeAssignmen
                         {dialogState?.mode === 'correct' && (
                             <div className="space-y-2">
                                 <Label htmlFor="reason">Correction reason</Label>
-                                <Textarea id="reason" value={data.reason} onChange={(event) => setData('reason', event.target.value)} placeholder="Why is the original event being corrected?" rows={4} />
+                                <Textarea
+                                    id="reason"
+                                    value={data.reason}
+                                    onChange={(event) => setData('reason', event.target.value)}
+                                    placeholder="Why is the original event being corrected?"
+                                    rows={4}
+                                />
                                 <InputError message={errors.reason} />
                             </div>
                         )}

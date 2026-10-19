@@ -9,12 +9,16 @@ use App\Imports\UsersImport;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Vendor;
+use App\Models\Zone;
+use App\Services\UserSaver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -25,9 +29,11 @@ class UserController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-users', only: ['index', 'show', 'export']),
-            new Middleware('permission:create-users', only: ['create', 'store', 'import']),
-            new Middleware('permission:edit-users', only: ['edit', 'update']),
+            new Middleware('permission:view-users', only: ['index', 'show']),
+            new Middleware('permission:export-users', only: ['export']),
+            new Middleware('permission:create-users', only: ['create', 'store']),
+            new Middleware('permission:import-users', only: ['import']),
+            new Middleware('permission:edit-users', only: ['edit', 'update', 'deactivate', 'activate']),
             new Middleware('permission:delete-users', only: ['destroy']),
         ];
     }
@@ -49,6 +55,7 @@ class UserController extends Controller implements HasMiddleware
             'status',
             'driver_status',
             'department_id',
+            'zone_id',
             'blood_group',
             'personal_phone',
             'official_phone',
@@ -62,7 +69,7 @@ class UserController extends Controller implements HasMiddleware
             'average_rating',
         ])
             ->where('user_type', 'employee')
-            ->with(['department:id,name', 'roles:id,name']);
+            ->with(['department:id,name', 'zone:id,name', 'accessZones:id,name', 'roles:id,name']);
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -92,6 +99,10 @@ class UserController extends Controller implements HasMiddleware
 
             if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
             }
 
             if (! empty($filters['blood_group'])) {
@@ -131,6 +142,7 @@ class UserController extends Controller implements HasMiddleware
                 'status' => $user->status,
                 'driver_status' => $user->driver_status,
                 'department' => $user->department,
+                'zone' => $user->zone,
                 'blood_group' => $user->blood_group,
                 'phone' => $user->personal_phone ?? $user->official_phone,
                 'roles' => $user->roles,
@@ -147,10 +159,11 @@ class UserController extends Controller implements HasMiddleware
 
         // Get filter options
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $userTypes = User::distinct()->pluck('user_type')->filter()->values()->toArray();
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
-        $roles = \Spatie\Permission\Models\Role::pluck('name')->toArray();
+        $roles = Role::pluck('name')->toArray();
 
         // Calculate stats with a single aggregate query
         $userStats = User::selectRaw(
@@ -174,6 +187,7 @@ class UserController extends Controller implements HasMiddleware
                 'user_types' => $userTypes,
                 'statuses' => $statuses,
                 'departments' => $departments,
+                'zones' => $zones,
                 'blood_groups' => $bloodGroups,
                 'roles' => $roles,
             ],
@@ -188,6 +202,7 @@ class UserController extends Controller implements HasMiddleware
     public function create(): Response
     {
         $departments = Department::active()->get(['id', 'name']);
+        $zones = Zone::selectableBy();
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
 
@@ -216,6 +231,8 @@ class UserController extends Controller implements HasMiddleware
 
         return Inertia::render('users/create', [
             'departments' => $departments,
+            'zones' => $zones,
+            'defaultZoneId' => auth()->user()->zone_id,
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
@@ -227,41 +244,35 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Store a newly created user in storage.
      */
-    public function store(StoreUserRequest $request): RedirectResponse
+    public function store(StoreUserRequest $request, UserSaver $saver): RedirectResponse
     {
-        $validated = $request->validated();
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request, $saver) {
+            $validated = $request->validated();
 
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
+            // No password chosen: an unknown random one until it's reset
+            if (blank($validated['password'] ?? null)) {
+                $validated['password'] = Str::random(32);
+            }
 
-        if ($request->hasFile('photo')) {
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
+            $user = $saver->create($request, $validated);
 
-        // Hash password
-        $validated['password'] = Hash::make($validated['password']);
+            // Choosing roles needs manage-user-roles; otherwise the new user gets
+            // the default role for their user type (never admin — see below).
+            if ($request->user()->can('manage-user-roles') && ! empty($validated['roles']) && is_array($validated['roles'])) {
+                // Convert role IDs to role names/objects and assign
+                $roles = $this->assignableRoles($validated['roles']);
+                $user->assignRole($roles);
+            } else {
+                // This shouldn't happen due to validation, but fallback to automatic role assignment
+                $this->assignRoleByUserType($user, $validated['user_type']);
+            }
 
-        // Accounts provisioned by an admin are trusted without an email-click loop.
-        $validated['email_verified_at'] = now();
+            $this->logRoleChange($user, []);
 
-        $user = User::create($validated);
-
-        // Handle role assignments - roles are now required
-        if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
-            // Convert role IDs to role names/objects and assign
-            $roles = $this->assignableRoles($validated['roles']);
-            $user->assignRole($roles);
-        } else {
-            // This shouldn't happen due to validation, but fallback to automatic role assignment
-            $this->assignRoleByUserType($user, $validated['user_type']);
-        }
-
-        $this->logRoleChange($user, []);
-
-        return redirect()->route('users.index')
-            ->with('success', 'User created successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User created successfully.');
+        });
     }
 
     /**
@@ -297,6 +308,11 @@ class UserController extends Controller implements HasMiddleware
     public function edit(User $user): Response
     {
         $departments = Department::active()->get(['id', 'name']);
+        $currentZoneIds = $user->accessZones()->pluck('zones.id')->all();
+        if (empty($currentZoneIds) && $user->zone_id) {
+            $currentZoneIds = [$user->zone_id];
+        }
+        $zones = Zone::selectableBy(auth()->user(), $currentZoneIds);
         $vendors = Vendor::active()->get(['id', 'name']);
         $roles = Role::all(['id', 'name']);
         $userRoles = $user->roles->pluck('id')->map(function ($id) {
@@ -343,6 +359,9 @@ class UserController extends Controller implements HasMiddleware
         return Inertia::render('users/edit', [
             'user' => $user,
             'departments' => $departments,
+            'zones' => $zones,
+            'currentZoneIds' => $currentZoneIds,
+            'hasAllZoneAccess' => $user->can('view-all-zones'),
             'vendors' => $vendors,
             'roles' => $roles,
             'userRoles' => $userRoles,
@@ -357,95 +376,103 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Update the specified user in storage.
      */
-    public function update(UpdateUserRequest $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user, UserSaver $saver): RedirectResponse
     {
-        $validated = $request->validated();
+        // All-or-nothing: the record and its roles/zones/related rows
+        return DB::transaction(function () use ($request, $user, $saver) {
+            $validated = $request->validated();
+            $oldRoleNames = $user->roles->pluck('name')->all();
 
-        // Handle file uploads
-        if ($request->hasFile('image')) {
-            if ($user->image) {
-                Storage::disk('public')->delete($user->image);
-            }
-            $validated['image'] = $request->file('image')->store('users/images', 'public');
-        }
+            $saver->update($request, $user, $validated);
 
-        if ($request->hasFile('photo')) {
-            if ($user->photo) {
-                Storage::disk('public')->delete($user->photo);
-            }
-            $validated['photo'] = $request->file('photo')->store('users/photos', 'public');
-        }
+            // A plain user editing their own profile (see UpdateUserRequest's
+            // self-edit branch) never has 'roles'/'user_type' in $validated at
+            // all — leave roles untouched rather than falling into the "no
+            // roles submitted" branch below and wiping them.
+            // Roles only change for editors allowed to manage them — anyone else
+            // (including edit-users without manage-user-roles) leaves them as-is.
+            if ($request->isPrivilegedEditor() && $request->user()->can('manage-user-roles')) {
+                // Handle role assignments - roles are now required
+                if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
+                    // Convert role IDs to role objects and assign
+                    $roles = $this->assignableRoles($validated['roles'], $user);
+                    $user->syncRoles($roles);
+                } else {
+                    // This shouldn't happen due to validation, but fallback to automatic role assignment
+                    $user->syncRoles([]); // Remove all roles
+                    $this->assignRoleByUserType($user, $validated['user_type']);
+                }
 
-        // Hash password if provided
-        if (! empty($validated['password'])) {
-            $validated['password'] = Hash::make($validated['password']);
-        } else {
-            unset($validated['password']);
-        }
-
-        $oldRoleNames = $user->roles->pluck('name')->all();
-
-        $user->update($validated);
-
-        // A plain user editing their own profile (see UpdateUserRequest's
-        // self-edit branch) never has 'roles'/'user_type' in $validated at
-        // all — leave roles untouched rather than falling into the "no
-        // roles submitted" branch below and wiping them.
-        if ($request->isPrivilegedEditor()) {
-            // Handle role assignments - roles are now required
-            if (isset($validated['roles']) && is_array($validated['roles']) && ! empty($validated['roles'])) {
-                // Convert role IDs to role objects and assign
-                $roles = $this->assignableRoles($validated['roles'], $user);
-                $user->syncRoles($roles);
-            } else {
-                // This shouldn't happen due to validation, but fallback to automatic role assignment
-                $user->syncRoles([]); // Remove all roles
-                $this->assignRoleByUserType($user, $validated['user_type']);
+                $this->logRoleChange($user, $oldRoleNames);
             }
 
-            $this->logRoleChange($user, $oldRoleNames);
-        }
-
-        return redirect()->route('users.index')
-            ->with('success', 'User updated successfully.');
+            return redirect()->route('users.index')
+                ->with('success', 'User updated successfully.');
+        });
     }
 
     /**
      * Remove the specified user from storage.
      */
-    public function destroy(User $user): RedirectResponse
+    public function destroy(User $user, UserSaver $saver): RedirectResponse
     {
-        // Check if user has any active trips
-        if ($user->isDriver() && $user->driverTrips()->whereIn('status', ['pending', 'approved', 'in_progress'])->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
+        $blocked = match ($saver->deletionBlocker($user)) {
+            'active_trips' => 'Cannot delete user with active trips. Please complete or reassign trips first.',
+            'requested_trips' => 'Cannot delete user: they have requested trips on record. Deactivate the account instead.',
+            'recurring_groups' => 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.',
+            default => null,
+        };
+
+        if ($blocked) {
+            return redirect()->back()->with('error', $blocked);
         }
 
-        // trips.requested_by and trip_recurring_groups.created_by now restrict
-        // deletion (a hard delete previously cascaded and silently wiped that
-        // trip history). Surface a clear message instead of a raw DB error.
-        if ($user->requestedTrips()->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user: they have requested trips on record. Deactivate the account instead.');
-        }
-
-        if (\App\Models\TripRecurringGroup::where('created_by', $user->id)->exists()) {
-            return redirect()->back()
-                ->with('error', 'Cannot delete user: they created recurring trip groups on record. Deactivate the account instead.');
-        }
-
-        // Delete associated files
-        if ($user->image) {
-            Storage::disk('public')->delete($user->image);
-        }
-        if ($user->photo) {
-            Storage::disk('public')->delete($user->photo);
-        }
-
-        $user->delete();
+        $saver->delete($user);
 
         return redirect()->route('users.index')
             ->with('success', 'User deleted successfully.');
+    }
+
+    /**
+     * Deactivate a user via the quick-action button on the users list.
+     * Whether this also drops their group memberships is an explicit choice
+     * from the confirm dialog's checkbox (see UserObserver), not automatic —
+     * unlike a status change made through the full edit form.
+     */
+    public function deactivate(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'remove_from_groups' => 'boolean',
+        ]);
+
+        $user->groupMembershipChoice = [
+            'remove' => $validated['remove_from_groups'] ?? true,
+        ];
+
+        $user->update(['status' => 'inactive']);
+
+        return redirect()->back()->with('success', "{$user->name} has been deactivated.");
+    }
+
+    /**
+     * Reactivate a user via the quick-action button on the users list.
+     * Whether their previous group memberships come back is an explicit
+     * choice from the confirm dialog's checkbox (see UserObserver) — a
+     * no-op if they had no groups removed to begin with.
+     */
+    public function activate(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'restore_previous_groups' => 'boolean',
+        ]);
+
+        $user->groupMembershipChoice = [
+            'restore_previous' => $validated['restore_previous_groups'] ?? true,
+        ];
+
+        $user->update(['status' => 'active']);
+
+        return redirect()->back()->with('success', "{$user->name} has been activated.");
     }
 
     /**
@@ -454,7 +481,7 @@ class UserController extends Controller implements HasMiddleware
      *
      * @param  array<int, int|string>  $roleIds
      */
-    private function assignableRoles(array $roleIds, ?User $targetUser = null): \Illuminate\Support\Collection
+    private function assignableRoles(array $roleIds, ?User $targetUser = null): Collection
     {
         $roles = Role::whereIn('id', $roleIds)->get();
 
@@ -504,8 +531,15 @@ class UserController extends Controller implements HasMiddleware
         $roleMapping = [
             'employee' => 'employee',
             'driver' => 'driver',
+            'transport_manager' => 'transport-manager',
             'admin' => 'admin',
         ];
+
+        // Handing out a management role (admin, transport-manager) is itself
+        // role management; without it the user starts as a plain employee
+        if (! in_array($userType, ['employee', 'driver'], true) && ! auth()->user()?->can('manage-user-roles')) {
+            $userType = 'employee';
+        }
 
         if (isset($roleMapping[$userType])) {
             try {
@@ -550,6 +584,10 @@ class UserController extends Controller implements HasMiddleware
 
             if (! empty($filters['department_id'])) {
                 $query->whereIn('department_id', $filters['department_id']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
             }
 
             if (! empty($filters['blood_group'])) {

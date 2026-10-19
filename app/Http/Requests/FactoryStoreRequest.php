@@ -2,6 +2,8 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Zone;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class FactoryStoreRequest extends FormRequest
@@ -17,7 +19,7 @@ class FactoryStoreRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -26,46 +28,47 @@ class FactoryStoreRequest extends FormRequest
                 'required',
                 'string',
                 'max:255',
-                'unique:factories,account_id'
+                'unique:factories,account_id',
             ],
             'name' => [
                 'required',
                 'string',
-                'max:255'
+                'max:255',
             ],
             'status' => [
                 'required',
                 'string',
-                'in:active,inactive'
+                'in:active,inactive',
             ],
             'address' => [
                 'nullable',
                 'string',
-                'max:1000'
+                'max:1000',
             ],
             'city' => [
                 'nullable',
                 'string',
-                'max:255'
+                'max:255',
             ],
             'latitude' => [
                 'nullable',
                 'numeric',
                 'min:-90',
-                'max:90'
+                'max:90',
             ],
             'longitude' => [
                 'nullable',
                 'numeric',
                 'min:-180',
-                'max:180'
+                'max:180',
             ],
             'mileage_km' => [
                 'nullable',
                 'numeric',
                 'min:0',
-                'max:99999.99'
+                'max:99999.99',
             ],
+            'zone_id' => Zone::validationRule(),
         ];
     }
 

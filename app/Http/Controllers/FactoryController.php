@@ -6,6 +6,7 @@ use App\Http\Requests\FactoryIndexRequest;
 use App\Http\Requests\FactoryStoreRequest;
 use App\Http\Requests\FactoryUpdateRequest;
 use App\Models\Factory;
+use App\Models\Zone;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Inertia\Inertia;
@@ -18,7 +19,7 @@ class FactoryController extends Controller implements HasMiddleware
             new Middleware('permission:view-factories', only: ['index', 'show']),
             new Middleware('permission:create-factories', only: ['create', 'store']),
             new Middleware('permission:edit-factories', only: ['edit', 'update']),
-            new Middleware('permission:delete-factories', only: ['destroy']),
+            new Middleware('permission:delete-factories', only: ['destroy', 'restore']),
         ];
     }
 
@@ -28,10 +29,11 @@ class FactoryController extends Controller implements HasMiddleware
     public function index(FactoryIndexRequest $request)
     {
         $validated = $request->validated();
-        $query = Factory::query();
+        $showDeleted = ! empty($validated['filters']['deleted']);
+        $query = $showDeleted ? Factory::onlyTrashed() : Factory::query();
 
         // Apply search
-        if (!empty($validated['search'])) {
+        if (! empty($validated['search'])) {
             $search = $validated['search'];
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -42,15 +44,19 @@ class FactoryController extends Controller implements HasMiddleware
         }
 
         // Apply filters
-        if (!empty($validated['filters'])) {
+        if (! empty($validated['filters'])) {
             $filters = $validated['filters'];
 
-            if (!empty($filters['status'])) {
+            if (! empty($filters['status'])) {
                 $query->whereIn('status', $filters['status']);
             }
 
-            if (!empty($filters['city'])) {
+            if (! empty($filters['city'])) {
                 $query->whereIn('city', $filters['city']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
             }
         }
 
@@ -67,13 +73,14 @@ class FactoryController extends Controller implements HasMiddleware
         $filterOptions = [
             'statuses' => ['active', 'inactive'],
             'cities' => Factory::distinct()->pluck('city')->filter()->sort()->values(),
+            'zones' => Zone::selectableBy(),
         ];
 
         // Get stats with a single aggregate query
         $factoryStats = Factory::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, '.
             'COUNT(DISTINCT city) as cities',
             ['active', 'inactive']
         )->first();
@@ -83,12 +90,14 @@ class FactoryController extends Controller implements HasMiddleware
             'active' => (int) ($factoryStats->active ?? 0),
             'inactive' => (int) ($factoryStats->inactive ?? 0),
             'cities' => (int) ($factoryStats->cities ?? 0),
+            'deleted' => Factory::onlyTrashed()->count(),
         ];
 
         return Inertia::render('factories/index', [
             'factories' => $factories,
             'filterOptions' => $filterOptions,
             'stats' => $stats,
+            'showDeleted' => $showDeleted,
             'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
         ]);
     }
@@ -98,7 +107,10 @@ class FactoryController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        return Inertia::render('factories/create');
+        return Inertia::render('factories/create', [
+            'zones' => Zone::selectableBy(),
+            'defaultZoneId' => auth()->user()->zone_id,
+        ]);
     }
 
     /**
@@ -108,6 +120,7 @@ class FactoryController extends Controller implements HasMiddleware
     {
         try {
             Factory::create($request->validated());
+
             return redirect()->route('factories.index')
                 ->with('success', 'Factory created successfully.');
         } catch (\Exception $e) {
@@ -132,6 +145,7 @@ class FactoryController extends Controller implements HasMiddleware
     {
         return Inertia::render('factories/edit', [
             'factory' => $factory,
+            'zones' => Zone::selectableBy(auth()->user(), $factory->zone_id),
         ]);
     }
 
@@ -142,6 +156,7 @@ class FactoryController extends Controller implements HasMiddleware
     {
         try {
             $factory->update($request->validated());
+
             return redirect()->route('factories.index')
                 ->with('success', 'Factory updated successfully.');
         } catch (\Exception $e) {
@@ -156,10 +171,22 @@ class FactoryController extends Controller implements HasMiddleware
     {
         try {
             $factory->delete();
+
             return redirect()->route('factories.index')
-                ->with('success', 'Factory deleted successfully.');
+                ->with('success', 'Factory deleted. You can restore it from the Deleted view.');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete factory.');
         }
+    }
+
+    /**
+     * Bring back a deleted factory (factories are only ever soft-deleted).
+     */
+    public function restore(Factory $factory)
+    {
+        $factory->restore();
+
+        return redirect()->route('factories.index')
+            ->with('success', "Factory \"{$factory->name}\" restored.");
     }
 }

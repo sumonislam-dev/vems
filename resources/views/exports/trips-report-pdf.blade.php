@@ -95,7 +95,7 @@
             <td>{{ $trip->schedule_type }}</td>
             <td>{{ $trip->vehicleRoute?->name }}</td>
             <td>{{ $trip->vehicle?->registration_number }}</td>
-            <td>{{ $trip->driver?->name }}</td>
+            <td>{{ $trip->driver_name }}</td>
             <td>{{ $trip->department?->name }}</td>
             <td>{{ $trip->passengers_count }}</td>
         </tr>

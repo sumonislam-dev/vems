@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Vendor;
-use App\Models\VendorContactPerson;
+use App\Models\Zone;
 use Illuminate\Database\Seeder;
 
 class VendorSeeder extends Seeder
@@ -29,7 +29,7 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1711-123456',
                         'email' => 'ahmed@autocare.com.bd',
                         'is_primary' => true,
-                        'notes' => 'Primary contact for all service inquiries'
+                        'notes' => 'Primary contact for all service inquiries',
                     ],
                     [
                         'name' => 'Fatima Khan',
@@ -37,9 +37,9 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1722-234567',
                         'email' => 'fatima@autocare.com.bd',
                         'is_primary' => false,
-                        'notes' => 'Handles customer complaints and feedback'
-                    ]
-                ]
+                        'notes' => 'Handles customer complaints and feedback',
+                    ],
+                ],
             ],
             [
                 'name' => 'Metro Vehicle Solutions',
@@ -56,7 +56,7 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1733-345678',
                         'email' => 'ali@metrovehicle.com',
                         'is_primary' => true,
-                        'notes' => 'Main point of contact for operations'
+                        'notes' => 'Main point of contact for operations',
                     ],
                     [
                         'name' => 'Rashida Begum',
@@ -64,9 +64,9 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1744-456789',
                         'email' => 'rashida@metrovehicle.com',
                         'is_primary' => false,
-                        'notes' => 'Coordinates fleet maintenance schedules'
-                    ]
-                ]
+                        'notes' => 'Coordinates fleet maintenance schedules',
+                    ],
+                ],
             ],
             [
                 'name' => 'Express Auto Workshop',
@@ -83,7 +83,7 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1755-567890',
                         'email' => 'karim@expressauto.bd',
                         'is_primary' => true,
-                        'notes' => 'Supervises all workshop activities'
+                        'notes' => 'Supervises all workshop activities',
                     ],
                     [
                         'name' => 'Nasir Ahmed',
@@ -91,9 +91,9 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1766-678901',
                         'email' => 'nasir@expressauto.bd',
                         'is_primary' => false,
-                        'notes' => 'Handles complex technical repairs'
-                    ]
-                ]
+                        'notes' => 'Handles complex technical repairs',
+                    ],
+                ],
             ],
             [
                 'name' => 'City Motors & Services',
@@ -110,7 +110,7 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1777-789012',
                         'email' => 'salma@citymotors.com.bd',
                         'is_primary' => true,
-                        'notes' => 'Overall management and client relations'
+                        'notes' => 'Overall management and client relations',
                     ],
                     [
                         'name' => 'Ibrahim Hossain',
@@ -118,9 +118,9 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1788-890123',
                         'email' => 'ibrahim@citymotors.com.bd',
                         'is_primary' => false,
-                        'notes' => 'Manages parts inventory and procurement'
-                    ]
-                ]
+                        'notes' => 'Manages parts inventory and procurement',
+                    ],
+                ],
             ],
             [
                 'name' => 'Premium Auto Care',
@@ -137,7 +137,7 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1799-901234',
                         'email' => 'reza@autocare.net',
                         'is_primary' => true,
-                        'notes' => 'Advises on premium service packages'
+                        'notes' => 'Advises on premium service packages',
                     ],
                     [
                         'name' => 'Nadia Rahman',
@@ -145,15 +145,16 @@ class VendorSeeder extends Seeder
                         'phone' => '+880-1800-012345',
                         'email' => 'nadia@autocare.net',
                         'is_primary' => false,
-                        'notes' => 'Ensures service quality standards'
-                    ]
-                ]
-            ]
+                        'notes' => 'Ensures service quality standards',
+                    ],
+                ],
+            ],
         ];
 
         foreach ($vendors as $vendorData) {
             $contacts = $vendorData['contacts'];
             unset($vendorData['contacts']);
+            $vendorData['zone_id'] = Zone::idForCity($vendorData['address']);
 
             $vendor = Vendor::updateOrCreate(
                 ['email' => $vendorData['email']],

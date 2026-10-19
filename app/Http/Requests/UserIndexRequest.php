@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UserIndexRequest extends FormRequest
@@ -17,7 +18,7 @@ class UserIndexRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -33,6 +34,8 @@ class UserIndexRequest extends FormRequest
             'filters.status.*' => ['string', 'in:active,inactive,suspended'],
             'filters.department_id' => ['nullable', 'array'],
             'filters.department_id.*' => ['string'],
+            'filters.zone_id' => ['nullable', 'array'],
+            'filters.zone_id.*' => ['string'],
             'filters.blood_group' => ['nullable', 'array'],
             'filters.blood_group.*' => ['string'],
             'filters.roles' => ['nullable', 'array'],

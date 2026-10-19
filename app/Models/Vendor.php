@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Spatie\Activitylog\LogOptions;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vendor extends Model
 {
-    use HasFactory, LogsActivity;
+    use BelongsToZone, HasFactory, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -38,6 +39,7 @@ class Vendor extends Model
         'tax_return',
         'tax_return_file',
         'bank_details',
+        'zone_id',
     ];
 
     protected $casts = [

@@ -1,4 +1,5 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,28 +9,29 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, User } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
 import {
     ArrowLeft,
-    Edit,
-    Mail,
-    MapPin,
-    Phone,
-    Trash2,
-    User as UserIcon,
-    UserCheck,
-    UserX,
-    CalendarDays,
     Building,
+    CalendarDays,
     Car,
     CreditCard,
-    Shield,
-    MessageSquare,
     Droplets,
+    Edit,
     FileText,
-    Star
+    Mail,
+    MapPin,
+    MessageSquare,
+    Phone,
+    Shield,
+    Star,
+    Trash2,
+    UserCheck,
+    User as UserIcon,
+    UserX,
 } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
@@ -75,8 +77,6 @@ type AssignableVehicle = {
     current_driver_name: string | null;
 };
 
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Users', href: '/users' },
@@ -84,8 +84,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ShowUser({ user, vehicleAssignments = [], driverStats, recentTrips = [] }: ShowUserProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
 
     const [assignVehicleOpen, setAssignVehicleOpen] = useState(false);
     const [assignableVehicles, setAssignableVehicles] = useState<AssignableVehicle[]>([]);
@@ -137,8 +137,8 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
         });
     };
 
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('drivers.destroy', user.id));
         }
     };
@@ -182,7 +182,10 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                 <UserX className="h-5 w-5" />
                                 <div>
                                     <h4 className="font-semibold">Expired Driving License</h4>
-                                    <p className="text-sm">This driver's license expired on {new Date(user.license_expiry_date).toLocaleDateString()}. Please renew immediately.</p>
+                                    <p className="text-sm">
+                                        This driver's license expired on {new Date(user.license_expiry_date).toLocaleDateString()}. Please renew
+                                        immediately.
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
@@ -200,19 +203,20 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             variant: 'outline',
                         },
                         {
-                            label: 'Edit User',
+                            label: 'Edit Driver',
                             icon: <Edit className="mr-2 h-4 w-4" />,
-                            href: route('users.edit', user.id),
+                            href: route('drivers.edit', user.id),
+                            permission: 'edit-drivers',
                         },
                         ...(canAssignVehicles
                             ? [
-                                {
-                                    label: 'Assign Vehicle',
-                                    icon: <Car className="mr-2 h-4 w-4" />,
-                                    onClick: openAssignVehicleDialog,
-                                    variant: 'outline' as const,
-                                },
-                            ]
+                                  {
+                                      label: 'Assign Vehicle',
+                                      icon: <Car className="mr-2 h-4 w-4" />,
+                                      onClick: openAssignVehicleDialog,
+                                      variant: 'outline' as const,
+                                  },
+                              ]
                             : []),
                     ]}
                 />
@@ -230,25 +234,21 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                     {user.image ? (
                                         <img className="h-16 w-16 rounded-full object-cover" src={user.image} alt={user.name} />
                                     ) : (
-                                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                                            <span className="text-xl font-semibold text-primary">
-                                                {user.name.charAt(0).toUpperCase()}
-                                            </span>
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/40">
+                                            <span className="text-xl font-semibold text-primary">{user.name.charAt(0).toUpperCase()}</span>
                                         </div>
                                     )}
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="text-lg font-semibold">{user.name}</h3>
-                                    {user.username && (
-                                        <p className="text-sm text-muted-foreground">@{user.username}</p>
-                                    )}
+                                    {user.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
                                     <div className="flex items-center space-x-2">
                                         <Badge variant={getStatusVariant(user.status)} className="gap-1">
                                             {getStatusIcon(user.status)}
                                             {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                                         </Badge>
                                         {user.user_type && (
-                                            <Badge variant="outline" className="capitalize gap-1">
+                                            <Badge variant="outline" className="gap-1 capitalize">
                                                 <Shield className="h-3 w-3" />
                                                 {user.user_type.replace('_', ' ')}
                                             </Badge>
@@ -259,15 +259,15 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
 
                             {/* Basic Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Basic Information</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Basic Information</h4>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     {user.employee_id && (
                                         <div className="space-y-1">
                                             <div className="flex items-center space-x-2">
                                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.employee_id}</p>
+                                            <p className="font-mono text-sm">{user.employee_id}</p>
                                         </div>
                                     )}
 
@@ -328,7 +328,9 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                     day: 'numeric',
                                                 })}
                                                 {new Date(user.probation_end_date) > new Date() && (
-                                                    <Badge variant="secondary" className="ml-2">On Probation</Badge>
+                                                    <Badge variant="secondary" className="ml-2">
+                                                        On Probation
+                                                    </Badge>
                                                 )}
                                             </p>
                                         </div>
@@ -338,15 +340,15 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
 
                             {/* Contact Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Contact Information</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Contact Information</h4>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     {user.official_phone && (
                                         <div className="space-y-1">
                                             <div className="flex items-center space-x-2">
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Official Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.official_phone}</p>
+                                            <p className="font-mono text-sm">{user.official_phone}</p>
                                         </div>
                                     )}
 
@@ -356,7 +358,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Personal Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.personal_phone}</p>
+                                            <p className="font-mono text-sm">{user.personal_phone}</p>
                                         </div>
                                     )}
 
@@ -366,7 +368,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">WhatsApp</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.whatsapp_id}</p>
+                                            <p className="font-mono text-sm">{user.whatsapp_id}</p>
                                         </div>
                                     )}
 
@@ -377,7 +379,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.phone}</p>
+                                            <p className="font-mono text-sm">{user.phone}</p>
                                         </div>
                                     )}
                                 </div>
@@ -386,17 +388,22 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             {/* Identity Documents */}
                             {(user.nid_number || user.passport_number || user.driving_license_no) && (
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Identity Documents</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Identity Documents</h4>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {user.nid_number && (
                                             <div className="space-y-1">
                                                 <div className="flex items-center space-x-2">
                                                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">National ID</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.nid_number}</p>
+                                                <p className="font-mono text-sm">{user.nid_number}</p>
                                                 {user.nid_file && (
-                                                    <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a
+                                                        href={route('users.document', [user.id, 'nid_file'])}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
                                                         View scan
                                                     </a>
                                                 )}
@@ -409,7 +416,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Passport</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.passport_number}</p>
+                                                <p className="font-mono text-sm">{user.passport_number}</p>
                                             </div>
                                         )}
 
@@ -419,9 +426,14 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                     <Car className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Driving License</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.driving_license_no}</p>
+                                                <p className="font-mono text-sm">{user.driving_license_no}</p>
                                                 {user.driving_license_file && (
-                                                    <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a
+                                                        href={route('users.document', [user.id, 'driving_license_file'])}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
                                                         View scan
                                                     </a>
                                                 )}
@@ -434,8 +446,8 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             {/* Emergency Contact */}
                             {(user.emergency_contact_name || user.emergency_phone) && (
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Emergency Contact</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Emergency Contact</h4>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {user.emergency_contact_name && (
                                             <div className="space-y-1">
                                                 <div className="flex items-center space-x-2">
@@ -455,7 +467,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                     <Phone className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Emergency Phone</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.emergency_phone}</p>
+                                                <p className="font-mono text-sm">{user.emergency_phone}</p>
                                             </div>
                                         )}
                                     </div>
@@ -464,7 +476,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
 
                             {/* Address Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Address Information</h4>
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Address Information</h4>
                                 <div className="grid grid-cols-1 gap-4">
                                     {user.area && (
                                         <div className="space-y-1">
@@ -527,10 +539,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Driver Status</label>
                                             <p className="text-sm">
-                                                <Badge
-                                                    variant={user.driver_status === 'active' ? 'default' : 'secondary'}
-                                                    className="capitalize"
-                                                >
+                                                <Badge variant={user.driver_status === 'active' ? 'default' : 'secondary'} className="capitalize">
                                                     {user.driver_status}
                                                 </Badge>
                                             </p>
@@ -540,7 +549,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                     {user.license_class && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">License Class</label>
-                                            <p className="text-sm font-mono">{user.license_class}</p>
+                                            <p className="font-mono text-sm">{user.license_class}</p>
                                         </div>
                                     )}
 
@@ -567,10 +576,14 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                     day: 'numeric',
                                                 })}
                                                 {user.license_status === 'expired' && (
-                                                    <Badge variant="destructive" className="ml-2 text-xs">Expired</Badge>
+                                                    <Badge variant="destructive" className="ml-2 text-xs">
+                                                        Expired
+                                                    </Badge>
                                                 )}
                                                 {user.license_status === 'expiring_soon' && (
-                                                    <Badge variant="outline" className="ml-2 text-xs">Expiring Soon</Badge>
+                                                    <Badge variant="outline" className="ml-2 text-xs">
+                                                        Expiring Soon
+                                                    </Badge>
                                                 )}
                                             </p>
                                         </div>
@@ -586,7 +599,9 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                     {driverStats && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Completed / In Progress</label>
-                                            <p className="text-sm font-semibold">{driverStats.completed_trips} / {driverStats.in_progress_trips}</p>
+                                            <p className="text-sm font-semibold">
+                                                {driverStats.completed_trips} / {driverStats.in_progress_trips}
+                                            </p>
                                         </div>
                                     )}
 
@@ -680,7 +695,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                             })}
                                         </p>
                                         {user.last_login_ip && (
-                                            <p className="text-xs text-muted-foreground mt-1">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 IP: {user.last_login_ip}
                                                 {user.last_login_location && ` • ${user.last_login_location}`}
                                                 {user.last_login_device && ` • ${user.last_login_device}`}
@@ -715,7 +730,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                         {recentTrips.map((trip) => (
                                             <tr
                                                 key={trip.id}
-                                                className="border-t cursor-pointer hover:bg-gray-50"
+                                                className="cursor-pointer border-t hover:bg-gray-50"
                                                 onClick={() => router.visit(route('trips.show', trip.id))}
                                             >
                                                 <td className="px-3 py-2 font-mono">{trip.trip_number}</td>
@@ -723,7 +738,16 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                                 <td className="px-3 py-2 capitalize">{trip.trip_type?.replace('_', ' ')}</td>
                                                 <td className="px-3 py-2 text-muted-foreground">{trip.description || '-'}</td>
                                                 <td className="px-3 py-2">
-                                                    <Badge variant={trip.status === 'completed' ? 'default' : trip.status === 'cancelled' || trip.status === 'rejected' ? 'destructive' : 'secondary'} className="capitalize">
+                                                    <Badge
+                                                        variant={
+                                                            trip.status === 'completed'
+                                                                ? 'default'
+                                                                : trip.status === 'cancelled' || trip.status === 'rejected'
+                                                                  ? 'destructive'
+                                                                  : 'secondary'
+                                                        }
+                                                        className="capitalize"
+                                                    >
                                                         {trip.status.replace('_', ' ')}
                                                     </Badge>
                                                 </td>
@@ -743,7 +767,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             <CardTitle>Vendor / Service Provider Information</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Service Provider Name</label>
                                     <p className="text-sm font-medium">{user.vendor.name}</p>
@@ -770,7 +794,12 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                     <div className="md:col-span-2">
                                         <label className="text-sm font-medium text-muted-foreground">Website</label>
                                         <p className="text-sm">
-                                            <a href={user.vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                            <a
+                                                href={user.vendor.website}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline"
+                                            >
                                                 {user.vendor.website}
                                             </a>
                                         </p>
@@ -787,28 +816,22 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                             {/* Contact Persons */}
                             {user.vendor.contact_persons && user.vendor.contact_persons.length > 0 && (
                                 <div className="mt-6">
-                                    <h4 className="text-sm font-medium text-muted-foreground mb-3">Contact Persons</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h4 className="mb-3 text-sm font-medium text-muted-foreground">Contact Persons</h4>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {user.vendor.contact_persons.map((contact) => (
-                                            <div key={contact.id} className="border rounded-lg p-4">
-                                                <div className="flex items-center justify-between mb-2">
+                                            <div key={contact.id} className="rounded-lg border p-4">
+                                                <div className="mb-2 flex items-center justify-between">
                                                     <h5 className="font-medium">{contact.name}</h5>
                                                     {contact.is_primary && (
-                                                        <Badge variant="outline" className="text-xs">Primary</Badge>
+                                                        <Badge variant="outline" className="text-xs">
+                                                            Primary
+                                                        </Badge>
                                                     )}
                                                 </div>
-                                                {contact.position && (
-                                                    <p className="text-sm text-muted-foreground mb-1">{contact.position}</p>
-                                                )}
-                                                {contact.phone && (
-                                                    <p className="text-sm">📞 {contact.phone}</p>
-                                                )}
-                                                {contact.email && (
-                                                    <p className="text-sm">✉️ {contact.email}</p>
-                                                )}
-                                                {contact.notes && (
-                                                    <p className="text-sm text-muted-foreground mt-2">{contact.notes}</p>
-                                                )}
+                                                {contact.position && <p className="mb-1 text-sm text-muted-foreground">{contact.position}</p>}
+                                                {contact.phone && <p className="text-sm">📞 {contact.phone}</p>}
+                                                {contact.email && <p className="text-sm">✉️ {contact.email}</p>}
+                                                {contact.notes && <p className="mt-2 text-sm text-muted-foreground">{contact.notes}</p>}
                                             </div>
                                         ))}
                                     </div>
@@ -841,18 +864,16 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                         {vehicleAssignments.map((a) => (
                                             <tr key={a.id} className="border-t">
                                                 <td className="px-3 py-2">
-                                                    {a.vehicle
-                                                        ? `${a.vehicle.registration_number} - ${a.vehicle.brand} ${a.vehicle.model}`
-                                                        : '-'}
+                                                    {a.vehicle ? `${a.vehicle.registration_number} - ${a.vehicle.brand} ${a.vehicle.model}` : '-'}
                                                 </td>
-                                                <td className="px-3 py-2 capitalize">
-                                                    {a.vehicle?.vehicle_type?.replace('_', ' ') ?? '-'}
-                                                </td>
+                                                <td className="px-3 py-2 capitalize">{a.vehicle?.vehicle_type?.replace('_', ' ') ?? '-'}</td>
                                                 <td className="px-3 py-2">{new Date(a.started_at).toLocaleString()}</td>
                                                 <td className="px-3 py-2">{a.ended_at ? new Date(a.ended_at).toLocaleString() : '-'}</td>
                                                 <td className="px-3 py-2">{a.assigner?.name ?? '-'}</td>
                                                 <td className="px-3 py-2">
-                                                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    <span
+                                                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
                                                         {a.is_current ? 'Current' : 'Past'}
                                                     </span>
                                                 </td>
@@ -868,27 +889,23 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                 {/* Actions */}
                 <Card>
                     <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                                onClick={() => router.visit(route('drivers.edit', user.id))}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Edit User
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete User
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => window.print()}
-                                className="flex items-center justify-center gap-2"
-                            >
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            {can('edit-drivers') && (
+                                <Button
+                                    onClick={() => router.visit(route('drivers.edit', user.id))}
+                                    className="flex items-center justify-center gap-2"
+                                >
+                                    <Edit className="h-4 w-4" />
+                                    Edit User
+                                </Button>
+                            )}
+                            {can('delete-drivers') && (
+                                <Button variant="destructive" onClick={handleDelete} className="flex items-center justify-center gap-2">
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete User
+                                </Button>
+                            )}
+                            <Button variant="outline" onClick={() => window.print()} className="flex items-center justify-center gap-2">
                                 <FileText className="h-4 w-4" />
                                 Print Profile
                             </Button>
@@ -907,10 +924,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                     <form className="space-y-4" onSubmit={submitAssignVehicle}>
                         <div className="space-y-2">
                             <Label htmlFor="assign_vehicle_id">Vehicle</Label>
-                            <Select
-                                value={assignVehicleData.vehicle_id}
-                                onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}
-                            >
+                            <Select value={assignVehicleData.vehicle_id} onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}>
                                 <SelectTrigger id="assign_vehicle_id" className="w-full">
                                     <SelectValue placeholder={loadingVehicles ? 'Loading vehicles...' : 'Select a vehicle'} />
                                 </SelectTrigger>

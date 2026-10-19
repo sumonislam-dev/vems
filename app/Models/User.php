@@ -2,9 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\TripStatus;
+use App\Models\Concerns\BelongsToZone;
+use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -14,8 +18,8 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, HasRoles, LogsActivity, Notifiable;
+    /** @use HasFactory<UserFactory> */
+    use BelongsToZone, HasFactory, HasRoles, LogsActivity, Notifiable;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -55,6 +59,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'user_type',
         'department_id',
         'vendor_id',
+        'zone_id',
         'blood_group',
         'image',
         'status',
@@ -87,6 +92,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'previous_group_ids',
     ];
 
     /**
@@ -106,8 +112,18 @@ class User extends Authenticatable implements MustVerifyEmail
             'total_distance_covered' => 'decimal:2',
             'average_rating' => 'decimal:2',
             'total_trips_completed' => 'integer',
+            'previous_group_ids' => 'array',
         ];
     }
+
+    /**
+     * Request-scoped hint for UserObserver, set by UserController's
+     * activate()/deactivate() actions to reflect an explicit admin choice
+     * (the "remove from groups"/"restore previous groups" confirm dialogs).
+     * Not a database attribute — a plain public property, not fillable, and
+     * never persisted or serialized as model data.
+     */
+    public ?array $groupMembershipChoice = null;
 
     /**
      * Get the identifier that will be used for authentication.
@@ -146,7 +162,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function vehicleAssignments(): HasMany
     {
-        return $this->hasMany(\App\Models\VehicleDriverAssignment::class, 'driver_id');
+        return $this->hasMany(VehicleDriverAssignment::class, 'driver_id');
     }
 
     public function requestedTrips(): HasMany
@@ -172,6 +188,52 @@ class User extends Authenticatable implements MustVerifyEmail
     public function attendanceRecords(): HasMany
     {
         return $this->hasMany(AttendanceRecord::class);
+    }
+
+    public function groups(): BelongsToMany
+    {
+        return $this->belongsToMany(UserGroup::class, 'group_user')
+            ->withPivot(['added_by', 'added_at'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Additional zones this user has been explicitly granted access to,
+     * beyond their single `zone_id`. See Zone::accessIds() — a user with
+     * rows here is restricted to this set instead of just their zone_id.
+     */
+    public function accessZones(): BelongsToMany
+    {
+        return $this->belongsToMany(Zone::class, 'user_zone')->withTimestamps();
+    }
+
+    /**
+     * Departments this user is the head of (departments.head_id)
+     */
+    public function headedDepartments(): HasMany
+    {
+        return $this->hasMany(Department::class, 'head_id');
+    }
+
+    /**
+     * A department head (with approve-department-trips) deciding on a trip
+     * for a department they head.
+     */
+    public function headsDepartmentOf(Trip $trip): bool
+    {
+        return $trip->department_id !== null
+            && $this->can('approve-department-trips')
+            && $this->headedDepartments()->whereKey($trip->department_id)->exists();
+    }
+
+    public function canApproveTrip(Trip $trip): bool
+    {
+        return $this->can('approve-trips') || $this->headsDepartmentOf($trip);
+    }
+
+    public function canRejectTrip(Trip $trip): bool
+    {
+        return $this->can('reject-trips') || $this->headsDepartmentOf($trip);
     }
 
     // Scopes
@@ -267,14 +329,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function calculateCompletionRate(): float
     {
         $totalTrips = $this->driverTrips()->count();
-        $completedTrips = $this->driverTrips()->where('status', 'completed')->count();
+        $completedTrips = $this->driverTrips()->where('status', TripStatus::Completed->value)->count();
 
         return $totalTrips > 0 ? ($completedTrips / $totalTrips) * 100 : 0;
     }
 
     public function updateDriverStats($trip): void
     {
-        if ($this->isDriver() && $trip->status === 'completed') {
+        if ($this->isDriver() && $trip->status === TripStatus::Completed->value) {
             $this->increment('total_trips_completed');
             $this->total_distance_covered += $trip->actual_distance ?? 0;
 

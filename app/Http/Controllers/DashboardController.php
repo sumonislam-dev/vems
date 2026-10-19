@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
 use App\Models\Stop;
@@ -13,6 +14,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleDriverAssignment;
 use App\Models\VehicleRoute;
 use App\Models\Vendor;
+use App\Models\Zone;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -40,8 +42,10 @@ class DashboardController extends Controller
 
         // Drivers get their own variant: trips they're assigned via their
         // vehicle (see Trip::getDriverAttribute()/scopeVisibleTo()), not the
-        // requester/passenger-oriented "my trips" list employees get.
-        if ($user && $user->hasRole('driver')) {
+        // requester/passenger-oriented "my trips" list employees get. Chosen
+        // by permission, not role: someone who runs trips (check-in) but
+        // doesn't manage them (view-trips).
+        if ($user && $user->can('check-in-trips') && ! $user->can('view-trips')) {
             return Inertia::render('dashboard', [
                 'variant' => 'driver',
                 'attendanceStatus' => $this->buildAttendanceStatus($user),
@@ -78,10 +82,12 @@ class DashboardController extends Controller
 
     protected function buildManagementDashboard(?User $user): array
     {
+        $zoneIds = Zone::accessIds($user);
+
         $aggregates = Cache::remember(
-            'dashboard.management.aggregates',
+            'dashboard.management.aggregates:'.($zoneIds === null ? 'all' : implode(',', $zoneIds)),
             now()->addMinutes(self::MANAGEMENT_DASHBOARD_CACHE_TTL_MINUTES),
-            fn () => $this->buildManagementDashboardAggregates()
+            fn () => $this->buildManagementDashboardAggregates($zoneIds)
         );
 
         return array_merge($aggregates, [
@@ -90,7 +96,17 @@ class DashboardController extends Controller
         ]);
     }
 
-    protected function buildManagementDashboardAggregates(): array
+    /**
+     * $zoneIds is the viewer's effective zone scope (Zone::accessIds()) —
+     * null means unrestricted. Vehicle/User/VehicleRoute/Stop/Factory
+     * queries here need no explicit filtering since BelongsToZone already
+     * scopes them; Trip/TripFeedback aren't zone-scoped by default (see
+     * Trip::scopeVisibleTo()), so every Trip-based query below filters by
+     * it explicitly. The cache key (see buildManagementDashboard()) is
+     * namespaced by this same scope, so different zone views don't share
+     * a stale cached result.
+     */
+    protected function buildManagementDashboardAggregates(?array $zoneIds): array
     {
         return [
             'stats' => [
@@ -106,18 +122,18 @@ class DashboardController extends Controller
             'recent_users' => User::latest()
                 ->take(5)
                 ->get(['id', 'name', 'username', 'user_type', 'status', 'image', 'photo', 'created_at']),
-            'moduleStats' => $this->buildModuleStats(),
+            'moduleStats' => $this->buildModuleStats($zoneIds),
             'roleStats' => $this->buildRoleStats(),
-            'recentActivities' => $this->buildRecentActivities(),
-            'upcomingSchedules' => $this->buildUpcomingSchedules(),
-            'activeIssues' => $this->buildActiveIssues(),
-            'performanceMetrics' => $this->buildPerformanceMetrics(),
+            'recentActivities' => $this->buildRecentActivities($zoneIds),
+            'upcomingSchedules' => $this->buildUpcomingSchedules($zoneIds),
+            'activeIssues' => $this->buildActiveIssues($zoneIds),
+            'performanceMetrics' => $this->buildPerformanceMetrics($zoneIds),
             'chartData' => [
-                'weeklyTrips' => $this->buildWeeklyTripsChart(),
+                'weeklyTrips' => $this->buildWeeklyTripsChart($zoneIds),
                 'vehicleStatus' => $this->buildVehicleStatusChart(),
-                'monthlyPerformance' => $this->buildMonthlyPerformanceChart(),
-                'routePerformance' => $this->buildRoutePerformanceChart(),
-                'issueCategories' => $this->buildIssueCategoriesChart(),
+                'monthlyPerformance' => $this->buildMonthlyPerformanceChart($zoneIds),
+                'routePerformance' => $this->buildRoutePerformanceChart($zoneIds),
+                'issueCategories' => $this->buildIssueCategoriesChart($zoneIds),
                 'driverPerformance' => $this->buildDriverPerformanceChart(),
             ],
         ];
@@ -138,7 +154,7 @@ class DashboardController extends Controller
         $pendingTrip = TripPassenger::with(['trip:id,trip_number', 'pickupStop:id,name', 'dropoffStop:id,name'])
             ->where('user_id', $user->id)
             ->whereIn('status', ['pending', 'no_show', 'boarded'])
-            ->whereHas('trip', fn ($q) => $q->where('status', 'in_progress'))
+            ->whereHas('trip', fn ($q) => $q->where('status', TripStatus::InProgress->value))
             ->orderByRaw("CASE WHEN status IN ('pending','no_show') THEN 0 ELSE 1 END")
             ->first();
 
@@ -173,7 +189,7 @@ class DashboardController extends Controller
         $base = Trip::visibleTo($user);
 
         $upcoming = (clone $base)
-            ->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+            ->whereIn('status', TripStatus::open())
             ->orderBy('scheduled_date')
             ->take(5)
             ->get(['id', 'trip_number', 'scheduled_date', 'schedule_type', 'status']);
@@ -208,13 +224,13 @@ class DashboardController extends Controller
 
         $today = (clone $base)
             ->whereDate('scheduled_date', today())
-            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotIn('status', TripStatus::dropped())
             ->orderBy('scheduled_start_time')
             ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
 
         $upcoming = (clone $base)
             ->whereDate('scheduled_date', '>', today())
-            ->whereIn('status', ['approved', 'assigned'])
+            ->whereIn('status', TripStatus::upcoming())
             ->orderBy('scheduled_date')
             ->take(5)
             ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
@@ -222,8 +238,8 @@ class DashboardController extends Controller
         return [
             'counts' => [
                 'today' => $today->count(),
-                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
-                'completed_today' => (clone $base)->whereDate('scheduled_date', today())->where('status', 'completed')->count(),
+                'in_progress' => (clone $base)->where('status', TripStatus::InProgress->value)->count(),
+                'completed_today' => (clone $base)->whereDate('scheduled_date', today())->where('status', TripStatus::Completed->value)->count(),
             ],
             'today_trips' => $today,
             'upcoming' => $upcoming,
@@ -268,7 +284,7 @@ class DashboardController extends Controller
      * scopeWithExpiringDocuments() because that scope's DATEDIFF() SQL is
      * MySQL-only and would break under the SQLite test database.
      */
-    protected function buildModuleStats(): array
+    protected function buildModuleStats(?array $zoneIds): array
     {
         $today = today();
         $weekStart = today()->startOfWeek()->toDateString();
@@ -291,43 +307,51 @@ class DashboardController extends Controller
 
         $activeRoutes = Trip::where('scheduled_date', '>=', now()->subDays(30)->toDateString())
             ->whereNotNull('vehicle_route_id')
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->distinct('vehicle_route_id')
             ->count('vehicle_route_id');
 
         $scheduledTodayRoutes = Trip::whereDate('scheduled_date', $today)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotIn('status', TripStatus::dropped())
             ->whereNotNull('vehicle_route_id')
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->distinct('vehicle_route_id')
             ->count('vehicle_route_id');
 
-        $tripsTodayCounts = Trip::whereDate('scheduled_date', $today)->selectRaw(
-            'COUNT(*) as today, '.
-            "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
-            "SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as ongoing"
-        )->first();
+        $tripsTodayCounts = Trip::whereDate('scheduled_date', $today)
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
+            ->selectRaw(
+                'COUNT(*) as today, '.
+                "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
+                "SUM(CASE WHEN status = 'in_progress' THEN 1 ELSE 0 END) as ongoing"
+            )->first();
 
         $completedToday = Trip::whereDate('scheduled_date', $today)
-            ->where('status', 'completed')
+            ->where('status', TripStatus::Completed->value)
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->get(['distance_traveled', 'start_time', 'end_time']);
         $durationsToday = $completedToday
             ->filter(fn ($trip) => $trip->start_time && $trip->end_time)
             ->map(fn ($trip) => $trip->start_time->diffInMinutes($trip->end_time));
 
-        $scheduleCounts = Trip::whereBetween('scheduled_date', [$weekStart, $weekEnd])->selectRaw(
-            'COUNT(*) as this_week, '.
-            "SUM(CASE WHEN schedule_type IN ('pick-and-drop', 'pick-up', 'drop-off') THEN 1 ELSE 0 END) as pick_drop, ".
-            "SUM(CASE WHEN schedule_type = 'engineer' THEN 1 ELSE 0 END) as engineer, ".
-            "SUM(CASE WHEN schedule_type = 'training' THEN 1 ELSE 0 END) as training, ".
-            "SUM(CASE WHEN schedule_type = 'adhoc' THEN 1 ELSE 0 END) as adhoc"
-        )->first();
+        $scheduleCounts = Trip::whereBetween('scheduled_date', [$weekStart, $weekEnd])
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
+            ->selectRaw(
+                'COUNT(*) as this_week, '.
+                "SUM(CASE WHEN schedule_type IN ('pick-and-drop', 'pick-up', 'drop-off') THEN 1 ELSE 0 END) as pick_drop, ".
+                "SUM(CASE WHEN schedule_type = 'engineer' THEN 1 ELSE 0 END) as engineer, ".
+                "SUM(CASE WHEN schedule_type = 'training' THEN 1 ELSE 0 END) as training, ".
+                "SUM(CASE WHEN schedule_type = 'adhoc' THEN 1 ELSE 0 END) as adhoc"
+            )->first();
 
-        $issueCounts = TripFeedback::selectRaw(
-            "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, ".
-            "SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_progress, ".
-            "SUM(CASE WHEN status = 'resolved' AND DATE(resolved_at) = ? THEN 1 ELSE 0 END) as resolved_today, ".
-            'SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_this_month',
-            [$today->toDateString(), now()->startOfMonth()->toDateTimeString()]
-        )->first();
+        $issueCounts = TripFeedback::when($zoneIds !== null, fn ($q) => $q->whereHas('trip', fn ($tq) => $tq->whereIn('zone_id', $zoneIds)))
+            ->selectRaw(
+                "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, ".
+                "SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_progress, ".
+                "SUM(CASE WHEN status = 'resolved' AND DATE(resolved_at) = ? THEN 1 ELSE 0 END) as resolved_today, ".
+                'SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_this_month',
+                [$today->toDateString(), now()->startOfMonth()->toDateTimeString()]
+            )->first();
 
         $expiringVehicleCount = $this->countVehiclesWithExpiringDocuments();
 
@@ -401,10 +425,11 @@ class DashboardController extends Controller
      * Merges three real event sources (completed trips, submitted feedback,
      * driver-vehicle assignments) into one feed, newest first.
      */
-    protected function buildRecentActivities(): array
+    protected function buildRecentActivities(?array $zoneIds): array
     {
-        $completedTrips = Trip::where('status', 'completed')
+        $completedTrips = Trip::where('status', TripStatus::Completed->value)
             ->whereNotNull('end_time')
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->with('vehicle.driver:id,name')
             ->latest('end_time')
             ->take(5)
@@ -418,7 +443,8 @@ class DashboardController extends Controller
                 'color' => 'green',
             ]);
 
-        $feedback = TripFeedback::with('submitter:id,name')
+        $feedback = TripFeedback::when($zoneIds !== null, fn ($q) => $q->whereHas('trip', fn ($tq) => $tq->whereIn('zone_id', $zoneIds)))
+            ->with('submitter:id,name')
             ->latest()
             ->take(5)
             ->get()
@@ -432,6 +458,7 @@ class DashboardController extends Controller
             ]);
 
         $assignments = VehicleDriverAssignment::where('is_current', true)
+            ->when($zoneIds !== null, fn ($q) => $q->whereHas('vehicle', fn ($vq) => $vq->whereIn('zone_id', $zoneIds)))
             ->with(['driver:id,name', 'vehicle:id,registration_number'])
             ->latest('started_at')
             ->take(5)
@@ -462,10 +489,11 @@ class DashboardController extends Controller
             ->all();
     }
 
-    protected function buildUpcomingSchedules(): array
+    protected function buildUpcomingSchedules(?array $zoneIds): array
     {
-        return Trip::whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+        return Trip::whereIn('status', TripStatus::open())
             ->whereDate('scheduled_date', '>=', today())
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->with(['vehicle.driver:id,name', 'vehicleRoute:id,name'])
             ->withCount('passengers')
             ->orderBy('scheduled_date')
@@ -487,9 +515,10 @@ class DashboardController extends Controller
             ->all();
     }
 
-    protected function buildActiveIssues(): array
+    protected function buildActiveIssues(?array $zoneIds): array
     {
         return TripFeedback::whereIn('status', ['open', 'in_review'])
+            ->when($zoneIds !== null, fn ($q) => $q->whereHas('trip', fn ($tq) => $tq->whereIn('zone_id', $zoneIds)))
             ->with(['submitter:id,name', 'assignee:id,name'])
             ->orderByRaw("CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END")
             ->latest()
@@ -514,19 +543,20 @@ class DashboardController extends Controller
      * completed+cancelled, same formula ReportController uses) replaces the
      * old fabricated 'on_time_percentage'.
      */
-    protected function buildPerformanceMetrics(): array
+    protected function buildPerformanceMetrics(?array $zoneIds): array
     {
         $monthStart = now()->startOfMonth();
 
-        [$completionRate] = $this->completionRateFor($monthStart->toDateString(), now()->toDateString());
+        [$completionRate] = $this->completionRateFor($monthStart->toDateString(), now()->toDateString(), null, $zoneIds);
 
         // Total distance / total fuel across all trips, not an average of each
         // trip's own ratio — averaging per-trip ratios lets a single trip with
         // a near-zero fuel_consumed value dominate and blow up the result.
         $fuelStats = Trip::where('scheduled_date', '>=', $monthStart->toDateString())
-            ->where('status', 'completed')
+            ->where('status', TripStatus::Completed->value)
             ->whereNotNull('fuel_consumed')
             ->where('fuel_consumed', '>', 0)
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->selectRaw('SUM(distance_traveled) as total_distance, SUM(fuel_consumed) as total_fuel')
             ->first();
         $totalFuelConsumed = (float) $fuelStats->total_fuel;
@@ -534,11 +564,12 @@ class DashboardController extends Controller
             ? round(((float) $fuelStats->total_distance) / $totalFuelConsumed, 1)
             : 0.0;
 
-        $customerSatisfaction = $this->averageFeedbackRating($monthStart, now());
+        $customerSatisfaction = $this->averageFeedbackRating($monthStart, now(), null, $zoneIds);
 
         $activeVehicleCount = Vehicle::where('is_active', true)->count();
         $vehiclesUsedThisWeek = Trip::whereBetween('scheduled_date', [today()->startOfWeek()->toDateString(), today()->endOfWeek()->toDateString()])
             ->whereNotNull('vehicle_id')
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->distinct('vehicle_id')
             ->count('vehicle_id');
         $vehicleUtilization = $activeVehicleCount > 0 ? round($vehiclesUsedThisWeek / $activeVehicleCount * 100, 1) : 0.0;
@@ -561,11 +592,12 @@ class DashboardController extends Controller
         ];
     }
 
-    protected function buildWeeklyTripsChart(): array
+    protected function buildWeeklyTripsChart(?array $zoneIds): array
     {
         $start = today()->subDays(6);
 
         $rows = Trip::whereBetween('scheduled_date', [$start->toDateString(), today()->toDateString()])
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->selectRaw(
                 'scheduled_date, COUNT(*) as trips, '.
                 "SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed, ".
@@ -611,60 +643,83 @@ class DashboardController extends Controller
             ->all();
     }
 
-    protected function buildMonthlyPerformanceChart(): array
+    protected function buildMonthlyPerformanceChart(?array $zoneIds): array
     {
         $activeVehicleCount = Vehicle::where('is_active', true)->count();
+        $windowStart = now()->subMonths(5)->startOfMonth();
+        $windowEnd = now()->endOfMonth();
+
+        // Two queries for all six months, grouped in PHP (portable across MySQL/SQLite)
+        $trips = Trip::whereBetween('scheduled_date', [$windowStart->toDateString(), $windowEnd->toDateString()])
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
+            ->get(['scheduled_date', 'status', 'vehicle_id'])
+            ->groupBy(fn ($trip) => $trip->scheduled_date->format('Y-m'));
+
+        $ratings = TripFeedback::whereBetween('created_at', [$windowStart, $windowEnd])
+            ->when($zoneIds !== null, fn ($q) => $q->whereHas('trip', fn ($tq) => $tq->whereIn('zone_id', $zoneIds)))
+            ->get(['created_at', 'driver_rating', 'vehicle_rating'])
+            ->groupBy(fn ($feedback) => $feedback->created_at->format('Y-m'));
+
         $months = [];
-
         for ($i = 5; $i >= 0; $i--) {
-            $monthStart = now()->subMonths($i)->startOfMonth();
-            $monthEnd = now()->subMonths($i)->endOfMonth();
+            $month = now()->subMonths($i)->startOfMonth();
+            $monthTrips = $trips->get($month->format('Y-m'), collect());
+            $monthRatings = $ratings->get($month->format('Y-m'), collect())
+                ->flatMap(fn ($f) => array_filter([$f->driver_rating, $f->vehicle_rating]));
 
-            [$completionRate] = $this->completionRateFor($monthStart->toDateString(), $monthEnd->toDateString());
-            $satisfaction = $this->averageFeedbackRating($monthStart, $monthEnd);
-
-            $vehiclesUsed = Trip::whereBetween('scheduled_date', [$monthStart->toDateString(), $monthEnd->toDateString()])
-                ->whereNotNull('vehicle_id')
-                ->distinct('vehicle_id')
-                ->count('vehicle_id');
-            $utilization = $activeVehicleCount > 0 ? round($vehiclesUsed / $activeVehicleCount * 100, 1) : 0.0;
+            $completed = $monthTrips->where('status', TripStatus::Completed->value)->count();
+            $finished = $completed + $monthTrips->where('status', TripStatus::Cancelled->value)->count();
+            $vehiclesUsed = $monthTrips->pluck('vehicle_id')->filter()->unique()->count();
 
             $months[] = [
-                'month' => $monthStart->format('M'),
-                'completionRate' => $completionRate,
-                'satisfaction' => $satisfaction,
-                'utilization' => $utilization,
+                'month' => $month->format('M'),
+                'completionRate' => $finished > 0 ? round($completed / $finished * 100, 1) : 0.0,
+                'satisfaction' => $monthRatings->isNotEmpty() ? round((float) $monthRatings->avg(), 1) : 0.0,
+                'utilization' => $activeVehicleCount > 0 ? round($vehiclesUsed / $activeVehicleCount * 100, 1) : 0.0,
             ];
         }
 
         return $months;
     }
 
-    protected function buildRoutePerformanceChart(): array
+    protected function buildRoutePerformanceChart(?array $zoneIds): array
     {
         $topRoutes = Trip::whereNotNull('vehicle_route_id')
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->selectRaw('vehicle_route_id, COUNT(*) as trips_count')
+            ->selectRaw("SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed")
+            ->selectRaw("SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled")
             ->groupBy('vehicle_route_id')
             ->orderByDesc('trips_count')
             ->take(5)
             ->get();
 
-        $routeNames = VehicleRoute::whereIn('id', $topRoutes->pluck('vehicle_route_id'))->pluck('name', 'id');
+        $routeIds = $topRoutes->pluck('vehicle_route_id');
+        $routeNames = VehicleRoute::whereIn('id', $routeIds)->pluck('name', 'id');
 
-        return $topRoutes->map(function ($row) use ($routeNames) {
-            [$completionRate] = $this->completionRateFor(null, null, $row->vehicle_route_id);
-            $rating = $this->averageFeedbackRating(null, null, $row->vehicle_route_id);
+        // One query for every top route's ratings
+        $ratings = TripFeedback::query()
+            ->join('trips', 'trips.id', '=', 'trip_feedback.trip_id')
+            ->whereIn('trips.vehicle_route_id', $routeIds)
+            ->when($zoneIds !== null, fn ($q) => $q->whereIn('trips.zone_id', $zoneIds))
+            ->get(['trips.vehicle_route_id', 'trip_feedback.driver_rating', 'trip_feedback.vehicle_rating'])
+            ->groupBy('vehicle_route_id');
+
+        return $topRoutes->map(function ($row) use ($routeNames, $ratings) {
+            $finished = (int) $row->completed + (int) $row->cancelled;
+            $routeRatings = $ratings->get($row->vehicle_route_id, collect())
+                ->flatMap(fn ($f) => array_filter([$f->driver_rating, $f->vehicle_rating]));
 
             return [
                 'route' => $routeNames[$row->vehicle_route_id] ?? 'Unknown Route',
                 'trips' => (int) $row->trips_count,
-                'completionRate' => $completionRate,
-                'rating' => $rating,
+                'completionRate' => $finished > 0 ? round((int) $row->completed / $finished * 100, 1) : 0.0,
+                'rating' => $routeRatings->isNotEmpty() ? round((float) $routeRatings->avg(), 1) : 0.0,
             ];
         })->values()->all();
     }
 
-    protected function buildIssueCategoriesChart(): array
+    protected function buildIssueCategoriesChart(?array $zoneIds): array
     {
         $colors = [
             'driver_behavior' => '#f59e0b',
@@ -675,7 +730,8 @@ class DashboardController extends Controller
             'other' => '#94a3b8',
         ];
 
-        $counts = TripFeedback::selectRaw('category, COUNT(*) as count')
+        $counts = TripFeedback::when($zoneIds !== null, fn ($q) => $q->whereHas('trip', fn ($tq) => $tq->whereIn('zone_id', $zoneIds)))
+            ->selectRaw('category, COUNT(*) as count')
             ->groupBy('category')
             ->pluck('count', 'category');
 
@@ -742,7 +798,7 @@ class DashboardController extends Controller
      * cancellation rate. Returns [rate] (array so call sites can destructure
      * without an intermediate variable).
      */
-    protected function completionRateFor(?string $from, ?string $to, ?int $vehicleRouteId = null): array
+    protected function completionRateFor(?string $from, ?string $to, ?int $vehicleRouteId = null, ?array $zoneIds = null): array
     {
         $query = Trip::query();
 
@@ -752,6 +808,10 @@ class DashboardController extends Controller
 
         if ($vehicleRouteId) {
             $query->where('vehicle_route_id', $vehicleRouteId);
+        }
+
+        if ($zoneIds !== null) {
+            $query->whereIn('zone_id', $zoneIds);
         }
 
         $counts = $query->selectRaw(
@@ -770,7 +830,7 @@ class DashboardController extends Controller
      * Average of driver_rating/vehicle_rating across feedback in a date
      * range and/or for a specific route (via the feedback's trip).
      */
-    protected function averageFeedbackRating(?Carbon $from = null, ?Carbon $to = null, ?int $vehicleRouteId = null): float
+    protected function averageFeedbackRating(?Carbon $from = null, ?Carbon $to = null, ?int $vehicleRouteId = null, ?array $zoneIds = null): float
     {
         $query = TripFeedback::query();
 
@@ -782,6 +842,10 @@ class DashboardController extends Controller
             $query->whereHas('trip', fn ($q) => $q->where('vehicle_route_id', $vehicleRouteId));
         }
 
+        if ($zoneIds !== null) {
+            $query->whereHas('trip', fn ($q) => $q->whereIn('zone_id', $zoneIds));
+        }
+
         /** @var Collection $ratings */
         $ratings = $query->get(['driver_rating', 'vehicle_rating'])
             ->flatMap(fn ($feedback) => array_filter([$feedback->driver_rating, $feedback->vehicle_rating]));
@@ -790,18 +854,26 @@ class DashboardController extends Controller
     }
 
     /**
-     * Counts active vehicles with an expiring/expired tracked document, in
-     * PHP via Vehicle::getExpiringDocuments() rather than the model's
-     * scopeWithExpiringDocuments() — that scope's raw DATEDIFF() is
-     * MySQL-only and errors under the SQLite test database.
+     * Counts active vehicles with an expiring/expired tracked document. The
+     * database narrows it to vehicles with any document due within a year
+     * (alert_days_before is at most 365); getExpiringDocuments() then
+     * applies each vehicle's own alert window and toggles.
      */
     protected function countVehiclesWithExpiringDocuments(): int
     {
+        $horizon = today()->addDays(365)->toDateString();
+
         return Vehicle::where('is_active', true)
+            ->where(function ($q) use ($horizon) {
+                foreach (['tax_token_last_date', 'fitness_certificate_last_date', 'insurance_last_date', 'route_permit_last_date'] as $column) {
+                    $q->orWhere(fn ($dq) => $dq->whereNotNull($column)->where($column, '<=', $horizon));
+                }
+            })
             ->get([
                 'tax_token_last_date', 'tax_token_alert_enabled',
                 'fitness_certificate_last_date', 'fitness_alert_enabled',
                 'insurance_last_date', 'insurance_alert_enabled',
+                'route_permit_last_date', 'route_permit_alert_enabled',
                 'alert_days_before',
             ])
             ->filter(fn ($vehicle) => ! empty($vehicle->getExpiringDocuments()))

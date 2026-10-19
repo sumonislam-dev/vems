@@ -6,6 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { NotificationButton } from '@/components/ui/notification-button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { UserMenuContent } from '@/components/user-menu-content';
+import { ZoneSwitcher } from '@/components/zone-switcher';
 import { useInitials } from '@/hooks/use-initials';
 import { type BreadcrumbItem as BreadcrumbItemType, type SharedData } from '@/types';
 import { usePage } from '@inertiajs/react';
@@ -24,6 +25,9 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
 
             {/* Right side - User actions */}
             <div className="flex items-center gap-2">
+                {/* Zone switcher */}
+                <ZoneSwitcher />
+
                 {/* Notifications */}
                 <NotificationButton />
 
@@ -36,9 +40,7 @@ export function AppSidebarHeader({ breadcrumbs = [] }: { breadcrumbs?: Breadcrum
                         <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
                             <Avatar className="h-8 w-8">
                                 <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
-                                <AvatarFallback className="bg-muted text-foreground">
-                                    {getInitials(auth.user.name)}
-                                </AvatarFallback>
+                                <AvatarFallback className="bg-muted text-foreground">{getInitials(auth.user.name)}</AvatarFallback>
                             </Avatar>
                             <span className="sr-only">User menu</span>
                         </Button>

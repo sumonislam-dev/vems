@@ -1,21 +1,20 @@
 import * as React from 'react';
 
-export interface Product {
-    id: number;
-    name: string;
-    description: string;
-    price: number;
-    category: string;
-    status: 'active' | 'inactive' | 'pending';
-    created_at: string;
-    updated_at: string;
-}
-
 export interface Department {
     id: number;
     name: string;
     code?: string;
     description?: string;
+    status: 'active' | 'inactive';
+    created_at: string;
+    updated_at: string;
+}
+
+export interface Zone {
+    id: number;
+    name: string;
+    code: string;
+    is_active: boolean;
     status: 'active' | 'inactive';
     created_at: string;
     updated_at: string;

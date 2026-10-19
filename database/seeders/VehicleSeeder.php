@@ -3,7 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Vehicle;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use App\Models\Zone;
 use Illuminate\Database\Seeder;
 
 class VehicleSeeder extends Seeder
@@ -13,6 +13,13 @@ class VehicleSeeder extends Seeder
      */
     public function run(): void
     {
+        // No location data of their own to derive a zone from (unlike
+        // Factory's city or Vendor's address) — split deterministically
+        // across zones so the seeded fleet is still useful for exercising
+        // zone-scoped filtering/access out of the box.
+        $dhakaZoneId = Zone::where('code', 'DHK')->value('id');
+        $ctgZoneId = Zone::where('code', 'CTG')->value('id');
+
         // Create some realistic sample vehicles
         $vehicles = [
             [
@@ -24,6 +31,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'own',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Honda',
@@ -34,6 +42,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'pool',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Ford',
@@ -44,6 +53,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'pickup',
                 'rental_type' => 'own',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Chevrolet',
@@ -54,6 +64,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'suv',
                 'rental_type' => 'pool',
                 'is_active' => false,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Nissan',
@@ -64,6 +75,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'rental',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'BMW',
@@ -74,6 +86,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'pool',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Mercedes',
@@ -84,6 +97,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'pool',
                 'is_active' => true,
+                'zone_id' => $dhakaZoneId,
             ],
             [
                 'brand' => 'Audi',
@@ -94,6 +108,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'pool',
                 'is_active' => false,
+                'zone_id' => $ctgZoneId,
             ],
             [
                 'brand' => 'Hyundai',
@@ -104,6 +119,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'own',
                 'is_active' => true,
+                'zone_id' => $ctgZoneId,
             ],
             [
                 'brand' => 'Kia',
@@ -114,6 +130,7 @@ class VehicleSeeder extends Seeder
                 'vehicle_type' => 'sedan',
                 'rental_type' => 'pool',
                 'is_active' => true,
+                'zone_id' => $ctgZoneId,
             ],
         ];
 

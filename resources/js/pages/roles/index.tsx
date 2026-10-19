@@ -1,11 +1,13 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, DataTableColumn, Role } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, Plus, Shield, Trash2, Users, Key } from 'lucide-react';
+import { Edit, Eye, Key, Plus, Shield, Trash2, Users } from 'lucide-react';
 
 interface PaginatedRoles {
     data: Role[];
@@ -39,6 +41,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps) {
+    const can = useCan();
+
     // Define table columns
     const columns: DataTableColumn<Role>[] = [
         {
@@ -69,9 +73,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
             render: (_, row) => (
                 <div className="flex items-center space-x-1">
                     <Key className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm">
-                        {row.permissions?.length || 0} permissions
-                    </span>
+                    <span className="text-sm">{row.permissions?.length || 0} permissions</span>
                 </div>
             ),
         },
@@ -82,9 +84,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
             render: (_, row) => (
                 <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm">
-                        {row.users?.length || 0} users
-                    </span>
+                    <span className="text-sm">{row.users_count ?? 0} users</span>
                 </div>
             ),
         },
@@ -117,34 +117,38 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('roles.edit', row.id));
-                        }}
-                        title="Edit role"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete role "${row.name}"?`)) {
-                                router.delete(route('roles.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete role"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('edit-roles') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('roles.edit', row.id));
+                            }}
+                            title="Edit role"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
+                    {can('delete-roles') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (await confirmDelete(`Are you sure you want to delete role "${row.name}"?`)) {
+                                    router.delete(route('roles.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete role"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -167,6 +171,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
                             label: 'Create Role',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('roles.create'),
+                            permission: 'create-roles',
                         },
                     ]}
                     stats={[

@@ -1,26 +1,26 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, DataTableColumn, Vehicle } from '@/types';
-import { Head, router, useForm, usePage } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, CheckCircle, Edit, Eye, Plus, Trash2, UserCog, XCircle } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 
 type AssignableDriver = {
-    id: number
-    name: string
-    email?: string
-    official_phone?: string
-}
-
-const checkPermission = (permission: string, permissions: string[] = []): boolean => permissions.includes(permission);
+    id: number;
+    name: string;
+    email?: string;
+    official_phone?: string;
+};
 
 interface PaginatedVehicles {
     data: Vehicle[];
@@ -41,6 +41,7 @@ interface VehiclesPageProps {
         rental_types: Array<{ label: string; value: string }>;
         fuel_types: Array<{ label: string; value: string }>;
         vendors: Array<{ label: string; value: string }>;
+        zones: Array<{ label: string; value: string }>;
         statuses: Array<{ label: string; value: boolean }>;
         conditions: Array<{ label: string; value: string }>;
     };
@@ -66,9 +67,9 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function VehiclesIndex({ vehicles, filterOptions, stats, queryParams, assignableDrivers = [] }: VehiclesPageProps) {
-    const pageProps = usePage().props as unknown as { auth?: { permissions?: string[] } };
-    const canAssignVehicles = checkPermission('assign-vehicles', pageProps.auth?.permissions ?? []);
-    const canEditVehicles = checkPermission('edit-vehicles', pageProps.auth?.permissions ?? []);
+    const can = useCan();
+    const canAssignVehicles = can('assign-vehicles');
+    const canEditVehicles = can('edit-vehicles');
 
     const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
     const [bulkStatusProcessing, setBulkStatusProcessing] = useState(false);
@@ -160,17 +161,13 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'brand',
             label: 'Brand',
             sortable: true,
-            render: (value) => (
-                <span className="font-medium">{value}</span>
-            ),
+            render: (value) => <span className="font-medium">{value}</span>,
         },
         {
             key: 'model',
             label: 'Model',
             sortable: true,
-            render: (value) => (
-                <span className="text-muted-foreground">{value}</span>
-            ),
+            render: (value) => <span className="text-muted-foreground">{value}</span>,
         },
         {
             key: 'vehicle_type',
@@ -196,8 +193,18 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'registration_number',
             label: 'Registration',
             sortable: true,
-            render: (value) => (
-                <span className="font-mono text-sm">{value}</span>
+            render: (value, row) => (
+                <div className="flex flex-col items-start gap-1">
+                    <span className="font-mono text-sm">{value}</span>
+                    {row.is_placeholder && (
+                        <Badge
+                            variant="outline"
+                            className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        >
+                            Details pending
+                        </Badge>
+                    )}
+                </div>
             ),
         },
         {
@@ -206,16 +213,21 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             sortable: true,
             render: (value) => {
                 // Handle both the vendor object and the legacy vendor string
-                const vendorName = typeof value === 'object' && value !== null && 'name' in value
-                    ? value.name
-                    : (typeof value === 'string' ? value : null);
+                const vendorName =
+                    typeof value === 'object' && value !== null && 'name' in value ? value.name : typeof value === 'string' ? value : null;
 
-                return (
-                    <span className="text-muted-foreground">
-                        {vendorName || 'N/A'}
-                    </span>
-                );
+                return <span className="text-muted-foreground">{vendorName || 'N/A'}</span>;
             },
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            render: (_, vehicle) => <span className="text-muted-foreground">{vehicle.zone?.name || 'N/A'}</span>,
+        },
+        {
+            key: 'default_route',
+            label: 'Pick & Drop Route',
+            render: (_, vehicle) => <span className="text-muted-foreground">{vehicle.default_route?.name || '-'}</span>,
         },
         {
             key: 'driver',
@@ -225,17 +237,13 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                 const driver = vehicle.driver;
 
                 if (!driver) {
-                    return (
-                        <span className="text-muted-foreground">N/A</span>
-                    );
+                    return <span className="text-muted-foreground">N/A</span>;
                 }
 
                 return (
                     <div className="flex flex-col">
-                        <span className="font-medium text-sm">{driver.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                            {driver.official_phone || driver.email}
-                        </span>
+                        <span className="text-sm font-medium">{driver.name}</span>
+                        <span className="text-xs text-muted-foreground">{driver.official_phone || driver.email}</span>
                     </div>
                 );
             },
@@ -244,11 +252,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'is_active',
             label: 'Status',
             sortable: true,
-            render: (value) => (
-                <Badge variant={value ? 'default' : 'secondary'}>
-                    {value ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
+            render: (value) => <Badge variant={value ? 'default' : 'secondary'}>{value ? 'Active' : 'Inactive'}</Badge>,
         },
         {
             key: 'status' as keyof Vehicle,
@@ -327,18 +331,20 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     >
                         <Eye className="h-4 w-4" />
                     </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('vehicles.edit', row.id));
-                        }}
-                        title="Edit vehicle"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
+                    {canEditVehicles && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('vehicles.edit', row.id));
+                            }}
+                            title="Edit vehicle"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                        >
+                            <Edit className="h-4 w-4" />
+                        </Button>
+                    )}
                     {canAssignVehicles && (
                         <Button
                             variant="ghost"
@@ -353,22 +359,24 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                             <UserCog className="h-4 w-4" />
                         </Button>
                     )}
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
-                                router.delete(route('vehicles.destroy', row.id), {
-                                    preserveScroll: true,
-                                });
-                            }
-                        }}
-                        title="Delete vehicle"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                    >
-                        <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {can('delete-vehicles') && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={async (e) => {
+                                e.stopPropagation();
+                                if (await confirmDelete(`Are you sure you want to delete ${row.brand} ${row.model}?`)) {
+                                    router.delete(route('vehicles.destroy', row.id), {
+                                        preserveScroll: true,
+                                    });
+                                }
+                            }}
+                            title="Delete vehicle"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                        >
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
             ),
         },
@@ -436,6 +444,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             })),
         },
         {
+            key: 'zone_id',
+            label: 'Zone',
+            type: 'multiselect',
+            options: filterOptions.zones.map((zone) => ({
+                label: zone.label,
+                value: zone.value,
+            })),
+        },
+        {
             key: 'is_active',
             label: 'Status',
             type: 'multiselect',
@@ -453,6 +470,15 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                 value: condition.value,
             })),
         },
+        {
+            key: 'details',
+            label: 'Details',
+            type: 'multiselect',
+            options: [
+                { label: 'Pending (ad-hoc placeholder)', value: 'pending' },
+                { label: 'Complete', value: 'complete' },
+            ],
+        },
     ];
 
     return (
@@ -467,17 +493,18 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                         {
                             label: 'Sort by Name',
                             variant: 'outline',
-                            onClick: () => handleSort('brand')
+                            onClick: () => handleSort('brand'),
                         },
                         {
                             label: 'Sort by ID',
                             variant: 'outline',
-                            onClick: () => handleSort('id')
+                            onClick: () => handleSort('id'),
                         },
                         {
                             label: 'Add Vehicle',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('vehicles.create'),
+                            permission: 'create-vehicles',
                         },
                     ]}
                     stats={[
@@ -516,12 +543,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Activate Selected
                             </Button>
-                            <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => submitBulkStatus(false)}
-                                disabled={bulkStatusProcessing}
-                            >
+                            <Button size="sm" variant="destructive" onClick={() => submitBulkStatus(false)} disabled={bulkStatusProcessing}>
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Deactivate Selected
                             </Button>
@@ -537,7 +559,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search vehicles..."
-                    exportable={true}
+                    exportable={can('export-vehicles')}
                     exportUrl="/vehicles-export"
                     onRowClick={handleRowClick}
                     emptyMessage="No vehicles found. Add your first vehicle to get started."
@@ -561,10 +583,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     <form className="space-y-4" onSubmit={submitAssignDriver}>
                         <div className="space-y-2">
                             <Label htmlFor="assign_driver_id">Driver</Label>
-                            <Select
-                                value={assignDriverData.driver_id}
-                                onValueChange={(value) => setAssignDriverData('driver_id', value)}
-                            >
+                            <Select value={assignDriverData.driver_id} onValueChange={(value) => setAssignDriverData('driver_id', value)}>
                                 <SelectTrigger id="assign_driver_id" className="w-full">
                                     <SelectValue placeholder="Select a driver" />
                                 </SelectTrigger>

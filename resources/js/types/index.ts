@@ -1,17 +1,34 @@
 // Re-export all domain types for backward compatibility
-export type { Auth, BreadcrumbItem, NavGroup, NavItem, SharedData } from './app';
-export type { User, Role } from './user';
-export type { Permission } from './permission';
-export type { VendorContactPerson, Vendor, Vehicle } from './vehicle';
+export type { Auth, AvailableZone, BreadcrumbItem, NavGroup, NavItem, SharedData } from './app';
 export type {
-    Product, Department, Factory, Stop, VehicleRoute, RouteStop, Logistics,
-    ActionButton, SortDirection, SortConfig, FilterOption, ColumnFilter,
-    DataTableColumn, PaginationInfo, DataTableProps, PaginatedData,
+    ActionButton,
+    ColumnFilter,
+    DataTableColumn,
+    DataTableProps,
+    Department,
+    Factory,
+    FilterOption,
+    Logistics,
+    PaginatedData,
+    PaginationInfo,
+    RouteStop,
+    SortConfig,
+    SortDirection,
+    Stop,
+    VehicleRoute,
+    Zone,
 } from './common';
+export type { Permission } from './permission';
 export type {
-    Trip, TripPassenger, TripPassengerEvent, TripStop, TripRecurringGroup,
-    TripAuditLog, TripVehicleAssignment, TripRouteAssignment,
+    Trip,
+    TripAuditLog,
+    TripPassenger,
+    TripPassengerEvent,
+    TripRecurringGroup,
+    TripRouteAssignment,
+    TripStop,
+    TripVehicleAssignment,
 } from './trip';
-export type {
-    TripFeedback, TripFeedbackType, TripFeedbackCategory, TripFeedbackPriority, TripFeedbackStatus,
-} from './trip-feedback';
+export type { TripFeedback, TripFeedbackCategory, TripFeedbackPriority, TripFeedbackStatus, TripFeedbackType } from './trip-feedback';
+export type { Role, User } from './user';
+export type { Vehicle, Vendor, VendorContactPerson } from './vehicle';

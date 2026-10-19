@@ -42,8 +42,11 @@ npm run types                   # tsc --noEmit
 ```bash
 php artisan setup:permissions
 ```
-Related one-off commands in `app/Console/Commands/`: `CheckUserPermissions`, `BackfillVehicleAssignments`, `ShowRouteData`.
+**Fresh install / production:** `php artisan db:seed` creates only roles, permissions and zones in production (demo data is local-only); create the first admin with `php artisan vems:create-admin`. See `docs/DEPLOYMENT.md` (env, cron, queue worker, backups).
 
+**Scheduled jobs** (`routes/console.php`, times Asia/Dhaka; needs a `schedule:run` cron): `vems:expiry-reminders` (07:00, vehicle documents incl. route permit and driving licences, on milestone days only), `vems:trips-needing-attention` (07:30, overdue/long-running trips, notify only), and spatie/laravel-backup (`backup:clean`/`run`/`monitor`, nightly, to the `backups` disk).
+
+`setup:permissions` makes the database match `RolePermissionSeeder` exactly, so it deletes or revokes anything not listed. On a live database use the add-only `php artisan permissions:update` (`--dry-run` to preview): it adds new permissions and roles and grants seeded roles their newly listed permissions, but never deletes or revokes anything.
 ## Architecture
 
 ### Request flow
@@ -53,27 +56,36 @@ Every page is a Laravel route (`routes/web.php`, plus `routes/auth.php` / `route
 
 ### Auth & permissions
 - Roles/permissions via `spatie/laravel-permission` (`Role`, `Permission` models, `HasRoles` trait on `User`).
-- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`).
-- Route-level role gating uses `Route::middleware('role:super-admin')->group(...)` (see the `/debug/auth` route).
-- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `employee`/`driver` get a scoped-down subset for their day-to-day flows.
+- `AppServiceProvider::boot()` registers a global `Gate::before` that short-circuits to `true` for `hasRole('super-admin')`. Roles are seeded lowercase-kebab (`super-admin`, `admin`, `transport-manager`, `management`, `department-head`, `employee`, `driver` — see `RolePermissionSeeder`, the single source of truth for both `php artisan setup:permissions` and `db:seed`). Running it deletes any role or permission it doesn't list.
+- Authorization is permission-based: controllers declare `permission:*` middleware (`HasMiddleware`), and the frontend hides actions with `useCan()`.
+- Permission names follow `verb-resource` (`view-users`, `edit-vehicles`, etc.), defined in `RolePermissionSeeder`. `super-admin`/`admin` get every permission; `transport-manager` runs trips/fleet/drivers/vendors/reports without user, role or zone administration; `management` is read-only oversight; `department-head` approves/rejects only trips of departments they head (`departments.head_id`, permission `approve-department-trips`, see `User::canApproveTrip()`); `employee`/`driver` get a scoped-down subset for their day-to-day flows. Exports/imports have their own `export-*`/`import-*` permissions, and changing a user's roles needs `manage-user-roles`.
+
+### Reports
+`ReportController` (Trip Report) and `MonthlyVehicleReportController` (Monthly Vehicle Report) are bespoke. Other reports subclass `App\Services\Reports\AnalyticsReport` (a summary plus generic table sections) and are registered in `AnalyticsReportController::REPORTS`. That one controller serves the page (`reports/analytics.tsx`), Excel (`AnalyticsReportExport`) and PDF (`exports/analytics-report-pdf`) for all of them. The app runs on `Asia/Dhaka` time (`config('app.timezone')`, so `today()` matches the users' day). Parse trip schedules (date + time) with `Carbon::parse($date.' '.$time, config('app.local_timezone'))`. `TripDrivers` resolves who drove a trip from the vehicle's assignment history.
+
+### Notifications
+In-app (database channel, the navbar bell). Workflow events go through `App\Services\TripNotifier` (new request → approvers + department head, approved without vehicle → Logistics, vehicle assigned, cancelled, new complaint). Recipients come from `App\Support\NotificationRecipients::withPermission()`: active users with the permission who can see the record's zone. The actor is never notified. Generic messages use `App\Notifications\AlertNotification`.
 
 ### Users, drivers, vendors
 There is no separate `Driver` model — drivers are `User` rows with `user_type` (`driver`, `transport_manager`, `employee`, `admin`, ...) and a `driver_status` enum (`available`, `on_trip`, etc.). `User::isDriver()`, `scopeDrivers`, `scopeAvailableDrivers`, `canDrive()` encode the driver-specific rules (license expiry, status). `DriverController` is a thin, filtered view over the same `users` table/`UserController` logic (same Form Requests, same table) rather than a distinct resource.
 
+Sensitive uploads (NID/licence scans, vehicle and vendor papers) are stored on the private `local` disk via `App\Support\PrivateDocument` and served only through `DocumentController`'s permission-checked `*.document` routes; profile photos stay on the `public` disk. Vehicles and factories are soft-deleted, and history relations use `withTrashed()`.
+
 `Vendor` / `VendorContactPerson` model an external vendor org; `users.vendor_id` links a user (e.g. an outsourced driver) to a `Vendor`.
 
-**Dead files to be aware of:** `app/Http/Requests/UserStoreRequest.php` and `UserUpdateRequest.php` are unused leftovers — `UserController` and `DriverController` both actually use `StoreUserRequest` / `UpdateUserRequest`. Don't assume the `User*Request` variants are the active validation path.
+`UserController` and `DriverController` share the same Form Requests (`StoreUserRequest` / `UpdateUserRequest`).
 
 ### Trips (the core domain)
 `Trip` (`app/Models/Trip.php`) is the largest model and centers a web of related tables:
 
 - `trip_passengers` — passengers with pickup/dropoff stops and status (`trip_passenger_events` records check-in/check-out/no-show events, handled by `TripPassengerController`).
 - `trip_stops` — ordered stops per trip (`ordered()`/`destinations()` scopes), optionally linked to a `Factory`.
-- `trip_vehicle_assignments` / `trip_route_assignments` — append-only history of vehicle/route reassignment, each with an `is_current` flag; `currentVehicleAssignment()`/`currentRouteAssignment()` pull the latest. Use `Trip::assignRoute()` / the vehicle-reassign endpoint rather than writing `vehicle_id`/`vehicle_route_id` directly, so history and audit logs stay consistent.
+- `trip_vehicle_assignments` / `trip_route_assignments` — append-only history of vehicle/route reassignment, each with an `is_current` flag; `currentVehicleAssignment()`/`currentRouteAssignment()` pull the latest. `TripObserver` writes both histories whenever `vehicle_id`/`vehicle_route_id` change (on create or update), so saving the trip is enough; to attach a reason/notes, use the vehicle-reassign endpoint or `Trip::assignRoute()`.
 - `trip_audit_logs` — append-only change log. **Trip's `static::updating` boot hook auto-logs every dirty attribute on every save** (except `updated_at`), so any `$trip->update([...])` — even incidental ones — creates an audit row. Bear this in mind when writing bulk-update code or backfills.
 - `trip_recurring_groups` — a trip created with a date range creates one `Trip` row per day, all linked via `recurring_group_id` (see `recurring_start_date`/`recurring_end_date`). This is simpler than the "weekly pattern" design described in some of the `docs/` planning docs — the *actual* implementation is the date-range/group approach.
 - `trip_logistics`, `factory_trip`, `department_trip` — many-to-many pivots (logistics coordinators, factories visited, multi-department headcount split).
-- Status lifecycle is `pending → approved → assigned → in_progress → completed`, with `rejected`/`cancelled` as terminal off-ramps — enforced by `Trip::canTransitionTo()`/`transitionTo()`. State-changing endpoints (`approve`, `reject`, `start`, `complete`, `cancel`) live in `TripStateController`, not `TripController`. `TripObserver` auto-sets `start_time`/`end_time` and flips `is_completed`/`status` together, so update those fields through the model methods (`startTrip()`, `completeTrip()`, `cancel()`) instead of raw attribute writes where possible.
+- Trip requests are made **without a vehicle**: only users with `assign-vehicles` (Logistics) may pick one, at creation or later via the reassign-vehicle endpoint (a first assignment needs no reason). A trip can't be started until it has a vehicle.
+- Status lifecycle is `pending → approved → assigned → in_progress → completed`, with `rejected`/`cancelled` as terminal off-ramps — enforced by `Trip::canTransitionTo()`/`transitionTo()`. Statuses, transitions and common groups (`open()`, `upcoming()`, `dropped()`) live in `App\Enums\TripStatus`; `trips.status` stays a plain string (not cast), so compare with `TripStatus::X->value`. Passenger, vehicle and complaint statuses reuse some of the same words but are not trip statuses. State-changing endpoints (`approve`, `reject`, `start`, `complete`, `cancel`) live in `TripStateController`, not `TripController`. `TripObserver` auto-sets `start_time`/`end_time` and flips `is_completed`/`status` together, so update those fields through the model methods (`startTrip()`, `completeTrip()`, `cancel()`) instead of raw attribute writes where possible.
 
 ### Routes, stops, vehicles
 `VehicleRoute` has many `RouteStop` (pivot with ordering + per-leg distance), which reference `Stop`. `resources/js/lib/distance-calculator.ts` + `geolib` compute distances client-side for the Leaflet-based map picker (`MapStopPicker`, `components/MapStopPicker.tsx`). `Vehicle` has a driver assignment history via `VehicleDriverAssignment` (mirrors the trip vehicle-assignment pattern), tracked by `VehicleObserver`.
@@ -84,7 +96,7 @@ There is no separate `Driver` model — drivers are `User` rows with `user_type`
 - `resources/js/base-components/` — higher-level reusable patterns shared across resource pages: `base-data-table.tsx`, `base-form.tsx`, `advanced-form.tsx`, `base-export-button.tsx`, `base-multi-select.tsx`, `page-header.tsx`. Prefer extending/reusing these over hand-rolling a new table/form per resource.
 - `resources/js/types/` — hand-written TS interfaces mirroring backend models (`trip.ts`, `user.ts`, `vehicle.ts`, etc.), not auto-generated from PHP.
 - Path alias `@/*` → `resources/js/*` (see `tsconfig.json` and `vite.config.ts`).
-- Excel import/export uses `maatwebsite/excel` server-side (see `*.export`/`*.import` routes on Users/Departments/Products); PDF via `barryvdh/laravel-dompdf`.
+- Excel import/export uses `maatwebsite/excel` server-side (see `*.export`/`*.import` routes on Users/Departments/Vehicles/Drivers); PDF via `barryvdh/laravel-dompdf`.
 
 ### Database
 Dev/prod uses MySQL (`DB_DATABASE=vems`); the test suite runs against in-memory SQLite regardless of `.env` (`phpunit.xml` overrides `DB_CONNECTION`/`DB_DATABASE`). Queue/cache default to `database` driver, mail to `log`.

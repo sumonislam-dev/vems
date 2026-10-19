@@ -2,15 +2,15 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use App\Enums\TripStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
-use App\Models\Department;
 
 class Trip extends Model
 {
@@ -26,6 +26,11 @@ class Trip extends Model
 
     public ?string $pendingVehicleReassignNotes = null;
 
+    /** Reason/notes for the next route change, read by TripObserver (see assignRoute()) */
+    public ?string $pendingRouteReason = null;
+
+    public ?string $pendingRouteNotes = null;
+
     protected $fillable = [
         'trip_number',
         'vehicle_route_id',
@@ -34,6 +39,7 @@ class Trip extends Model
         'department_id',
         'requested_by',
         'approved_by',
+        'approved_at',
         'trip_type',
         'team_number',
         'remarks',
@@ -97,6 +103,7 @@ class Trip extends Model
             'end_time' => 'datetime',
             'actual_start_time' => 'datetime',
             'actual_end_time' => 'datetime',
+            'approved_at' => 'datetime',
             'odometer_start' => 'decimal:2',
             'odometer_end' => 'decimal:2',
             'distance_traveled' => 'decimal:2',
@@ -120,7 +127,19 @@ class Trip extends Model
 
     public function vehicle(): BelongsTo
     {
-        return $this->belongsTo(Vehicle::class);
+        return $this->belongsTo(Vehicle::class)->withTrashed();
+    }
+
+    /**
+     * A snapshot of the assigned vehicle's zone at assignment time, or the
+     * requester's zone while no vehicle is assigned (see
+     * TripObserver::zoneFor()) — not user-settable (deliberately
+     * absent from $fillable), so it can't drift from the vehicle's zone at
+     * the moment it was assigned without going through that snapshot logic.
+     */
+    public function zone(): BelongsTo
+    {
+        return $this->belongsTo(Zone::class);
     }
 
     public function driver(): BelongsTo
@@ -164,6 +183,7 @@ class Trip extends Model
     {
         return $this->hasOne(TripVehicleAssignment::class)->where('is_current', true)->latestOfMany('assigned_at');
     }
+
     /**
      * Selected stops for this trip
      */
@@ -179,6 +199,7 @@ class Trip extends Model
     {
         return $this->hasMany(TripStop::class)->destinations()->ordered();
     }
+
     /**
      * Named cancelledByUser (not cancelledBy) so the eager-loaded relation
      * doesn't serialize to the same JSON key as the raw cancelled_by FK
@@ -203,6 +224,7 @@ class Trip extends Model
     public function factories(): BelongsToMany
     {
         return $this->belongsToMany(Factory::class, 'factory_trip')
+            ->withTrashed() // history keeps deleted factories
             ->withTimestamps();
     }
 
@@ -264,32 +286,37 @@ class Trip extends Model
             $q->where('requested_by', $user->id)
                 ->orWhereHas('passengers', fn ($pq) => $pq->where('user_id', $user->id))
                 ->orWhereHas('vehicle', fn ($vq) => $vq->where('driver_id', $user->id));
+
+            // Department heads also see their departments' trips, to approve them
+            if ($user->can('approve-department-trips')) {
+                $q->orWhereIn('department_id', $user->headedDepartments()->select('id'));
+            }
         });
     }
 
     public function scopePending($query)
     {
-        return $query->where('status', 'pending');
+        return $query->where('status', TripStatus::Pending->value);
     }
 
     public function scopeApproved($query)
     {
-        return $query->where('status', 'approved');
+        return $query->where('status', TripStatus::Approved->value);
     }
 
     public function scopeInProgress($query)
     {
-        return $query->where('status', 'in_progress');
+        return $query->where('status', TripStatus::InProgress->value);
     }
 
     public function scopeCompleted($query)
     {
-        return $query->where('status', 'completed');
+        return $query->where('status', TripStatus::Completed->value);
     }
 
     public function scopeUpcoming($query)
     {
-        return $query->whereIn('status', ['approved', 'assigned'])
+        return $query->whereIn('status', TripStatus::upcoming())
             ->where('scheduled_start', '>', now());
     }
 
@@ -303,7 +330,8 @@ class Trip extends Model
     {
         $date = now()->format('Ymd');
         $count = static::whereDate('created_at', today())->count() + 1;
-        return "TRP-{$date}-" . str_pad($count, 4, '0', STR_PAD_LEFT);
+
+        return "TRP-{$date}-".str_pad($count, 4, '0', STR_PAD_LEFT);
     }
 
     /**
@@ -314,23 +342,21 @@ class Trip extends Model
      * 'assigned' is a legacy intermediate status nothing currently sets, so
      * 'approved' transitions straight to 'in_progress' in practice.
      */
-    public function canTransitionTo(string $newStatus): bool
+    public function canTransitionTo(TripStatus|string $newStatus): bool
     {
-        return match($this->status) {
-            'pending' => in_array($newStatus, ['approved', 'rejected', 'cancelled']),
-            'approved' => in_array($newStatus, ['assigned', 'in_progress', 'rejected', 'cancelled']),
-            'assigned' => in_array($newStatus, ['in_progress', 'cancelled']),
-            'in_progress' => in_array($newStatus, ['completed', 'cancelled']),
-            'completed', 'rejected', 'cancelled' => false,
-            default => false,
-        };
+        $current = TripStatus::tryFrom((string) $this->status);
+        $next = $newStatus instanceof TripStatus ? $newStatus : TripStatus::tryFrom($newStatus);
+
+        return $current !== null && $next !== null && $current->canTransitionTo($next);
     }
 
-    public function transitionTo(string $newStatus, array $attributes = [], ?string $reason = null): bool
+    public function transitionTo(TripStatus|string $newStatus, array $attributes = [], ?string $reason = null): bool
     {
-        if (!$this->canTransitionTo($newStatus)) {
+        if (! $this->canTransitionTo($newStatus)) {
             return false;
         }
+
+        $newStatus = $newStatus instanceof TripStatus ? $newStatus->value : $newStatus;
 
         $oldStatus = $this->status;
         $this->update(array_merge($attributes, ['status' => $newStatus]));
@@ -350,12 +376,12 @@ class Trip extends Model
 
     public function cancel(string $reason, ?string $notes = null): bool
     {
-        if (!$this->canTransitionTo('cancelled')) {
+        if (! $this->canTransitionTo(TripStatus::Cancelled)) {
             return false;
         }
 
         $this->update([
-            'status' => 'cancelled',
+            'status' => TripStatus::Cancelled->value,
             'cancellation_reason' => $reason,
             'cancellation_notes' => $notes,
             'cancelled_by' => auth()->id(),
@@ -369,7 +395,7 @@ class Trip extends Model
             'action' => 'cancelled',
             'old_values' => ['status' => $this->status],
             'new_values' => [
-                'status' => 'cancelled',
+                'status' => TripStatus::Cancelled->value,
                 'cancellation_reason' => $reason,
                 'cancellation_notes' => $notes,
             ],
@@ -381,7 +407,7 @@ class Trip extends Model
 
     public function assignLogistics(int $logisticsId, ?string $notes = null): void
     {
-        if (!$this->logistics()->where('logistics_id', $logisticsId)->exists()) {
+        if (! $this->logistics()->where('logistics_id', $logisticsId)->exists()) {
             $this->logistics()->attach($logisticsId, [
                 'assigned_by' => auth()->id(),
                 'assigned_at' => now(),
@@ -417,40 +443,10 @@ class Trip extends Model
 
     public function assignRoute(int $vehicleRouteId, ?string $reason = null, ?string $notes = null): void
     {
-        DB::transaction(function () use ($vehicleRouteId, $reason, $notes) {
-            // Lock this trip's row so a concurrent assignRoute() call for the same
-            // trip waits instead of racing to close/create "current" assignment rows.
-            static::whereKey($this->id)->lockForUpdate()->firstOrFail();
-
-            // Mark current route as unassigned
-            $this->routeAssignments()->current()->update([
-                'is_current' => false,
-                'unassigned_at' => now(),
-            ]);
-
-            // Create new route assignment
-            $this->routeAssignments()->create([
-                'vehicle_route_id' => $vehicleRouteId,
-                'assigned_by' => auth()->id(),
-                'assigned_at' => now(),
-                'is_current' => true,
-                'reason' => $reason,
-                'notes' => $notes,
-            ]);
-
-            // Log the route change
-            TripAuditLog::create([
-                'trip_id' => $this->id,
-                'user_id' => auth()->id(),
-                'action' => 'route_changed',
-                'new_values' => [
-                    'vehicle_route_id' => $vehicleRouteId,
-                    'reason' => $reason,
-                    'notes' => $notes,
-                ],
-                'reason' => $reason,
-            ]);
-        });
+        // TripObserver records the route history (and the audit hook the change)
+        $this->pendingRouteReason = $reason;
+        $this->pendingRouteNotes = $notes;
+        $this->update(['vehicle_route_id' => $vehicleRouteId]);
     }
 
     /**
@@ -474,7 +470,7 @@ class Trip extends Model
         }
 
         // Add selected destination stops
-        if (!empty($stopIds)) {
+        if (! empty($stopIds)) {
             $order = $startStopId ? 2 : 1;
             foreach ($stopIds as $stopId) {
                 $stops[] = [
@@ -524,6 +520,7 @@ class Trip extends Model
                 ->orderBy('stop_order', 'desc')
                 ->first()?->stop;
         }
+
         return null;
     }
 
@@ -548,12 +545,12 @@ class Trip extends Model
      */
     public function startTrip(?float $odometerStart = null, ?string $startLocation = null): bool
     {
-        if (!$this->canTransitionTo('in_progress')) {
+        if (! $this->canTransitionTo(TripStatus::InProgress)) {
             return false;
         }
 
         $this->update([
-            'status' => 'in_progress',
+            'status' => TripStatus::InProgress->value,
             'actual_start_time' => now(),
             'odometer_start' => $odometerStart ?? $this->odometer_start,
             'start_location' => $startLocation ?? $this->start_location,
@@ -582,14 +579,14 @@ class Trip extends Model
      */
     public function completeTrip(array $data = []): bool
     {
-        if (!$this->canTransitionTo('completed')) {
+        if (! $this->canTransitionTo(TripStatus::Completed)) {
             return false;
         }
 
         $totalCost = ($data['fuel_cost'] ?? 0) + ($data['other_costs'] ?? 0);
 
         $this->update([
-            'status' => 'completed',
+            'status' => TripStatus::Completed->value,
             'actual_end_time' => now(),
             'is_completed' => true,
             'odometer_end' => $data['odometer_end'] ?? $this->odometer_end,
@@ -677,6 +674,7 @@ class Trip extends Model
         if ($this->start_time && $this->end_time) {
             return $this->start_time->diffInHours($this->end_time, true);
         }
+
         return null;
     }
 
@@ -685,7 +683,7 @@ class Trip extends Model
      */
     public function getTripTypeLabel(): string
     {
-        return match($this->trip_type) {
+        return match ($this->trip_type) {
             'inspection' => 'Inspection',
             'pick-up' => 'Pick-up',
             'drop-off' => 'Drop-off',
@@ -701,12 +699,12 @@ class Trip extends Model
 
     public function isActive(): bool
     {
-        return $this->status === 'in_progress';
+        return $this->status === TripStatus::InProgress->value;
     }
 
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->status === TripStatus::Completed->value;
     }
 
     public function getDurationInHours(): ?float
@@ -714,26 +712,18 @@ class Trip extends Model
         if ($this->actual_start && $this->actual_end) {
             return $this->actual_start->diffInHours($this->actual_end, true);
         }
+
         return null;
     }
 
     public function getStatusColorAttribute(): string
     {
-        return match($this->status) {
-            'pending' => 'yellow',
-            'approved' => 'blue',
-            'assigned' => 'cyan',
-            'in_progress' => 'purple',
-            'completed' => 'green',
-            'rejected' => 'red',
-            'cancelled' => 'gray',
-            default => 'gray',
-        };
+        return TripStatus::tryFrom((string) $this->status)?->color() ?? 'gray';
     }
 
     public function getPriorityColorAttribute(): string
     {
-        return match($this->priority) {
+        return match ($this->priority) {
             'urgent' => 'red',
             'high' => 'orange',
             'medium' => 'yellow',
@@ -759,7 +749,7 @@ class Trip extends Model
 
             $auditableChanges = array_diff_key($changes, array_flip($excludeFields));
 
-            if (!empty($auditableChanges)) {
+            if (! empty($auditableChanges)) {
                 TripAuditLog::create([
                     'trip_id' => $trip->id,
                     'user_id' => auth()->id(), // null for console/queue/system operations

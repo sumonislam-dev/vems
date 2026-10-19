@@ -3,19 +3,24 @@
 namespace App\Http\Controllers;
 
 use App\Models\Vendor;
+use App\Models\Zone;
+use App\Support\PrivateDocument;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class VendorController extends Controller implements HasMiddleware
 {
+    private const DOCUMENT_FIELDS = ['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'];
+
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:view-vendors', only: ['index', 'show', 'getVendorsForSelect']),
+            new Middleware('permission:view-vendors', only: ['index', 'show']),
             new Middleware('permission:create-vendors', only: ['create', 'store']),
             new Middleware('permission:edit-vendors', only: ['edit', 'update']),
             new Middleware('permission:delete-vendors', only: ['destroy']),
@@ -30,6 +35,7 @@ class VendorController extends Controller implements HasMiddleware
         $query = Vendor::with([
             'contactPersons:id,vendor_id',
             'vehicles:id,vendor_id',
+            'zone:id,name',
         ])->withCount('vehicles');
 
         // Search functionality
@@ -37,9 +43,9 @@ class VendorController extends Controller implements HasMiddleware
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('address', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('address', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
             });
         }
 
@@ -49,8 +55,10 @@ class VendorController extends Controller implements HasMiddleware
         }
 
         // Sorting
-        $sortField = $request->get('sort', 'name');
-        $sortDirection = $request->get('direction', 'asc');
+        // Unknown sort/direction values fall back to the default, never reach SQL
+        $sortField = in_array($request->get('sort'), ['name', 'status', 'created_at'], true)
+            ? $request->get('sort') : 'name';
+        $sortDirection = $request->get('direction') === 'desc' ? 'desc' : 'asc';
         $query->orderBy($sortField, $sortDirection);
 
         $vendors = $query->paginate($request->get('per_page', 15))
@@ -58,9 +66,9 @@ class VendorController extends Controller implements HasMiddleware
 
         // Get stats with a single aggregate query
         $vendorStats = Vendor::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, ' .
-            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
+            'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive, '.
             'SUM(CASE WHEN EXISTS (SELECT 1 FROM vehicles WHERE vehicles.vendor_id = vendors.id) THEN 1 ELSE 0 END) as with_vehicles',
             ['active', 'inactive']
         )->first();
@@ -84,7 +92,10 @@ class VendorController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        return Inertia::render('vendors/create');
+        return Inertia::render('vendors/create', [
+            'zones' => Zone::selectableBy(),
+            'defaultZoneId' => auth()->user()->zone_id,
+        ]);
     }
 
     /**
@@ -109,7 +120,8 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return' => 'nullable|string|max:255',
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
-            'contact_persons' => 'array|min:1', // Minimum 1 contact person
+            'zone_id' => Zone::validationRule(),
+            'contact_persons' => 'required|array|min:1', // Minimum 1 contact person
             'contact_persons.*.name' => 'required|string|max:255',
             'contact_persons.*.position' => 'nullable|string|max:255',
             'contact_persons.*.phone' => 'nullable|string|max:20',
@@ -118,26 +130,24 @@ class VendorController extends Controller implements HasMiddleware
             'contact_persons.*.notes' => 'nullable|string',
         ]);
 
-        $data = $request->except(['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file']);
+        // Only validated fields; files and contacts are handled separately
+        $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
 
-        // Handle file uploads
-        foreach (['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file'] as $field) {
+        foreach (self::DOCUMENT_FIELDS as $field) {
             if ($request->hasFile($field)) {
-                $file = $request->file($field);
-                $fileName = $field . '_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data[$field] = $fileName;
+                $data[$field] = PrivateDocument::replace(null, $request->file($field), 'vendor_documents');
             }
         }
 
         try {
-            $vendor = Vendor::create($data);
+            // The vendor and its contacts are saved together or not at all
+            DB::transaction(function () use ($data, $validated) {
+                $vendor = Vendor::create($data);
 
-            if (isset($validated['contact_persons'])) {
-                foreach ($validated['contact_persons'] as $contactData) {
+                foreach ($validated['contact_persons'] ?? [] as $contactData) {
                     $vendor->contactPersons()->create($contactData);
                 }
-            }
+            });
 
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor created successfully!');
@@ -175,6 +185,7 @@ class VendorController extends Controller implements HasMiddleware
 
         return Inertia::render('vendors/edit', [
             'vendor' => $vendorData,
+            'zones' => Zone::selectableBy(auth()->user(), $vendor->zone_id),
         ]);
     }
 
@@ -183,7 +194,6 @@ class VendorController extends Controller implements HasMiddleware
      */
     public function update(Request $request, Vendor $vendor)
     {
-
         // Get existing contact persons count
         $existingContactsCount = $vendor->contactPersons()->count();
         $submittedContactsCount = count($request->input('contact_persons', []));
@@ -208,6 +218,7 @@ class VendorController extends Controller implements HasMiddleware
             'tax_return' => 'nullable|string|max:255',
             'tax_return_file' => 'nullable|file|mimes:jpeg,png,jpg,pdf|max:2048',
             'bank_details' => 'nullable|string',
+            'zone_id' => Zone::validationRule(),
             'contact_persons' => $minContactsRule,
             'contact_persons.*.id' => [
                 'nullable',
@@ -222,81 +233,45 @@ class VendorController extends Controller implements HasMiddleware
         ]);
 
         try {
-            $data = $request->except(['trade_license_file', 'tin_file', 'bin_file', 'tax_return_file']);
+            // Only validated fields; files and contacts are handled separately
+            $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
 
-            // Handle file uploads
-            if ($request->hasFile('trade_license_file')) {
-                // Remove old file if it exists
-                if ($vendor->trade_license_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->trade_license_file);
-                }
-
-                $file = $request->file('trade_license_file');
-                $fileName = 'trade_license_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['trade_license_file'] = $fileName;
-            }
-
-            if ($request->hasFile('tin_file')) {
-                if ($vendor->tin_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->tin_file);
-                }
-
-                $file = $request->file('tin_file');
-                $fileName = 'tin_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['tin_file'] = $fileName;
-            }
-
-            if ($request->hasFile('bin_file')) {
-                if ($vendor->bin_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->bin_file);
-                }
-
-                $file = $request->file('bin_file');
-                $fileName = 'bin_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['bin_file'] = $fileName;
-            }
-
-            if ($request->hasFile('tax_return_file')) {
-                if ($vendor->tax_return_file) {
-                    Storage::delete('public/vendor_documents/' . $vendor->tax_return_file);
-                }
-
-                $file = $request->file('tax_return_file');
-                $fileName = 'tax_return_' . time() . '.' . $file->getClientOriginalExtension();
-                $file->storeAs('vendor_documents', $fileName, 'public');
-                $data['tax_return_file'] = $fileName;
-            }
-
-            $vendor->update($data);
-
-            // Update contact persons
-        if (isset($validated['contact_persons'])) {
-            // Get existing contact person IDs
-            $existingIds = $vendor->contactPersons->pluck('id')->toArray();
-            $submittedIds = collect($validated['contact_persons'])
-                ->pluck('id')
-                ->filter()
-                ->toArray();
-
-            // Delete removed contact persons
-            $toDelete = array_diff($existingIds, $submittedIds);
-            $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
-
-            // Update or create contact persons
-            foreach ($validated['contact_persons'] as $contactData) {
-                if (isset($contactData['id'])) {
-                    // Update existing (scoped to this vendor)
-                    $vendor->contactPersons()->where('id', $contactData['id'])
-                        ->update(\Arr::except($contactData, ['id']));
-                } else {
-                    // Create new
-                    $vendor->contactPersons()->create($contactData);
+            foreach (self::DOCUMENT_FIELDS as $field) {
+                if ($request->hasFile($field)) {
+                    $data[$field] = PrivateDocument::replace($vendor->{$field}, $request->file($field), 'vendor_documents');
                 }
             }
-        }
+
+            // The vendor and its contacts are saved together or not at all
+            DB::transaction(function () use ($vendor, $data, $validated) {
+                $vendor->update($data);
+
+                // Update contact persons
+                if (isset($validated['contact_persons'])) {
+                    // Get existing contact person IDs
+                    $existingIds = $vendor->contactPersons->pluck('id')->toArray();
+                    $submittedIds = collect($validated['contact_persons'])
+                        ->pluck('id')
+                        ->filter()
+                        ->toArray();
+
+                    // Delete removed contact persons
+                    $toDelete = array_diff($existingIds, $submittedIds);
+                    $vendor->contactPersons()->whereIn('id', $toDelete)->delete();
+
+                    // Update or create contact persons
+                    foreach ($validated['contact_persons'] as $contactData) {
+                        if (isset($contactData['id'])) {
+                            // Update existing (scoped to this vendor)
+                            $vendor->contactPersons()->where('id', $contactData['id'])
+                                ->update(Arr::except($contactData, ['id']));
+                        } else {
+                            // Create new
+                            $vendor->contactPersons()->create($contactData);
+                        }
+                    }
+                }
+            });
 
             return redirect()
                 ->route('vendors.index')
@@ -316,23 +291,15 @@ class VendorController extends Controller implements HasMiddleware
         }
         try {
             $vendor->delete();
+
+            foreach (self::DOCUMENT_FIELDS as $field) {
+                PrivateDocument::delete($vendor->{$field});
+            }
+
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor deleted successfully!');
         } catch (\Exception $e) {
             return back()->with('error', 'Failed to delete vendor.');
         }
-    }
-
-    /**
-     * Get vendors for dropdown/select options
-     */
-    public function getVendorsForSelect()
-    {
-        $vendors = Vendor::active()
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
-
-        return response()->json($vendors);
     }
 }

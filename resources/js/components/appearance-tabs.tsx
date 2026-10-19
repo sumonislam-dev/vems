@@ -20,9 +20,7 @@ export default function AppearanceToggleTab({ className = '', ...props }: HTMLAt
                     onClick={() => updateAppearance(value)}
                     className={cn(
                         'flex items-center rounded-md px-3.5 py-1.5 transition-colors',
-                        appearance === value
-                            ? 'bg-card text-foreground shadow-xs'
-                            : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
+                        appearance === value ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:bg-accent/70 hover:text-foreground',
                     )}
                 >
                     <Icon className="-ml-1 h-4 w-4" />

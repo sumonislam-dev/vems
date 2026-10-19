@@ -2,10 +2,17 @@ import { LucideIcon } from 'lucide-react';
 import type { Config } from 'ziggy-js';
 import type { User } from './user';
 
+export interface AvailableZone {
+    id: number;
+    name: string;
+}
+
 export interface Auth {
     user: User;
     permissions?: string[];
     roles?: string[];
+    availableZones?: AvailableZone[];
+    activeZoneId?: number | null;
 }
 
 export interface NotificationItem {
@@ -40,7 +47,8 @@ export interface SharedData {
     name: string;
     quote: { message: string; author: string };
     auth: Auth;
-    notifications: { unread_count: number; items: NotificationItem[] };
+    /** null for users without view-notifications */
+    notifications: { unread_count: number; items: NotificationItem[] } | null;
     ziggy: Config & { location: string };
     sidebarOpen: boolean;
     flash: {

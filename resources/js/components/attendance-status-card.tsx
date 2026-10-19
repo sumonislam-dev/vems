@@ -1,26 +1,14 @@
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { CalendarClock, Clock, Coffee, LogIn, LogOut } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
+import { router } from '@inertiajs/react';
+import { CalendarClock, Clock, Coffee, LogIn, LogOut } from 'lucide-react';
+import { useState } from 'react';
 
 interface AttendanceStatusCardProps {
     status: AttendanceStatusSummary;
@@ -172,9 +160,9 @@ export function AttendanceStatusCard({ status, factories }: AttendanceStatusCard
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Factory visited (optional)</Label>
-                            <Select value={factoryId} onValueChange={setFactoryId}>
-                                <SelectTrigger>
+                            <Label htmlFor="attendance_factory_id">Factory visited (optional)</Label>
+                            <Select name="factory_id" value={factoryId} onValueChange={setFactoryId}>
+                                <SelectTrigger id="attendance_factory_id">
                                     <SelectValue placeholder="Select a factory" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -187,8 +175,10 @@ export function AttendanceStatusCard({ status, factories }: AttendanceStatusCard
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Location name (optional)</Label>
+                            <Label htmlFor="attendance_location_name">Location name (optional)</Label>
                             <Input
+                                id="attendance_location_name"
+                                name="location_name"
                                 value={locationName}
                                 onChange={(e) => setLocationName(e.target.value)}
                                 placeholder="e.g. Factory main gate"

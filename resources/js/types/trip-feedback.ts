@@ -1,12 +1,6 @@
 export type TripFeedbackType = 'feedback' | 'complaint';
 
-export type TripFeedbackCategory =
-    | 'driver_behavior'
-    | 'vehicle_condition'
-    | 'punctuality'
-    | 'safety'
-    | 'route'
-    | 'other';
+export type TripFeedbackCategory = 'driver_behavior' | 'vehicle_condition' | 'punctuality' | 'safety' | 'route' | 'other';
 
 export type TripFeedbackPriority = 'low' | 'medium' | 'high' | 'critical';
 

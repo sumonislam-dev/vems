@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Factory;
+use App\Models\Zone;
 use Illuminate\Database\Seeder;
 
 class FactorySeeder extends Seeder
@@ -166,12 +167,14 @@ class FactorySeeder extends Seeder
         ];
 
         foreach ($factories as $factory) {
+            $factory['zone_id'] = Zone::idForCity($factory['city']);
+
             Factory::updateOrCreate(
                 ['account_id' => $factory['account_id']],
                 $factory
             );
         }
 
-        $this->command->info('Created ' . count($factories) . ' factories successfully!');
+        $this->command->info('Created '.count($factories).' factories successfully!');
     }
 }

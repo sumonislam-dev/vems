@@ -99,8 +99,11 @@ const STATUS_COLORS: Record<string, string> = {
 
 function formatDateTime(dt: string) {
     return new Date(dt).toLocaleString(undefined, {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
     });
 }
 
@@ -120,7 +123,9 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
 
     function apply() {
         const params: Record<string, string> = {};
-        Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+        Object.entries(filters).forEach(([k, v]) => {
+            if (v) params[k] = v;
+        });
         router.get('/trips/passenger-events', params, { preserveState: true });
     }
 
@@ -132,7 +137,9 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
 
     function goToPage(page: number) {
         const params: Record<string, string> = {};
-        Object.entries(filters).forEach(([k, v]) => { if (v) params[k] = v; });
+        Object.entries(filters).forEach(([k, v]) => {
+            if (v) params[k] = v;
+        });
         params.page = String(page);
         router.get('/trips/passenger-events', params, { preserveState: true });
     }
@@ -141,10 +148,7 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
             <Head title="Passenger Events" />
             <div className="flex flex-col gap-6 p-6">
-                <PageHeader
-                    title="Passenger Events"
-                    description="Cross-trip view of all passenger attendance events"
-                />
+                <PageHeader title="Passenger Events" description="Cross-trip view of all passenger attendance events" />
 
                 {/* Stats */}
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -187,7 +191,7 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                                         Clear
                                     </Button>
                                 )}
-                                <Button variant="ghost" size="sm" onClick={() => setFiltersOpen(o => !o)}>
+                                <Button variant="ghost" size="sm" onClick={() => setFiltersOpen((o) => !o)}>
                                     {filtersOpen ? 'Hide' : 'Show'}
                                 </Button>
                             </div>
@@ -198,8 +202,13 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Event Type</Label>
-                                    <Select value={filters.event_type} onValueChange={v => setFilters(f => ({ ...f, event_type: v === '_all' ? '' : v }))}>
-                                        <SelectTrigger><SelectValue placeholder="All types" /></SelectTrigger>
+                                    <Select
+                                        value={filters.event_type}
+                                        onValueChange={(v) => setFilters((f) => ({ ...f, event_type: v === '_all' ? '' : v }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All types" />
+                                        </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="_all">All types</SelectItem>
                                             <SelectItem value="check_in">Check In</SelectItem>
@@ -211,8 +220,13 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Validity</Label>
-                                    <Select value={filters.validity} onValueChange={v => setFilters(f => ({ ...f, validity: v === '_all' ? '' : v }))}>
-                                        <SelectTrigger><SelectValue placeholder="All" /></SelectTrigger>
+                                    <Select
+                                        value={filters.validity}
+                                        onValueChange={(v) => setFilters((f) => ({ ...f, validity: v === '_all' ? '' : v }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All" />
+                                        </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="_all">All</SelectItem>
                                             <SelectItem value="valid">Valid only</SelectItem>
@@ -223,22 +237,36 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                                 {sources.length > 0 && (
                                     <div className="flex flex-col gap-1">
                                         <Label className="text-xs">Source</Label>
-                                        <Select value={filters.source} onValueChange={v => setFilters(f => ({ ...f, source: v === '_all' ? '' : v }))}>
-                                            <SelectTrigger><SelectValue placeholder="All sources" /></SelectTrigger>
+                                        <Select
+                                            value={filters.source}
+                                            onValueChange={(v) => setFilters((f) => ({ ...f, source: v === '_all' ? '' : v }))}
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="All sources" />
+                                            </SelectTrigger>
                                             <SelectContent>
                                                 <SelectItem value="_all">All sources</SelectItem>
-                                                {sources.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                                {sources.map((s) => (
+                                                    <SelectItem key={s} value={s}>
+                                                        {s}
+                                                    </SelectItem>
+                                                ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
                                 )}
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Trip</Label>
-                                    <Select value={filters.trip_id} onValueChange={v => setFilters(f => ({ ...f, trip_id: v === '_all' ? '' : v }))}>
-                                        <SelectTrigger><SelectValue placeholder="All trips" /></SelectTrigger>
+                                    <Select
+                                        value={filters.trip_id}
+                                        onValueChange={(v) => setFilters((f) => ({ ...f, trip_id: v === '_all' ? '' : v }))}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="All trips" />
+                                        </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="_all">All trips</SelectItem>
-                                            {trips.map(t => (
+                                            {trips.map((t) => (
                                                 <SelectItem key={t.id} value={String(t.id)}>
                                                     {t.trip_number} ({t.scheduled_date})
                                                 </SelectItem>
@@ -248,15 +276,27 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Date From</Label>
-                                    <Input type="date" value={filters.date_from} onChange={e => setFilters(f => ({ ...f, date_from: e.target.value }))} />
+                                    <Input
+                                        type="date"
+                                        value={filters.date_from}
+                                        onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value }))}
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Date To</Label>
-                                    <Input type="date" value={filters.date_to} onChange={e => setFilters(f => ({ ...f, date_to: e.target.value }))} />
+                                    <Input
+                                        type="date"
+                                        value={filters.date_to}
+                                        onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value }))}
+                                    />
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Area Search</Label>
-                                    <Input placeholder="Search area…" value={filters.area} onChange={e => setFilters(f => ({ ...f, area: e.target.value }))} />
+                                    <Input
+                                        placeholder="Search area…"
+                                        value={filters.area}
+                                        onChange={(e) => setFilters((f) => ({ ...f, area: e.target.value }))}
+                                    />
                                 </div>
                             </div>
                             <div className="mt-4 flex justify-end">
@@ -271,7 +311,7 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                     <CardHeader>
                         <CardTitle className="text-sm font-semibold">
                             Events
-                            <span className="ml-2 text-muted-foreground font-normal">({events.total} total)</span>
+                            <span className="ml-2 font-normal text-muted-foreground">({events.total} total)</span>
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -296,65 +336,75 @@ export default function PassengerEvents({ events, stats, sources, trips, queryPa
                                                 No events found.
                                             </td>
                                         </tr>
-                                    ) : events.data.map(event => (
-                                        <tr key={event.id} className="border-b hover:bg-muted/30 transition-colors">
-                                            <td className="px-4 py-3">
-                                                {event.trip ? (
-                                                    <div>
-                                                        <a href={`/trips/${event.trip_id}`} className="font-medium text-primary hover:underline">
-                                                            {event.trip.trip_number}
-                                                        </a>
-                                                        <div className="text-xs text-muted-foreground">{event.trip.scheduled_date}</div>
-                                                        <span className={`inline-block rounded px-1.5 py-0.5 text-xs ${STATUS_COLORS[event.trip.status] ?? 'bg-gray-100 text-gray-800'}`}>
-                                                            {event.trip.status.replace('_', ' ')}
-                                                        </span>
-                                                    </div>
-                                                ) : <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {event.user ? (
-                                                    <div className="flex items-center gap-1.5">
-                                                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                    ) : (
+                                        events.data.map((event) => (
+                                            <tr key={event.id} className="border-b transition-colors hover:bg-muted/30">
+                                                <td className="px-4 py-3">
+                                                    {event.trip ? (
                                                         <div>
-                                                            <p className="font-medium">{event.user.name}</p>
-                                                            {event.user.employee_id && (
-                                                                <p className="text-xs text-muted-foreground">{event.user.employee_id}</p>
+                                                            <a href={`/trips/${event.trip_id}`} className="font-medium text-primary hover:underline">
+                                                                {event.trip.trip_number}
+                                                            </a>
+                                                            <div className="text-xs text-muted-foreground">{event.trip.scheduled_date}</div>
+                                                            <span
+                                                                className={`inline-block rounded px-1.5 py-0.5 text-xs ${STATUS_COLORS[event.trip.status] ?? 'bg-gray-100 text-gray-800'}`}
+                                                            >
+                                                                {event.trip.status.replace('_', ' ')}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {event.user ? (
+                                                        <div className="flex items-center gap-1.5">
+                                                            <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                            <div>
+                                                                <p className="font-medium">{event.user.name}</p>
+                                                                {event.user.employee_id && (
+                                                                    <p className="text-xs text-muted-foreground">{event.user.employee_id}</p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <Badge variant={EVENT_TYPE_COLORS[event.event_type] ?? 'outline'}>
+                                                        {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
+                                                    </Badge>
+                                                </td>
+                                                <td className="px-4 py-3 text-xs whitespace-nowrap">{formatDateTime(event.event_time)}</td>
+                                                <td className="px-4 py-3 text-xs">
+                                                    {event.stop?.name ?? event.area_name ?? <span className="text-muted-foreground">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs capitalize">
+                                                    {event.source ?? <span className="text-muted-foreground">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3 text-xs">
+                                                    {event.actor?.name ?? <span className="text-muted-foreground">—</span>}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {event.is_valid ? (
+                                                        <Badge variant="outline" className="border-green-500 text-xs text-green-700">
+                                                            Valid
+                                                        </Badge>
+                                                    ) : (
+                                                        <div>
+                                                            <Badge variant="destructive" className="text-xs">
+                                                                Voided
+                                                            </Badge>
+                                                            {event.void_reason && (
+                                                                <p className="mt-0.5 text-xs text-muted-foreground">{event.void_reason}</p>
                                                             )}
                                                         </div>
-                                                    </div>
-                                                ) : <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <Badge variant={EVENT_TYPE_COLORS[event.event_type] ?? 'outline'}>
-                                                    {EVENT_TYPE_LABELS[event.event_type] ?? event.event_type}
-                                                </Badge>
-                                            </td>
-                                            <td className="px-4 py-3 whitespace-nowrap text-xs">
-                                                {formatDateTime(event.event_time)}
-                                            </td>
-                                            <td className="px-4 py-3 text-xs">
-                                                {event.stop?.name ?? event.area_name ?? <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-xs capitalize">
-                                                {event.source ?? <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3 text-xs">
-                                                {event.actor?.name ?? <span className="text-muted-foreground">—</span>}
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                {event.is_valid ? (
-                                                    <Badge variant="outline" className="border-green-500 text-green-700 text-xs">Valid</Badge>
-                                                ) : (
-                                                    <div>
-                                                        <Badge variant="destructive" className="text-xs">Voided</Badge>
-                                                        {event.void_reason && (
-                                                            <p className="mt-0.5 text-xs text-muted-foreground">{event.void_reason}</p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>

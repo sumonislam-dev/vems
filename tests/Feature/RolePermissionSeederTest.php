@@ -5,18 +5,41 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedRolesAndPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-    (new RolePermissionSeeder())->run();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    (new RolePermissionSeeder)->run();
 }
 
-it('seeds exactly the four roles: super-admin, admin, employee, driver', function () {
+it('seeds exactly the seven roles', function () {
     seedRolesAndPermissions();
 
     expect(Role::pluck('name')->sort()->values()->all())
-        ->toBe(['admin', 'driver', 'employee', 'super-admin']);
+        ->toBe(['admin', 'department-head', 'driver', 'employee', 'management', 'super-admin', 'transport-manager']);
+});
+
+it('lets transport-manager run operations but not administer the system', function () {
+    seedRolesAndPermissions();
+    $manager = Role::findByName('transport-manager', 'web');
+
+    foreach (['approve-trips', 'reject-trips', 'assign-vehicles', 'manage-vehicle-downtime', 'resolve-complaints', 'view-reports', 'export-reports'] as $permission) {
+        expect($manager->hasPermissionTo($permission))->toBeTrue("missing {$permission}");
+    }
+    foreach (['view-users', 'manage-user-roles', 'view-roles', 'edit-zones', 'view-all-zones', 'delete-vehicles', 'delete-trips'] as $permission) {
+        expect($manager->hasPermissionTo($permission))->toBeFalse("should not have {$permission}");
+    }
+});
+
+it('deletes permissions that are no longer listed', function () {
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    Permission::firstOrCreate(['name' => 'view-live-tracking', 'guard_name' => 'web']);
+
+    seedRolesAndPermissions();
+
+    expect(Permission::where('name', 'view-live-tracking')->exists())->toBeFalse()
+        ->and(Permission::where('name', 'view-maintenance')->exists())->toBeTrue();
 });
 
 it('gives super-admin and admin every permission', function () {
@@ -41,7 +64,8 @@ it('scopes employee and driver down to their day-to-day permissions', function (
     expect($employee->hasPermissionTo('create-trips'))->toBeTrue()
         ->and($employee->hasPermissionTo('create-complaints'))->toBeTrue()
         ->and($employee->hasPermissionTo('delete-vehicles'))->toBeFalse()
-        ->and($employee->hasPermissionTo('edit-trips'))->toBeFalse();
+        ->and($employee->hasPermissionTo('edit-trips'))->toBeFalse()
+        ->and($employee->hasPermissionTo('view-vehicles'))->toBeFalse();
 
     expect($driver->hasPermissionTo('check-in-trips'))->toBeTrue()
         ->and($driver->hasPermissionTo('capture-passenger-attendance'))->toBeTrue()
@@ -50,18 +74,18 @@ it('scopes employee and driver down to their day-to-day permissions', function (
 });
 
 it('removes stale roles left over from a previous, larger role set', function () {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-    Role::firstOrCreate(['name' => 'transport-manager', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    Role::firstOrCreate(['name' => 'fleet-supervisor', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'senior-driver', 'guard_name' => 'web']);
 
     seedRolesAndPermissions();
 
-    expect(Role::where('name', 'transport-manager')->exists())->toBeFalse()
+    expect(Role::where('name', 'fleet-supervisor')->exists())->toBeFalse()
         ->and(Role::where('name', 'senior-driver')->exists())->toBeFalse();
 });
 
 it('unassigns a user from a role that gets removed by reseeding, without error', function () {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Role::firstOrCreate(['name' => 'transport-officer', 'guard_name' => 'web']);
 
     $user = User::create([
@@ -95,7 +119,7 @@ it('setup:permissions delegates to the seeder and assigns super-admin to the fir
     $this->artisan('setup:permissions')->assertExitCode(0);
 
     expect(Role::pluck('name')->sort()->values()->all())
-        ->toBe(['admin', 'driver', 'employee', 'super-admin']);
+        ->toBe(['admin', 'department-head', 'driver', 'employee', 'management', 'super-admin', 'transport-manager']);
 
     $user->refresh();
     expect($user->hasRole('super-admin'))->toBeTrue();

@@ -1,5 +1,5 @@
-import type { Permission } from './permission';
 import type { Department } from './common';
+import type { Permission } from './permission';
 import type { Vendor } from './vehicle';
 
 export interface User {

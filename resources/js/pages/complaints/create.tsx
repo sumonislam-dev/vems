@@ -1,14 +1,14 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, MessageSquareWarning, Plus } from 'lucide-react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
-import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
 import { BreadcrumbItem } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, MessageSquareWarning, Plus } from 'lucide-react';
+import { FormEventHandler } from 'react';
 
 type TripOption = {
     id: number;

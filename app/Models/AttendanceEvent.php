@@ -68,6 +68,6 @@ class AttendanceEvent extends Model
 
     public function factory(): BelongsTo
     {
-        return $this->belongsTo(Factory::class);
+        return $this->belongsTo(Factory::class)->withTrashed(); // history keeps deleted factories
     }
 }

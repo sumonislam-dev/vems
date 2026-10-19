@@ -1,191 +1,68 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { ArrowLeft } from 'lucide-react';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { PageHeader } from '@/base-components/page-header';
+import { LogisticsForm, LogisticsFormBody } from '@/components/logistics-form-body';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
-
-interface Department {
-  id: number;
-  name: string;
-}
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft } from 'lucide-react';
+import { FormEventHandler } from 'react';
 
 interface CreateLogisticsProps {
-  departments: Department[];
+    departments: { id: number; name: string }[];
+    zones: { id: number; name: string }[];
+    defaultZoneId: number | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
-  { title: 'Dashboard', href: '/dashboard' },
-  { title: 'Logistics', href: '/logistics' },
-  { title: 'Create', href: '/logistics/create' },
+    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Logistics', href: '/logistics' },
+    { title: 'Create', href: '/logistics/create' },
 ];
 
-export default function CreateLogistics({ departments }: CreateLogisticsProps) {
-  const { data, setData, post, processing, errors } = useForm({
-    name: '',
-    department_id: '',
-    description: '',
-    status: 'active',
-  });
+export default function CreateLogistics({ departments, zones, defaultZoneId }: CreateLogisticsProps) {
+    const { data, setData, post, processing, errors } = useForm<LogisticsForm>({
+        name: '',
+        department_id: '',
+        description: '',
+        status: 'active',
+        zone_id: defaultZoneId?.toString() || '',
+    });
 
-  const submit: FormEventHandler = (e) => {
-    e.preventDefault();
-    post(route('logistics.store'));
-  };
+    const submit: FormEventHandler = (e) => {
+        e.preventDefault();
+        post(route('logistics.store'));
+    };
 
-  return (
-    <AppSidebarLayout breadcrumbs={breadcrumbs}>
-      <Head title="Create Logistics" />
+    return (
+        <AppSidebarLayout breadcrumbs={breadcrumbs}>
+            <Head title="Create Logistics" />
 
-      <div className="space-y-4">
-        <PageHeader
-          title="Create Logistics"
-          description=""
-          actions={[
-            {
-              label: 'Back',
-              icon: <ArrowLeft className="h-4 w-4" />,
-              onClick: () => window.history.back(),
-              variant: 'outline',
-            },
-          ]}
-        />
+            <div className="space-y-4">
+                <PageHeader
+                    title="Create Logistics"
+                    description="Add a logistics team that trips can be linked to"
+                    actions={[
+                        {
+                            label: 'Back to Logistics',
+                            icon: <ArrowLeft className="mr-1 h-4 w-4" />,
+                            href: route('logistics.index'),
+                            variant: 'outline',
+                        },
+                    ]}
+                />
 
-        <form onSubmit={submit}>
-          <Card>
-            <div className="p-4">
-              <div className="space-y-2.5">
-                <div>
-                  <h3 className="text-base font-semibold">Logistics Information</h3>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-
-                  {/* Name Field */}
-                  <div className="space-y-1">
-                    <Label htmlFor="name" className="text-xs font-medium">
-                      Name <span className="text-destructive">*</span>
-                    </Label>
-                    <Input
-                      id="name"
-                      type="text"
-                      value={data.name}
-                      onChange={(e) => setData('name', e.target.value)}
-                      placeholder="e.g., Fleet Management"
-                      className={`h-9 text-sm ${errors.name ? 'border-destructive' : ''}`}
-                    />
-                    {errors.name && (
-                      <p className="text-xs text-destructive">{errors.name}</p>
-                    )}
-                  </div>
-
-                  {/* Department Field */}
-                  <div className="space-y-1">
-                    <Label htmlFor="department_id" className="text-xs font-medium">
-                      Department <span className="text-destructive">*</span>
-                    </Label>
-                    <Select value={data.department_id} onValueChange={(value) => setData('department_id', value)}>
-                      <SelectTrigger className={`h-9 text-sm ${errors.department_id ? 'border-destructive' : ''}`}>
-                        <SelectValue placeholder="Select department" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {departments.map((dept) => (
-                          <SelectItem key={dept.id} value={dept.id.toString()} className="text-sm">
-                            {dept.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.department_id && (
-                      <p className="text-xs text-destructive">{errors.department_id}</p>
-                    )}
-                  </div>
-
-                  {/* Description Field */}
-                  <div className="space-y-1">
-                    <Label htmlFor="description" className="text-xs font-medium">Description</Label>
-                    <Textarea
-                      id="description"
-                      value={data.description}
-                      onChange={(e) => setData('description', e.target.value)}
-                      placeholder="Brief description (optional)"
-                      rows={3}
-                      className={`text-sm ${errors.description ? 'border-destructive' : ''}`}
-                    />
-                    {errors.description && (
-                      <p className="text-xs text-destructive">{errors.description}</p>
-                    )}
-                  </div>
-
-                  {/* Status Field */}
-                  <div className="space-y-1">
-                    <Label className="text-xs font-medium">
-                      Status <span className="text-destructive">*</span>
-                    </Label>
-                    <div className="flex items-center gap-4 pt-1">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          value="active"
-                          checked={data.status === 'active'}
-                          onChange={(e) => setData('status', e.target.value)}
-                          className="h-4 w-4 text-primary"
-                        />
-                        <span className="text-sm">Active</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          value="inactive"
-                          checked={data.status === 'inactive'}
-                          onChange={(e) => setData('status', e.target.value)}
-                          className="h-4 w-4 text-primary"
-                        />
-                        <span className="text-sm">Inactive</span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Buttons */}
-                <div className="pt-2 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => window.history.back()}
-                    disabled={processing}
-                    className="h-9"
-                    size="sm"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={processing}
-                    className="h-9"
-                    size="sm"
-                  >
-                    {processing ? 'Creating...' : 'Create Logistics'}
-                  </Button>
-                </div>
-              </div>
+                <LogisticsFormBody
+                    data={data}
+                    setData={setData}
+                    errors={errors}
+                    processing={processing}
+                    onSubmit={submit}
+                    departments={departments}
+                    zones={zones}
+                    description="Enter the logistics information below"
+                    submitLabel="Create Logistics"
+                    processingLabel="Creating..."
+                />
             </div>
-          </Card>
-        </form>
-      </div>
-    </AppSidebarLayout>
-  );
+        </AppSidebarLayout>
+    );
 }
-

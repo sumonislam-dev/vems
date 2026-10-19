@@ -31,6 +31,8 @@ export interface Vendor {
     tax_return_file: string | null;
     bank_details: string | null;
     status: 'active' | 'inactive';
+    zone_id: number | null;
+    zone?: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;
     contact_persons?: VendorContactPerson[];
@@ -44,6 +46,8 @@ export interface Vehicle {
     model: string;
     color: string | null;
     registration_number: string;
+    /** Ad-hoc vehicle still carrying an auto-generated ADHOC-xxx registration */
+    is_placeholder?: boolean;
     vehicle_type: string;
     rental_type: string;
     capacity: number | null;
@@ -51,6 +55,11 @@ export interface Vehicle {
     vendor_id: number | null;
     driver_id: number;
     driver?: User;
+    zone_id: number | null;
+    zone?: { id: number; name: string } | null;
+    /** Regular staff pick-and-drop route (report "Remarks" column) */
+    default_route_id: number | null;
+    default_route?: { id: number; name: string } | null;
     is_active: boolean;
     status: 'available' | 'assigned' | 'in_transit' | 'maintenance' | 'out_of_service';
     parking_address: string | null;
@@ -67,6 +76,9 @@ export interface Vehicle {
     insurance_policy_number: string | null;
     insurance_policy_file: string | null;
     insurance_company: string | null;
+    route_permit_number: string | null;
+    route_permit_last_date: string | null;
+    route_permit_file: string | null;
     registration_certificate_number: string | null;
     registration_certificate_file: string | null;
     owner_name: string | null;
@@ -81,9 +93,10 @@ export interface Vehicle {
     tax_token_alert_enabled: boolean;
     fitness_alert_enabled: boolean;
     insurance_alert_enabled: boolean;
+    route_permit_alert_enabled: boolean;
     alert_days_before: number;
     expiring_documents?: Array<{
-        type: 'tax_token' | 'fitness' | 'insurance';
+        type: 'tax_token' | 'fitness' | 'insurance' | 'route_permit';
         name: string;
         date: string;
         days_left: number | null;

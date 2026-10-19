@@ -1,16 +1,16 @@
-import { Head } from '@inertiajs/react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Edit, Route as RouteIcon, MapPin, Clock } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
+import { useCan } from '@/lib/permissions';
+import { Head } from '@inertiajs/react';
+import { ArrowLeft, Clock, Edit, MapPin, Route as RouteIcon } from 'lucide-react';
 
 interface VehicleRoute {
     id: number;
     name: string;
     description: string | null;
-    remarks: string | null;
     total_distance: number | null;
     created_at: string;
     updated_at: string;
@@ -42,6 +42,8 @@ interface ShowRouteProps {
 }
 
 export default function ShowRoute({ route }: ShowRouteProps) {
+    const can = useCan();
+
     return (
         <AppLayout>
             <Head title={`Route: ${route.name}`} />
@@ -52,21 +54,22 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                     description={`Route details and stops`}
                     actions={[
                         {
-                            label: "Back to Routes",
+                            label: 'Back to Routes',
                             icon: <ArrowLeft className="mr-2 h-4 w-4" />,
-                            href: "/routes",
-                            variant: "outline"
+                            href: '/routes',
+                            variant: 'outline',
                         },
                         {
-                            label: "Edit Route",
+                            label: 'Edit Route',
                             icon: <Edit className="mr-2 h-4 w-4" />,
-                            href: `/routes/${route.id}/edit`
-                        }
+                            href: `/routes/${route.id}/edit`,
+                            permission: 'edit-routes',
+                        },
                     ]}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="space-y-6 lg:col-span-2">
                         {/* Route Information */}
                         <Card>
                             <CardHeader>
@@ -88,24 +91,14 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                     </div>
                                 )}
 
-                                {route.remarks && (
-                                    <div>
-                                        <h3 className="font-medium">Remarks</h3>
-                                        <p className="text-muted-foreground">{route.remarks}</p>
-                                    </div>
-                                )}
-
                                 <div>
                                     <h3 className="font-medium">Total Distance</h3>
                                     <p className="text-muted-foreground">
-                                        {route.total_distance
-                                            ? `${Number(route.total_distance).toFixed(2)} km`
-                                            : 'Not calculated'
-                                        }
+                                        {route.total_distance ? `${Number(route.total_distance).toFixed(2)} km` : 'Not calculated'}
                                     </p>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                     <div>
                                         <h3 className="font-medium">Created</h3>
                                         <p className="text-muted-foreground">
@@ -142,13 +135,9 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                         <MapPin className="h-5 w-5" />
                                         Route Stops
                                     </div>
-                                    <Badge variant="secondary">
-                                        {route.route_stops.length} stops
-                                    </Badge>
+                                    <Badge variant="secondary">{route.route_stops.length} stops</Badge>
                                 </CardTitle>
-                                <CardDescription>
-                                    Ordered sequence of stops for this route
-                                </CardDescription>
+                                <CardDescription>Ordered sequence of stops for this route</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 {route.route_stops.length > 0 ? (
@@ -156,7 +145,7 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                         {route.route_stops
                                             .sort((a, b) => a.stop_order - b.stop_order)
                                             .map((routeStop) => (
-                                                <div key={routeStop.id} className="border rounded-lg p-4 bg-muted/50">
+                                                <div key={routeStop.id} className="rounded-lg border bg-muted/50 p-4">
                                                     <div className="flex items-start justify-between">
                                                         <div className="flex items-center gap-3">
                                                             <Badge variant="outline" className="flex items-center gap-1">
@@ -166,14 +155,12 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                                             <div>
                                                                 <h4 className="font-medium">{routeStop.stop.name}</h4>
                                                                 {routeStop.stop.description && (
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {routeStop.stop.description}
-                                                                    </p>
+                                                                    <p className="text-sm text-muted-foreground">{routeStop.stop.description}</p>
                                                                 )}
                                                             </div>
                                                         </div>
 
-                                                        <div className="text-right text-sm space-y-1">
+                                                        <div className="space-y-1 text-right text-sm">
                                                             {routeStop.distance_from_previous !== null && routeStop.stop_order > 1 && (
                                                                 <div className="flex items-center gap-1 text-muted-foreground">
                                                                     <RouteIcon className="h-3 w-3" />
@@ -204,12 +191,14 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                             ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center text-muted-foreground py-8">
-                                        <MapPin className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                                    <div className="py-8 text-center text-muted-foreground">
+                                        <MapPin className="mx-auto mb-4 h-12 w-12 opacity-50" />
                                         <p>No stops defined for this route</p>
-                                        <Button variant="outline" className="mt-4" asChild>
-                                            <a href={`/routes/${route.id}/edit`}>Add Stops</a>
-                                        </Button>
+                                        {can('edit-routes') && (
+                                            <Button variant="outline" className="mt-4" asChild>
+                                                <a href={`/routes/${route.id}/edit`}>Add Stops</a>
+                                            </Button>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>
@@ -233,22 +222,21 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                         <div className="space-y-2">
                                             <h4 className="text-sm font-medium">First Stop</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {route.route_stops.find(s => s.stop_order === 1)?.stop.name || 'N/A'}
+                                                {route.route_stops.find((s) => s.stop_order === 1)?.stop.name || 'N/A'}
                                             </p>
                                         </div>
 
                                         <div className="space-y-2">
                                             <h4 className="text-sm font-medium">Last Stop</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {route.route_stops
-                                                    .sort((a, b) => b.stop_order - a.stop_order)[0]?.stop.name || 'N/A'}
+                                                {route.route_stops.sort((a, b) => b.stop_order - a.stop_order)[0]?.stop.name || 'N/A'}
                                             </p>
                                         </div>
 
                                         <div className="space-y-2">
                                             <h4 className="text-sm font-medium">Stops with Times</h4>
                                             <p className="text-sm text-muted-foreground">
-                                                {route.route_stops.filter(s => s.arrival_time || s.departure_time).length}
+                                                {route.route_stops.filter((s) => s.arrival_time || s.departure_time).length}
                                                 {' of '} {route.route_stops.length}
                                             </p>
                                         </div>

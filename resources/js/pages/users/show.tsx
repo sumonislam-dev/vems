@@ -1,29 +1,31 @@
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, User } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeft,
-    Edit,
-    Mail,
-    MapPin,
-    Phone,
-    Trash2,
-    User as UserIcon,
-    UserCheck,
-    UserX,
-    CalendarDays,
     Building,
+    CalendarDays,
     Car,
     CreditCard,
-    Shield,
-    MessageSquare,
     Droplets,
+    Edit,
     FileText,
-    Star
+    Mail,
+    MapPin,
+    MessageSquare,
+    Phone,
+    Shield,
+    Star,
+    Trash2,
+    UserCheck,
+    User as UserIcon,
+    UserX,
 } from 'lucide-react';
 
 interface ShowUserProps {
@@ -37,8 +39,10 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function ShowUser({ user }: ShowUserProps) {
-    const handleDelete = () => {
-        if (confirm(`Are you sure you want to delete ${user.name}?`)) {
+    const can = useCan();
+
+    const handleDelete = async () => {
+        if (await confirmDelete(`Are you sure you want to delete ${user.name}?`)) {
             router.delete(route('users.destroy', user.id));
         }
     };
@@ -82,7 +86,10 @@ export default function ShowUser({ user }: ShowUserProps) {
                                 <UserX className="h-5 w-5" />
                                 <div>
                                     <h4 className="font-semibold">Expired Driving License</h4>
-                                    <p className="text-sm">This driver's license expired on {new Date(user.license_expiry_date).toLocaleDateString()}. Please renew immediately.</p>
+                                    <p className="text-sm">
+                                        This driver's license expired on {new Date(user.license_expiry_date).toLocaleDateString()}. Please renew
+                                        immediately.
+                                    </p>
                                 </div>
                             </div>
                         </CardContent>
@@ -103,6 +110,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                             label: 'Edit User',
                             icon: <Edit className="mr-2 h-4 w-4" />,
                             href: route('users.edit', user.id),
+                            permission: 'edit-users',
                         },
                     ]}
                 />
@@ -120,25 +128,21 @@ export default function ShowUser({ user }: ShowUserProps) {
                                     {user.image ? (
                                         <img className="h-16 w-16 rounded-full object-cover" src={user.image} alt={user.name} />
                                     ) : (
-                                        <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                                            <span className="text-xl font-semibold text-primary">
-                                                {user.name.charAt(0).toUpperCase()}
-                                            </span>
+                                        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/40">
+                                            <span className="text-xl font-semibold text-primary">{user.name.charAt(0).toUpperCase()}</span>
                                         </div>
                                     )}
                                 </div>
                                 <div className="space-y-1">
                                     <h3 className="text-lg font-semibold">{user.name}</h3>
-                                    {user.username && (
-                                        <p className="text-sm text-muted-foreground">@{user.username}</p>
-                                    )}
+                                    {user.username && <p className="text-sm text-muted-foreground">@{user.username}</p>}
                                     <div className="flex items-center space-x-2">
                                         <Badge variant={getStatusVariant(user.status)} className="gap-1">
                                             {getStatusIcon(user.status)}
                                             {user.status.charAt(0).toUpperCase() + user.status.slice(1)}
                                         </Badge>
                                         {user.user_type && (
-                                            <Badge variant="outline" className="capitalize gap-1">
+                                            <Badge variant="outline" className="gap-1 capitalize">
                                                 <Shield className="h-3 w-3" />
                                                 {user.user_type.replace('_', ' ')}
                                             </Badge>
@@ -149,15 +153,15 @@ export default function ShowUser({ user }: ShowUserProps) {
 
                             {/* Basic Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Basic Information</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Basic Information</h4>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     {user.employee_id && (
                                         <div className="space-y-1">
                                             <div className="flex items-center space-x-2">
                                                 <FileText className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.employee_id}</p>
+                                            <p className="font-mono text-sm">{user.employee_id}</p>
                                         </div>
                                     )}
 
@@ -218,7 +222,9 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     day: 'numeric',
                                                 })}
                                                 {new Date(user.probation_end_date) > new Date() && (
-                                                    <Badge variant="secondary" className="ml-2">On Probation</Badge>
+                                                    <Badge variant="secondary" className="ml-2">
+                                                        On Probation
+                                                    </Badge>
                                                 )}
                                             </p>
                                         </div>
@@ -228,15 +234,15 @@ export default function ShowUser({ user }: ShowUserProps) {
 
                             {/* Contact Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Contact Information</h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Contact Information</h4>
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     {user.official_phone && (
                                         <div className="space-y-1">
                                             <div className="flex items-center space-x-2">
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Official Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.official_phone}</p>
+                                            <p className="font-mono text-sm">{user.official_phone}</p>
                                         </div>
                                     )}
 
@@ -246,7 +252,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Personal Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.personal_phone}</p>
+                                            <p className="font-mono text-sm">{user.personal_phone}</p>
                                         </div>
                                     )}
 
@@ -256,7 +262,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 <MessageSquare className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">WhatsApp</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.whatsapp_id}</p>
+                                            <p className="font-mono text-sm">{user.whatsapp_id}</p>
                                         </div>
                                     )}
 
@@ -267,7 +273,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 <Phone className="h-4 w-4 text-muted-foreground" />
                                                 <label className="text-sm font-medium text-muted-foreground">Phone</label>
                                             </div>
-                                            <p className="text-sm font-mono">{user.phone}</p>
+                                            <p className="font-mono text-sm">{user.phone}</p>
                                         </div>
                                     )}
                                 </div>
@@ -276,17 +282,22 @@ export default function ShowUser({ user }: ShowUserProps) {
                             {/* Identity Documents */}
                             {(user.nid_number || user.passport_number || user.driving_license_no) && (
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Identity Documents</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Identity Documents</h4>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {user.nid_number && (
                                             <div className="space-y-1">
                                                 <div className="flex items-center space-x-2">
                                                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">National ID</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.nid_number}</p>
+                                                <p className="font-mono text-sm">{user.nid_number}</p>
                                                 {user.nid_file && (
-                                                    <a href={`/storage/${user.nid_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a
+                                                        href={route('users.document', [user.id, 'nid_file'])}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
                                                         View scan
                                                     </a>
                                                 )}
@@ -299,7 +310,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Passport</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.passport_number}</p>
+                                                <p className="font-mono text-sm">{user.passport_number}</p>
                                             </div>
                                         )}
 
@@ -309,9 +320,14 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <Car className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Driving License</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.driving_license_no}</p>
+                                                <p className="font-mono text-sm">{user.driving_license_no}</p>
                                                 {user.driving_license_file && (
-                                                    <a href={`/storage/${user.driving_license_file}`} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">
+                                                    <a
+                                                        href={route('users.document', [user.id, 'driving_license_file'])}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="text-xs text-blue-600 hover:underline"
+                                                    >
                                                         View scan
                                                     </a>
                                                 )}
@@ -324,8 +340,8 @@ export default function ShowUser({ user }: ShowUserProps) {
                             {/* Emergency Contact */}
                             {(user.emergency_contact_name || user.emergency_phone) && (
                                 <div className="space-y-4">
-                                    <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Emergency Contact</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Emergency Contact</h4>
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {user.emergency_contact_name && (
                                             <div className="space-y-1">
                                                 <div className="flex items-center space-x-2">
@@ -345,7 +361,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     <Phone className="h-4 w-4 text-muted-foreground" />
                                                     <label className="text-sm font-medium text-muted-foreground">Emergency Phone</label>
                                                 </div>
-                                                <p className="text-sm font-mono">{user.emergency_phone}</p>
+                                                <p className="font-mono text-sm">{user.emergency_phone}</p>
                                             </div>
                                         )}
                                     </div>
@@ -354,7 +370,7 @@ export default function ShowUser({ user }: ShowUserProps) {
 
                             {/* Address Information */}
                             <div className="space-y-4">
-                                <h4 className="text-sm font-medium text-muted-foreground border-b pb-2">Address Information</h4>
+                                <h4 className="border-b pb-2 text-sm font-medium text-muted-foreground">Address Information</h4>
                                 <div className="grid grid-cols-1 gap-4">
                                     {user.area && (
                                         <div className="space-y-1">
@@ -417,10 +433,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Driver Status</label>
                                             <p className="text-sm">
-                                                <Badge
-                                                    variant={user.driver_status === 'active' ? 'default' : 'secondary'}
-                                                    className="capitalize"
-                                                >
+                                                <Badge variant={user.driver_status === 'active' ? 'default' : 'secondary'} className="capitalize">
                                                     {user.driver_status}
                                                 </Badge>
                                             </p>
@@ -430,7 +443,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                     {user.license_class && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">License Class</label>
-                                            <p className="text-sm font-mono">{user.license_class}</p>
+                                            <p className="font-mono text-sm">{user.license_class}</p>
                                         </div>
                                     )}
 
@@ -457,7 +470,9 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                     day: 'numeric',
                                                 })}
                                                 {new Date(user.license_expiry_date) < new Date() && (
-                                                    <Badge variant="destructive" className="ml-2 text-xs">Expired</Badge>
+                                                    <Badge variant="destructive" className="ml-2 text-xs">
+                                                        Expired
+                                                    </Badge>
                                                 )}
                                             </p>
                                         </div>
@@ -560,7 +575,7 @@ export default function ShowUser({ user }: ShowUserProps) {
                                             })}
                                         </p>
                                         {user.last_login_ip && (
-                                            <p className="text-xs text-muted-foreground mt-1">
+                                            <p className="mt-1 text-xs text-muted-foreground">
                                                 IP: {user.last_login_ip}
                                                 {user.last_login_location && ` • ${user.last_login_location}`}
                                                 {user.last_login_device && ` • ${user.last_login_device}`}
@@ -576,27 +591,20 @@ export default function ShowUser({ user }: ShowUserProps) {
                 {/* Actions */}
                 <Card>
                     <CardContent className="p-4">
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <Button
-                                onClick={() => router.visit(route('users.edit', user.id))}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Edit className="h-4 w-4" />
-                                Edit User
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                onClick={handleDelete}
-                                className="flex items-center justify-center gap-2"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Delete User
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => window.print()}
-                                className="flex items-center justify-center gap-2"
-                            >
+                        <div className="flex flex-col gap-3 sm:flex-row">
+                            {can('edit-users') && (
+                                <Button onClick={() => router.visit(route('users.edit', user.id))} className="flex items-center justify-center gap-2">
+                                    <Edit className="h-4 w-4" />
+                                    Edit User
+                                </Button>
+                            )}
+                            {can('delete-users') && (
+                                <Button variant="destructive" onClick={handleDelete} className="flex items-center justify-center gap-2">
+                                    <Trash2 className="h-4 w-4" />
+                                    Delete User
+                                </Button>
+                            )}
+                            <Button variant="outline" onClick={() => window.print()} className="flex items-center justify-center gap-2">
                                 <FileText className="h-4 w-4" />
                                 Print Profile
                             </Button>

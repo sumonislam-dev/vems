@@ -3,12 +3,14 @@
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedDriverExportPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-drivers', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    Permission::firstOrCreate(['name' => 'export-drivers', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeDriverExportViewer(): User
@@ -23,7 +25,7 @@ function makeDriverExportViewer(): User
         'password' => Hash::make('password'),
     ]);
 
-    $user->givePermissionTo('view-drivers');
+    $user->givePermissionTo(['view-drivers', 'export-drivers']);
 
     return $user;
 }

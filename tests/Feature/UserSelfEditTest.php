@@ -6,14 +6,16 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedUserSelfEditPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
+    Permission::firstOrCreate(['name' => 'manage-user-roles', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'employee', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'super-admin', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeSelfEditUser(string $username, string $userType = 'employee'): User
@@ -51,6 +53,8 @@ it('confines a non-privileged self-edit to safe fields and never touches roles/s
     $user->assignRole('employee');
 
     $response = $this->actingAs($user)->put("/test-only-users/{$user->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Updated Name',
         'personal_phone' => '01700000000',
         'whatsapp_id' => '01700000000',
@@ -75,12 +79,16 @@ it('still lets a privileged editor manage roles/status normally', function () {
     Route::put('/test-only-users/{user}', [UserController::class, 'update'])
         ->middleware('web')->withoutMiddleware('permission:edit-users');
 
+    // Privilege comes from permissions, not the 'admin' user_type
     $admin = makeSelfEditUser('privileged-editor', 'admin');
+    $admin->givePermissionTo(['edit-users', 'manage-user-roles']);
     $target = makeSelfEditUser('managed-user');
     $target->assignRole('employee');
     $employeeRole = Role::where('name', 'employee')->first();
 
     $response = $this->actingAs($admin)->put("/test-only-users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Updated Name',
         'username' => $target->username,
         'personal_phone' => '01700000000',

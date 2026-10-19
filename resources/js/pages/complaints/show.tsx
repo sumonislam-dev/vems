@@ -1,3 +1,4 @@
+import { confirmAction } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,10 +25,22 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const getStatusBadge = (status: TripFeedbackStatus) => {
     const config = {
-        open: { label: 'Open', className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300' },
-        in_review: { label: 'In Review', className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300' },
-        resolved: { label: 'Resolved', className: 'border-green-200 bg-green-100 text-green-800 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300' },
-        closed: { label: 'Closed', className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300' },
+        open: {
+            label: 'Open',
+            className: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-500/30 dark:bg-yellow-500/15 dark:text-yellow-300',
+        },
+        in_review: {
+            label: 'In Review',
+            className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300',
+        },
+        resolved: {
+            label: 'Resolved',
+            className: 'border-green-200 bg-green-100 text-green-800 dark:border-green-500/30 dark:bg-green-500/15 dark:text-green-300',
+        },
+        closed: {
+            label: 'Closed',
+            className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300',
+        },
     };
     const { label, className } = config[status] || config.open;
     return <Badge className={className}>{label}</Badge>;
@@ -35,13 +48,29 @@ const getStatusBadge = (status: TripFeedbackStatus) => {
 
 const getPriorityBadge = (priority: TripFeedbackPriority) => {
     const config = {
-        critical: { label: 'Critical', className: 'border-red-300 bg-red-100 text-red-800 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300' },
-        high: { label: 'High', className: 'border-orange-200 bg-orange-100 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300' },
-        medium: { label: 'Medium', className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300' },
-        low: { label: 'Low', className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300' },
+        critical: {
+            label: 'Critical',
+            className: 'border-red-300 bg-red-100 text-red-800 dark:border-red-500/40 dark:bg-red-500/20 dark:text-red-300',
+        },
+        high: {
+            label: 'High',
+            className: 'border-orange-200 bg-orange-100 text-orange-800 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300',
+        },
+        medium: {
+            label: 'Medium',
+            className: 'border-blue-200 bg-blue-100 text-blue-800 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300',
+        },
+        low: {
+            label: 'Low',
+            className: 'border-slate-200 bg-slate-100 text-slate-800 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300',
+        },
     };
     const { label, className } = config[priority] || config.low;
-    return <Badge variant="outline" className={className}>{label}</Badge>;
+    return (
+        <Badge variant="outline" className={className}>
+            {label}
+        </Badge>
+    );
 };
 
 export default function ShowComplaint({ item, categories }: ShowComplaintProps) {
@@ -67,8 +96,22 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
         router.post(route('complaints.assign', item.id), { assigned_to: currentUserId });
     };
 
-    const close = () => router.post(route('complaints.close', item.id));
-    const reopen = () => router.post(route('complaints.reopen', item.id));
+    const close = async () => {
+        if (
+            await confirmAction({
+                title: 'Close this complaint?',
+                description: 'A closed complaint counts as finished in the reports.',
+                confirmLabel: 'Close',
+            })
+        ) {
+            router.post(route('complaints.close', item.id));
+        }
+    };
+    const reopen = async () => {
+        if (await confirmAction({ title: 'Reopen this complaint?', confirmLabel: 'Reopen' })) {
+            router.post(route('complaints.reopen', item.id));
+        }
+    };
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
@@ -93,8 +136,10 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
                         <Card>
                             <CardHeader>
                                 <div className="flex flex-wrap items-center gap-2">
-                                    <Badge variant="outline" className="capitalize">{item.type}</Badge>
-                                    <span className="text-sm capitalize text-gray-500">{categories[item.category] ?? item.category}</span>
+                                    <Badge variant="outline" className="capitalize">
+                                        {item.type}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500 capitalize">{categories[item.category] ?? item.category}</span>
                                     {getPriorityBadge(item.priority)}
                                     {getStatusBadge(item.status)}
                                 </div>
@@ -102,11 +147,11 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
                             <CardContent className="space-y-4">
                                 <div>
                                     <Label className="text-xs text-gray-600">Description</Label>
-                                    <p className="mt-1 whitespace-pre-wrap text-sm text-gray-700">{item.description}</p>
+                                    <p className="mt-1 text-sm whitespace-pre-wrap text-gray-700">{item.description}</p>
                                 </div>
 
                                 {(item.driver_rating || item.vehicle_rating) && (
-                                    <div className="grid grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                         {item.driver_rating && (
                                             <div>
                                                 <Label className="text-xs text-gray-600">Driver Rating</Label>
@@ -130,10 +175,11 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
                                     <CardTitle className="text-base">Resolution</CardTitle>
                                 </CardHeader>
                                 <CardContent>
-                                    <p className="whitespace-pre-wrap text-sm text-gray-700">{item.resolution_notes}</p>
+                                    <p className="text-sm whitespace-pre-wrap text-gray-700">{item.resolution_notes}</p>
                                     {item.resolver && (
                                         <p className="mt-2 text-xs text-gray-500">
-                                            Resolved by {item.resolver.name}{item.resolved_at ? ` on ${new Date(item.resolved_at).toLocaleString()}` : ''}
+                                            Resolved by {item.resolver.name}
+                                            {item.resolved_at ? ` on ${new Date(item.resolved_at).toLocaleString()}` : ''}
                                         </p>
                                     )}
                                 </CardContent>
@@ -176,7 +222,7 @@ export default function ShowComplaint({ item, categories }: ShowComplaintProps) 
                             <CardContent className="space-y-4">
                                 <div>
                                     <Label className="text-xs text-gray-600">Submitted By</Label>
-                                    <p className="mt-1 text-sm font-medium">{item.is_anonymous ? 'Anonymous' : item.submitter?.name ?? '-'}</p>
+                                    <p className="mt-1 text-sm font-medium">{item.is_anonymous ? 'Anonymous' : (item.submitter?.name ?? '-')}</p>
                                 </div>
                                 <Separator />
                                 <div>

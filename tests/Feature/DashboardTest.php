@@ -5,6 +5,7 @@ use App\Models\TripFeedback;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleRoute;
+use App\Models\Zone;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
@@ -25,7 +26,7 @@ beforeEach(function () {
 function seedDashboardPermissions(): void
 {
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
-    foreach (['view-trips', 'view-own-trips', 'create-trips', 'view-complaints', 'view-own-complaints', 'create-complaints'] as $permission) {
+    foreach (['view-trips', 'view-own-trips', 'create-trips', 'view-complaints', 'view-own-complaints', 'create-complaints', 'check-in-trips'] as $permission) {
         Permission::firstOrCreate(['name' => $permission, 'guard_name' => 'web']);
     }
     app()[PermissionRegistrar::class]->forgetCachedPermissions();
@@ -282,8 +283,10 @@ test('the management dashboard aggregates are cached rather than recomputed on e
         ->assertInertia(fn ($page) => $page->where('moduleStats.vehicles.total', 1));
 
     // Once the cache is cleared (e.g. the TTL elapsing), the real, current
-    // count is computed fresh.
-    Cache::forget('dashboard.management.aggregates');
+    // count is computed fresh. The cache key is namespaced by the viewer's
+    // zone scope (see DashboardController::buildManagementDashboard()) —
+    // 'all' for this unrestricted admin.
+    Cache::forget('dashboard.management.aggregates:all');
 
     $this->actingAs($admin)
         ->get('/dashboard')
@@ -297,7 +300,7 @@ test('a driver gets the driver dashboard scoped to trips assigned via their vehi
 
     $driver = makeDashboardUser('driver-1');
     $driver->assignRole('driver');
-    $driver->givePermissionTo(['view-own-trips', 'view-own-complaints', 'create-complaints']);
+    $driver->givePermissionTo(['view-own-trips', 'view-own-complaints', 'create-complaints', 'check-in-trips']);
     $vehicle = makeDashboardVehicleWithDriver($driver);
 
     $otherDriver = makeDashboardUser('driver-2');
@@ -337,5 +340,89 @@ test('a driver gets the driver dashboard scoped to trips assigned via their vehi
             ->where('myTrips.today_trips.0.id', $myTodayTrip->id)
             ->has('license')
             ->has('driverStatus')
+        );
+});
+
+test('the management dashboard trip-based stats respect the navbar active zone switcher', function () {
+    seedDashboardPermissions();
+    Permission::firstOrCreate(['name' => 'view-all-zones', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+
+    $dhakaVehicle = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'Corolla',
+        'registration_number' => 'VEH-DASH-'.uniqid(),
+        'is_active' => true, 'zone_id' => $dhaka->id,
+    ]);
+    $ctgVehicle = Vehicle::create([
+        'brand' => 'Honda', 'model' => 'Civic',
+        'registration_number' => 'VEH-DASH-'.uniqid(),
+        'is_active' => true, 'zone_id' => $ctg->id,
+    ]);
+
+    $admin = makeDashboardUser('admin-zone-dash');
+    $admin->givePermissionTo(['view-trips', 'view-complaints', 'view-all-zones']);
+
+    foreach ([$dhakaVehicle, $ctgVehicle] as $vehicle) {
+        Trip::create([
+            'trip_number' => 'TRIP-DASH-'.uniqid(),
+            'requested_by' => $admin->id,
+            'vehicle_id' => $vehicle->id,
+            'priority' => 'medium',
+            'scheduled_date' => today()->toDateString(),
+            'scheduled_start_time' => '08:00:00',
+            'scheduled_end_time' => '09:00:00',
+            'status' => 'pending',
+        ]);
+    }
+
+    // Unrestricted: sees both of today's trips.
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 2));
+
+    // Switch to Dhaka only — the cache key must vary by zone, not just the
+    // underlying query, or this would still show the unrestricted result.
+    $this->actingAs($admin)->patch('/active-zone', ['zone_id' => $dhaka->id])
+        ->assertSessionDoesntHaveErrors();
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 1));
+
+    // Switch back to all zones.
+    $this->actingAs($admin)->patch('/active-zone', ['zone_id' => null]);
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('moduleStats.trips.today', 2));
+});
+
+test('the monthly and route performance charts and the expiring-documents count are computed correctly', function () {
+    seedDashboardPermissions();
+    $admin = makeDashboardUser('charts-admin');
+    $admin->givePermissionTo('view-trips');
+    $requester = makeDashboardUser('charts-requester');
+    $route = VehicleRoute::create(['name' => 'Gazipur Loop']);
+    $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-1', 'is_active' => true]);
+    Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-2', 'is_active' => true, 'tax_token_last_date' => today()->addDays(10), 'alert_days_before' => 30]);
+    Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CHART-3', 'is_active' => true, 'tax_token_last_date' => today()->addDays(200), 'alert_days_before' => 30]);
+
+    $base = ['requested_by' => $requester->id, 'priority' => 'medium', 'scheduled_date' => today()->toDateString(), 'scheduled_start_time' => '08:00', 'scheduled_end_time' => '09:00', 'vehicle_route_id' => $route->id, 'vehicle_id' => $vehicle->id];
+    $completed = Trip::create([...$base, 'status' => 'completed']);
+    Trip::create([...$base, 'status' => 'completed']);
+    Trip::create([...$base, 'status' => 'cancelled']);
+    TripFeedback::create(['trip_id' => $completed->id, 'submitted_by' => $requester->id, 'type' => 'feedback', 'category' => 'other', 'subject' => 'Good', 'description' => 'Fine', 'driver_rating' => 4, 'vehicle_rating' => 5, 'priority' => 'low', 'status' => 'open']);
+
+    $this->actingAs($admin)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page
+            ->where('chartData.monthlyPerformance.5.completionRate', 66.7)
+            ->where('chartData.monthlyPerformance.5.satisfaction', 4.5)
+            ->where('chartData.monthlyPerformance.5.utilization', 33.3)
+            ->where('chartData.routePerformance.0.route', 'Gazipur Loop')
+            ->where('chartData.routePerformance.0.trips', 3)
+            ->where('chartData.routePerformance.0.completionRate', 66.7)
+            ->where('chartData.routePerformance.0.rating', 4.5)
+            ->where('moduleStats.vehicleAlerts.expiring_documents', 1)
+            ->etc()
         );
 });

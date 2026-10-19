@@ -2,14 +2,19 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
 class Vehicle extends Model
 {
-    use HasFactory, LogsActivity;
+    /** Columns holding private document paths (see DocumentController) */
+    public const DOCUMENT_FILES = ['tax_token_file', 'fitness_certificate_file', 'insurance_policy_file', 'route_permit_file', 'registration_certificate_file'];
+
+    use BelongsToZone, HasFactory, LogsActivity, SoftDeletes;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -21,11 +26,64 @@ class Vehicle extends Model
             ->useLogName('vehicles');
     }
 
-    protected $appends = ['expiring_documents'];
+    /**
+     * Ad-hoc hires are often booked before the actual car is known, so an
+     * ad-hoc vehicle may be saved with its identity left blank and filled
+     * with these placeholders (registration ADHOC-001, ADHOC-002, ...) until
+     * someone edits in the real registration/brand/model.
+     */
+    public const PLACEHOLDER_PREFIX = 'ADHOC-';
+
+    public const PLACEHOLDER_BRAND = 'Ad-hoc';
+
+    public const PLACEHOLDER_MODEL = 'TBD';
+
+    /** Statuses that mean the vehicle is out of service (see VehicleObserver::syncDowntime()) */
+    public const DOWN_STATUSES = ['maintenance', 'out_of_service'];
+
+    // expiring_documents is appended only where shown (vehicles list and page)
+    protected $appends = ['is_placeholder'];
 
     public function getExpiringDocumentsAttribute(): array
     {
         return $this->getExpiringDocuments();
+    }
+
+    public function getIsPlaceholderAttribute(): bool
+    {
+        return $this->isPlaceholder();
+    }
+
+    /**
+     * An ad-hoc vehicle still carrying an auto-generated registration — its
+     * real identity hasn't been entered yet.
+     */
+    public function isPlaceholder(): bool
+    {
+        return $this->rental_type === 'adhoc'
+            && str_starts_with((string) $this->registration_number, self::PLACEHOLDER_PREFIX);
+    }
+
+    /**
+     * The next free placeholder registration (ADHOC-001, ADHOC-002, ...).
+     * Looks past the zone scope: registration_number is unique table-wide,
+     * so numbering must be too, or two zones would mint the same one.
+     */
+    public static function nextPlaceholderRegistration(): string
+    {
+        $max = static::withoutGlobalScopes()
+            ->where('registration_number', 'like', self::PLACEHOLDER_PREFIX.'%')
+            ->pluck('registration_number')
+            ->map(fn (string $reg) => (int) substr($reg, strlen(self::PLACEHOLDER_PREFIX)))
+            ->max() ?? 0;
+
+        return self::PLACEHOLDER_PREFIX.str_pad((string) ($max + 1), 3, '0', STR_PAD_LEFT);
+    }
+
+    public function scopePlaceholders($query)
+    {
+        return $query->where('rental_type', 'adhoc')
+            ->where('registration_number', 'like', self::PLACEHOLDER_PREFIX.'%');
     }
 
     protected $fillable = [
@@ -38,6 +96,8 @@ class Vehicle extends Model
         'capacity',
         'vendor_id',
         'driver_id',
+        'default_route_id',
+        'zone_id',
         'is_active',
         'status',
         // Tax Token
@@ -71,6 +131,10 @@ class Vehicle extends Model
         'tax_token_alert_enabled',
         'fitness_alert_enabled',
         'insurance_alert_enabled',
+        'route_permit_number',
+        'route_permit_last_date',
+        'route_permit_file',
+        'route_permit_alert_enabled',
         'alert_days_before',
         // Parking Location
         'parking_address',
@@ -86,6 +150,8 @@ class Vehicle extends Model
         'tax_token_alert_enabled' => 'boolean',
         'fitness_alert_enabled' => 'boolean',
         'insurance_alert_enabled' => 'boolean',
+        'route_permit_last_date' => 'date',
+        'route_permit_alert_enabled' => 'boolean',
         'manufacture_year' => 'integer',
         'alert_days_before' => 'integer',
         'parking_latitude' => 'decimal:8',
@@ -106,6 +172,22 @@ class Vehicle extends Model
     public function driver()
     {
         return $this->belongsTo(User::class, 'driver_id');
+    }
+
+    /**
+     * The staff pick-and-drop route this vehicle normally runs
+     */
+    public function defaultRoute()
+    {
+        return $this->belongsTo(VehicleRoute::class, 'default_route_id');
+    }
+
+    /**
+     * Out-of-service periods, newest first
+     */
+    public function downtimes()
+    {
+        return $this->hasMany(VehicleDowntime::class)->latest('starts_on');
     }
 
     /**
@@ -169,6 +251,18 @@ class Vehicle extends Model
     }
 
     /**
+     * Check if route permit is expired or expiring soon
+     */
+    public function isRoutePermitExpiring(): bool
+    {
+        if (! $this->route_permit_last_date || ! $this->route_permit_alert_enabled) {
+            return false;
+        }
+
+        return now()->diffInDays($this->route_permit_last_date, false) <= $this->alert_days_before;
+    }
+
+    /**
      * Get all expiring documents
      */
     public function getExpiringDocuments(): array
@@ -202,30 +296,15 @@ class Vehicle extends Model
             ];
         }
 
-        return $expiring;
-    }
+        if ($this->isRoutePermitExpiring()) {
+            $expiring[] = [
+                'type' => 'route_permit',
+                'name' => 'Route Permit',
+                'date' => $this->route_permit_last_date,
+                'days_left' => (int) now()->diffInDays($this->route_permit_last_date, false),
+            ];
+        }
 
-    /**
-     * Scope to get vehicles with expiring documents
-     */
-    public function scopeWithExpiringDocuments($query)
-    {
-        return $query->where(function ($q) {
-            $q->where(function ($subQ) {
-                $subQ->where('tax_token_alert_enabled', true)
-                    ->whereNotNull('tax_token_last_date')
-                    ->whereRaw('DATEDIFF(tax_token_last_date, NOW()) <= alert_days_before');
-            })
-                ->orWhere(function ($subQ) {
-                    $subQ->where('fitness_alert_enabled', true)
-                        ->whereNotNull('fitness_certificate_last_date')
-                        ->whereRaw('DATEDIFF(fitness_certificate_last_date, NOW()) <= alert_days_before');
-                })
-                ->orWhere(function ($subQ) {
-                    $subQ->where('insurance_alert_enabled', true)
-                        ->whereNotNull('insurance_last_date')
-                        ->whereRaw('DATEDIFF(insurance_last_date, NOW()) <= alert_days_before');
-                });
-        });
+        return $expiring;
     }
 }

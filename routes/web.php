@@ -1,15 +1,17 @@
 <?php
 
+use App\Http\Controllers\ActiveZoneController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AnalyticsReportController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
 use App\Http\Controllers\LogisticsController;
+use App\Http\Controllers\MonthlyVehicleReportController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\StopController;
@@ -21,8 +23,10 @@ use App\Http\Controllers\TripStateController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserGroupController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleDowntimeController;
 use App\Http\Controllers\VehicleRouteController;
 use App\Http\Controllers\VendorController;
+use App\Http\Controllers\ZoneController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -50,33 +54,39 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
-    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
-    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
-
-    // Debug route — restricted to Super Admin only
-    Route::middleware('role:super-admin')->group(function () {
-        Route::get('/debug/auth', [DebugController::class, 'authCheck'])->name('debug.auth');
+    Route::middleware('permission:view-notifications')->group(function () {
+        Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.read-all');
     });
 
-    Route::resource('products', ProductController::class);
-    Route::get('products-export', [ProductController::class, 'export'])->name('products.export');
+    Route::patch('/active-zone', [ActiveZoneController::class, 'update'])->name('active-zone.update');
 
+    // Private documents (NID, licences, vehicle/vendor papers), permission-checked
+    Route::get('users/{user}/documents/{field}', [DocumentController::class, 'user'])
+        ->whereIn('field', DocumentController::USER_FIELDS)->name('users.document');
+    Route::get('vehicles/{vehicle}/documents/{field}', [DocumentController::class, 'vehicle'])
+        ->whereIn('field', DocumentController::VEHICLE_FIELDS)->name('vehicles.document');
+    Route::get('vendors/{vendor}/documents/{field}', [DocumentController::class, 'vendor'])
+        ->whereIn('field', DocumentController::VENDOR_FIELDS)->name('vendors.document');
+
+    Route::patch('/factories/{factory}/restore', [FactoryController::class, 'restore'])
+        ->withTrashed()->name('factories.restore');
     Route::resource('factories', FactoryController::class);
 
     Route::resource('vehicles', VehicleController::class);
-    Route::get('vehicles-expiring', [VehicleController::class, 'getExpiringVehicles'])->name('vehicles.expiring');
     Route::get('vehicles-export', [VehicleController::class, 'export'])->name('vehicles.export');
     Route::post('vehicles-bulk-status', [VehicleController::class, 'bulkUpdateStatus'])->name('vehicles.bulk-status');
+    Route::post('vehicles/{vehicle}/downtimes', [VehicleDowntimeController::class, 'store'])->name('vehicles.downtimes.store');
+    Route::put('vehicles/{vehicle}/downtimes/{downtime}', [VehicleDowntimeController::class, 'update'])->name('vehicles.downtimes.update');
+    Route::post('vehicles/{vehicle}/downtimes/{downtime}/end', [VehicleDowntimeController::class, 'end'])->name('vehicles.downtimes.end');
+    Route::delete('vehicles/{vehicle}/downtimes/{downtime}', [VehicleDowntimeController::class, 'destroy'])->name('vehicles.downtimes.destroy');
     Route::post('/vehicles/{vehicle}/assign-driver', [VehicleController::class, 'assignDriver'])->name('vehicles.assign-driver');
 
     Route::resource('vendors', VendorController::class);
-    Route::get('vendors-select', [VendorController::class, 'getVendorsForSelect'])->name('vendors.select');
 
     Route::resource('users', UserController::class);
-    Route::middleware('throttle:60,1')->group(function () {
-        Route::get('/api/drivers/available', [DriverController::class, 'getAvailableDrivers'])->name('drivers.available');
-    });
-    Route::patch('/drivers/{user}/status', [DriverController::class, 'updateDriverStatus'])->name('drivers.update-status');
+    Route::post('/users/{user}/deactivate', [UserController::class, 'deactivate'])->name('users.deactivate');
+    Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
     Route::get('/drivers/{driver}/assignable-vehicles', [DriverController::class, 'assignableVehicles'])->name('drivers.assignable-vehicles');
     Route::get('/drivers-export', [DriverController::class, 'export'])->name('drivers.export');
     Route::post('/drivers-bulk-status', [DriverController::class, 'bulkUpdateStatus'])->name('drivers.bulk-status');
@@ -100,6 +110,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Logistics management routes
     Route::resource('logistics', LogisticsController::class);
     Route::patch('/logistics/{logistic}/toggle-lock', [LogisticsController::class, 'toggleLock'])->name('logistics.toggle-lock');
+
+    // Zone management routes
+    Route::resource('zones', ZoneController::class)->except(['show']);
+    Route::patch('/zones/{zone}/toggle-status', [ZoneController::class, 'toggleStatus'])->name('zones.toggle-status');
 
     // Department management routes
     Route::resource('departments', DepartmentController::class);
@@ -126,6 +140,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Reports routes
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
+    Route::get('/reports/monthly-vehicle', [MonthlyVehicleReportController::class, 'index'])->name('reports.monthly-vehicle');
+    Route::get('/reports/monthly-vehicle/export', [MonthlyVehicleReportController::class, 'export'])->name('reports.monthly-vehicle.export');
+    Route::get('/reports/{report}', [AnalyticsReportController::class, 'show'])
+        ->whereIn('report', array_keys(AnalyticsReportController::REPORTS))->name('reports.analytics');
+    Route::get('/reports/{report}/export', [AnalyticsReportController::class, 'export'])
+        ->whereIn('report', array_keys(AnalyticsReportController::REPORTS))->name('reports.analytics.export');
 
     // Trip state routes
     Route::post('/trips/bulk-approve', [TripStateController::class, 'bulkApprove'])->name('trips.bulk-approve');
