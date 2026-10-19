@@ -1,5 +1,5 @@
 import { FormTextarea } from '@/base-components/base-form';
-import { MultiSelect } from '@/base-components/base-multi-select';
+import { SearchableMultiSelect } from '@/components/searchable-multi-select';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2, Info, MapPin, Minus, Plus, User, Users, X } from 'lucide-react';
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 
 /**
  * Sections shared by the trip create and edit pages (pages/trips/create.tsx,
@@ -293,26 +293,26 @@ export function TripDetailsCard({ data, setData, errors, vehicles, routes, depar
     );
 }
 
-/** Multi-select with the chosen items as removable chips */
+/** Searchable multi-select with the chosen items as removable chips */
 function ChipPicker({
     title,
+    name,
     icon,
     options,
     value,
     onChange,
     placeholder,
-    searchPlaceholder,
     emptyText,
     error,
     chipIcon,
 }: {
     title: string;
+    name: string;
     icon: ReactNode;
     options?: TripOption[];
     value: (string | number)[];
     onChange: (value: (string | number)[]) => void;
     placeholder: string;
-    searchPlaceholder: string;
     emptyText: string;
     error?: string;
     chipIcon?: ReactNode;
@@ -330,12 +330,14 @@ function ChipPicker({
                 </SectionTitle>
             </CardHeader>
             <CardContent className="space-y-2 px-4 pb-4">
-                <MultiSelect
+                <SearchableMultiSelect
+                    label={title}
+                    name={name}
+                    hideLabel
                     options={toOptions(options)}
                     value={value}
                     onChange={onChange}
                     placeholder={placeholder}
-                    searchPlaceholder={searchPlaceholder}
                 />
                 {value.length === 0 ? (
                     <div className="rounded-lg border-2 border-dashed py-4 text-center text-muted-foreground">
@@ -344,21 +346,23 @@ function ChipPicker({
                     </div>
                 ) : (
                     <div className="flex flex-wrap gap-1.5">
-                        {value.map((id) => (
-                            <div key={id} className="flex items-center gap-1 rounded-full border bg-muted/30 px-2 py-0.5 text-xs">
-                                {chipIcon}
-                                <span className="max-w-[140px] truncate font-medium">
-                                    {options?.find((o) => o.value.toString() === id.toString())?.label ?? id}
-                                </span>
-                                <button
-                                    type="button"
-                                    onClick={() => onChange(value.filter((v) => v.toString() !== id.toString()))}
-                                    className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </div>
-                        ))}
+                        {value.map((id) => {
+                            const label = options?.find((o) => o.value.toString() === id.toString())?.label ?? id;
+                            return (
+                                <div key={id} className="flex items-center gap-1 rounded-full border bg-muted/30 px-2 py-0.5 text-xs">
+                                    {chipIcon}
+                                    <span className="max-w-[140px] truncate font-medium">{label}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => onChange(value.filter((v) => v.toString() !== id.toString()))}
+                                        aria-label={`Remove ${label}`}
+                                        className="shrink-0 text-muted-foreground transition-colors hover:text-destructive"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
                 <FieldError message={error} />
@@ -367,24 +371,25 @@ function ChipPicker({
     );
 }
 
+/** Pick departments (searchable, several at once), then set each one's headcount */
 function HeadcountCard({
     departments,
     slots,
     onChange,
+    error,
 }: {
     departments: TripOption[];
     slots: DeptHeadcount[];
     onChange: (slots: DeptHeadcount[]) => void;
+    error?: string;
 }) {
-    const [input, setInput] = useState({ department_id: '', count: 1 });
     const total = slots.reduce((sum, d) => sum + d.count, 0);
 
-    const add = () => {
-        if (!input.department_id || input.count < 1) return;
-        if (slots.some((d) => d.department_id === input.department_id)) return;
-        onChange([...slots, { department_id: input.department_id, count: input.count }]);
-        setInput({ department_id: '', count: 1 });
-    };
+    // Keep counts already entered; new departments start at 1
+    const pick = (ids: string[]) => onChange(ids.map((id) => slots.find((s) => s.department_id === id) ?? { department_id: id, count: 1 }));
+
+    const setCount = (id: string, count: number) =>
+        onChange(slots.map((s) => (s.department_id === id ? { ...s, count: Math.min(999, Math.max(1, count)) } : s)));
 
     return (
         <Card>
@@ -399,78 +404,63 @@ function HeadcountCard({
                 </SectionTitle>
             </CardHeader>
             <CardContent className="space-y-2 px-4 pb-4">
-                <div className="space-y-2">
-                    <select
-                        id="headcount_department_id"
-                        name="headcount_department_id"
-                        aria-label="Department for headcount"
-                        value={input.department_id}
-                        onChange={(e) => setInput((prev) => ({ ...prev, department_id: e.target.value }))}
-                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
-                    >
-                        <option value="">Select department...</option>
-                        {departments?.map((d) => (
-                            <option key={d.value} value={d.value.toString()}>
-                                {d.label}
-                            </option>
-                        ))}
-                    </select>
-
-                    <div className="grid grid-cols-[1fr_auto] gap-2">
-                        <div className="flex h-9 items-center justify-between rounded-md border border-input bg-background px-1">
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setInput((prev) => ({ ...prev, count: Math.max(1, prev.count - 1) }))}
-                                className="h-7 w-7"
-                                aria-label="Decrease count"
-                            >
-                                <Minus className="h-3.5 w-3.5" />
-                            </Button>
-                            <span className="px-2 text-sm font-semibold text-foreground tabular-nums">{input.count}</span>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setInput((prev) => ({ ...prev, count: Math.min(999, prev.count + 1) }))}
-                                className="h-7 w-7"
-                                aria-label="Increase count"
-                            >
-                                <Plus className="h-3.5 w-3.5" />
-                            </Button>
-                        </div>
-
-                        <Button type="button" size="sm" variant="outline" onClick={add} disabled={!input.department_id} className="h-9 px-3">
-                            Add
-                        </Button>
-                    </div>
-                </div>
+                <SearchableMultiSelect
+                    label="Headcount by Department"
+                    name="department_slots"
+                    hideLabel
+                    options={toOptions(departments)}
+                    value={slots.map((s) => s.department_id)}
+                    onChange={pick}
+                    placeholder="Select departments..."
+                />
                 {slots.length === 0 ? (
                     <div className="rounded-lg border-2 border-dashed py-4 text-center text-muted-foreground">
                         <Users className="mx-auto mb-1.5 h-7 w-7 opacity-25" />
                         <p className="text-xs">No headcount added yet.</p>
                     </div>
                 ) : (
-                    <div className="flex flex-wrap gap-2">
-                        {slots.map((d) => (
-                            <div key={d.department_id} className="flex items-center gap-1.5 rounded-full border bg-muted/30 px-2.5 py-1">
-                                <Users className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-xs font-medium">
-                                    {departments?.find((dep) => dep.value.toString() === d.department_id)?.label ?? d.department_id}
-                                </span>
-                                <span className="text-xs text-muted-foreground">× {d.count}</span>
-                                <button
-                                    type="button"
-                                    onClick={() => onChange(slots.filter((s) => s.department_id !== d.department_id))}
-                                    className="text-muted-foreground transition-colors hover:text-destructive"
-                                >
-                                    <X className="h-3 w-3" />
-                                </button>
-                            </div>
-                        ))}
+                    <div className="space-y-1.5">
+                        {slots.map((d) => {
+                            const label = departments?.find((dep) => dep.value.toString() === d.department_id)?.label ?? d.department_id;
+                            return (
+                                <div key={d.department_id} className="flex items-center gap-2 rounded-md border bg-muted/30 py-1 pr-1 pl-2.5">
+                                    <Users className="h-3 w-3 shrink-0 text-muted-foreground" />
+                                    <span className="flex-1 truncate text-xs font-medium">{label}</span>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setCount(d.department_id, d.count - 1)}
+                                        className="h-6 w-6"
+                                        aria-label={`Fewer people from ${label}`}
+                                    >
+                                        <Minus className="h-3 w-3" />
+                                    </Button>
+                                    <span className="w-6 text-center text-xs font-semibold tabular-nums">{d.count}</span>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setCount(d.department_id, d.count + 1)}
+                                        className="h-6 w-6"
+                                        aria-label={`More people from ${label}`}
+                                    >
+                                        <Plus className="h-3 w-3" />
+                                    </Button>
+                                    <button
+                                        type="button"
+                                        onClick={() => onChange(slots.filter((s) => s.department_id !== d.department_id))}
+                                        aria-label={`Remove ${label}`}
+                                        className="px-1 text-muted-foreground transition-colors hover:text-destructive"
+                                    >
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
+                <FieldError message={error} />
             </CardContent>
         </Card>
     );
@@ -491,25 +481,30 @@ export function TripLinksRow({ data, setData, errors, factories, departments, lo
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <ChipPicker
                 title="Factories"
+                name="factory_ids"
                 icon={<Building2 className="h-3.5 w-3.5" />}
                 chipIcon={<Building2 className="h-3 w-3 shrink-0 text-muted-foreground" />}
                 options={factories}
                 value={data.factory_ids}
                 onChange={(ids) => setData('factory_ids', ids)}
                 placeholder="Select factories..."
-                searchPlaceholder="Search factory..."
                 emptyText="No factories selected."
                 error={errors.factory_ids}
             />
-            <HeadcountCard departments={departments} slots={data.department_slots} onChange={(slots) => setData('department_slots', slots)} />
+            <HeadcountCard
+                departments={departments}
+                slots={data.department_slots}
+                onChange={(slots) => setData('department_slots', slots)}
+                error={errors.department_slots}
+            />
             <ChipPicker
                 title="Logistics"
+                name="logistics_ids"
                 icon={<Building2 className="h-3.5 w-3.5" />}
                 options={logistics}
                 value={data.logistics_ids}
                 onChange={(ids) => setData('logistics_ids', ids)}
                 placeholder="Select logistics..."
-                searchPlaceholder="Search logistics..."
                 emptyText="No logistics selected."
                 error={errors.logistics_ids}
             />
