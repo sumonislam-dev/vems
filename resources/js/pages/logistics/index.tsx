@@ -1,5 +1,6 @@
 import { PageHeader } from '@/base-components/page-header';
 import { confirmAction, confirmDelete } from '@/components/confirm-dialog';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -222,29 +223,22 @@ export default function LogisticsIndex({ logistics, departments, filters, stats 
                                 placeholder="Search logistics..."
                                 value={searchTerm}
                                 onChange={(e) => handleSearch(e.target.value)}
-                                className="h-8 pl-8 text-sm"
+                                className="h-9 pl-8 text-sm"
                             />
                         </div>
-                        <Select
-                            value={filters.department_id || 'all'}
-                            onValueChange={(value) => handleFilterChange('department_id', value === 'all' ? '' : value)}
-                        >
-                            <SelectTrigger className="h-8 w-40 text-sm">
-                                <SelectValue placeholder="Department" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="all" className="text-sm">
-                                    All Departments
-                                </SelectItem>
-                                {departments.map((dept) => (
-                                    <SelectItem key={dept.id} value={dept.id.toString()} className="text-sm">
-                                        {dept.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="w-52">
+                            <SearchableSelect
+                                label="Department"
+                                name="filter_department_id"
+                                value={filters.department_id || ''}
+                                onChange={(value) => handleFilterChange('department_id', value === 'none' ? '' : value)}
+                                options={departments.map((dept) => ({ label: dept.name, value: dept.id.toString() }))}
+                                placeholder="All departments"
+                                hideLabel
+                            />
+                        </div>
                         <Select value={filters.status || 'all'} onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}>
-                            <SelectTrigger className="h-8 w-32 text-sm">
+                            <SelectTrigger className="h-9 w-32 text-sm">
                                 <SelectValue placeholder="Status" />
                             </SelectTrigger>
                             <SelectContent>
