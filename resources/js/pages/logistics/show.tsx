@@ -13,6 +13,7 @@ interface LogisticDetails {
     status: 'active' | 'inactive';
     department: { id: number; name: string; code: string | null } | null;
     creator: { id: number; name: string } | null;
+    zone: { id: number; name: string } | null;
     created_at: string;
     updated_at: string;
 }
@@ -70,6 +71,10 @@ export default function ShowLogistics({ logistic }: { logistic: LogisticDetails 
                                         ? `${logistic.department.name}${logistic.department.code ? ` (${logistic.department.code})` : ''}`
                                         : '—'}
                                 </p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-muted-foreground">Zone</p>
+                                <p className="text-lg">{logistic.zone?.name || '—'}</p>
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-muted-foreground">Created By</p>

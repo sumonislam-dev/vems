@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToZone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Spatie\Activitylog\LogOptions;
@@ -9,7 +10,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Logistics extends Model
 {
-    use LogsActivity;
+    use BelongsToZone, LogsActivity;
 
     public function getActivitylogOptions(): LogOptions
     {
@@ -27,6 +28,7 @@ class Logistics extends Model
         'description',
         'status',
         'created_by',
+        'zone_id',
     ];
 
     protected $casts = [

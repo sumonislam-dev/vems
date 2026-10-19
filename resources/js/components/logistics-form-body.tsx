@@ -11,6 +11,7 @@ export type LogisticsForm = {
     department_id: string;
     description: string;
     status: string;
+    zone_id: string;
 };
 
 const STATUS_OPTIONS = [
@@ -25,6 +26,7 @@ interface LogisticsFormBodyProps {
     processing: boolean;
     onSubmit: (e: React.FormEvent) => void;
     departments: { id: number; name: string }[];
+    zones: { id: number; name: string }[];
     description: string;
     submitLabel: string;
     processingLabel: string;
@@ -37,18 +39,37 @@ export function LogisticsFormBody({
     processing,
     onSubmit,
     departments,
+    zones,
     description,
     submitLabel,
     processingLabel,
 }: LogisticsFormBodyProps) {
     return (
         <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Truck className="h-5 w-5" />
-                    Logistics Information
-                </CardTitle>
-                <CardDescription>{description}</CardDescription>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1.5">
+                    <CardTitle className="flex items-center gap-2">
+                        <Truck className="h-5 w-5" />
+                        Logistics Information
+                    </CardTitle>
+                    <CardDescription>{description}</CardDescription>
+                </div>
+                {/* Zone sits in the title bar, as on the route and factory forms */}
+                <div className="flex items-center gap-2 sm:w-64">
+                    <span className="text-sm font-medium text-muted-foreground">Zone</span>
+                    <div className="flex-1">
+                        <SearchableSelect
+                            label="Zone"
+                            name="zone_id"
+                            value={data.zone_id}
+                            onChange={(value) => setData('zone_id', value === 'none' ? '' : value)}
+                            options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                            error={errors.zone_id}
+                            placeholder="Select zone..."
+                            hideLabel
+                        />
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
                 <BaseForm onSubmit={onSubmit}>

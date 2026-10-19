@@ -1,5 +1,7 @@
 <?php
 
+use App\Models\Department;
+use App\Models\Logistics;
 use App\Models\Stop;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -168,6 +170,7 @@ it('refuses to delete a zone that still has records assigned', function (Closure
     'a user' => [fn (Zone $zone) => zoneMgmtUser([], $zone)],
     'a vehicle' => [fn (Zone $zone) => zoneMgmtVehicle($zone)],
     'a stop' => [fn (Zone $zone) => Stop::create(['name' => 'Agrabad', 'latitude' => 22.3, 'longitude' => 91.8, 'zone_id' => $zone->id])],
+    'a logistics team' => [fn (Zone $zone) => Logistics::create(['name' => 'CTG Hub', 'department_id' => Department::create(['name' => 'Ops', 'code' => 'OPS'])->id, 'status' => true, 'zone_id' => $zone->id])],
 ]);
 
 it('still refuses to delete an in-use zone while the switcher shows another zone', function () {

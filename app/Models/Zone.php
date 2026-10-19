@@ -54,6 +54,11 @@ class Zone extends Model
         return $this->hasMany(Vendor::class);
     }
 
+    public function logistics(): HasMany
+    {
+        return $this->hasMany(Logistics::class);
+    }
+
     /**
      * The zone IDs $user's role/grants allow — null means unrestricted
      * (sees/can-grant every zone). An explicit multi-zone grant in

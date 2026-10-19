@@ -8,6 +8,8 @@ import { FormEventHandler } from 'react';
 
 interface CreateLogisticsProps {
     departments: { id: number; name: string }[];
+    zones: { id: number; name: string }[];
+    defaultZoneId: number | null;
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -16,12 +18,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create', href: '/logistics/create' },
 ];
 
-export default function CreateLogistics({ departments }: CreateLogisticsProps) {
+export default function CreateLogistics({ departments, zones, defaultZoneId }: CreateLogisticsProps) {
     const { data, setData, post, processing, errors } = useForm<LogisticsForm>({
         name: '',
         department_id: '',
         description: '',
         status: 'active',
+        zone_id: defaultZoneId?.toString() || '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -54,6 +57,7 @@ export default function CreateLogistics({ departments }: CreateLogisticsProps) {
                     processing={processing}
                     onSubmit={submit}
                     departments={departments}
+                    zones={zones}
                     description="Enter the logistics information below"
                     submitLabel="Create Logistics"
                     processingLabel="Creating..."

@@ -12,11 +12,13 @@ interface Logistic {
     department_id: number;
     description: string;
     status: string;
+    zone_id: number | null;
 }
 
 interface EditLogisticsProps {
     logistic: Logistic;
     departments: { id: number; name: string }[];
+    zones: { id: number; name: string }[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -25,12 +27,13 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Edit', href: '#' },
 ];
 
-export default function EditLogistics({ logistic, departments }: EditLogisticsProps) {
+export default function EditLogistics({ logistic, departments, zones }: EditLogisticsProps) {
     const { data, setData, put, processing, errors } = useForm<LogisticsForm>({
         name: logistic.name,
         department_id: logistic.department_id.toString(),
         description: logistic.description || '',
         status: logistic.status,
+        zone_id: logistic.zone_id?.toString() || '',
     });
 
     const submit: FormEventHandler = (e) => {
@@ -63,6 +66,7 @@ export default function EditLogistics({ logistic, departments }: EditLogisticsPr
                     processing={processing}
                     onSubmit={submit}
                     departments={departments}
+                    zones={zones}
                     description="Update the logistics information below"
                     submitLabel="Update Logistics"
                     processingLabel="Updating..."

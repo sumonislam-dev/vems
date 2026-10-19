@@ -24,6 +24,7 @@ interface Logistic {
     description: string | null;
     status: string;
     department: Department | null;
+    zone: { id: number; name: string } | null;
     creator: {
         id: number;
         name: string;
@@ -93,6 +94,11 @@ export default function LogisticsIndex({ logistics, departments, filters, stats 
             key: 'department',
             label: 'Department',
             render: (logistic: Logistic) => <div className="text-xs text-muted-foreground">{logistic.department?.name || '—'}</div>,
+        },
+        {
+            key: 'zone',
+            label: 'Zone',
+            render: (logistic: Logistic) => <div className="text-xs text-muted-foreground">{logistic.zone?.name || '—'}</div>,
         },
         {
             key: 'description',

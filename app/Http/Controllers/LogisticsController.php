@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Logistics;
+use App\Models\Zone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -28,14 +29,14 @@ class LogisticsController extends Controller implements HasMiddleware
      */
     public function index(Request $request): Response
     {
-        $query = Logistics::with(['department:id,name', 'creator:id,name']);
+        $query = Logistics::with(['department:id,name', 'creator:id,name', 'zone:id,name']);
 
         // Search
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', '%' . $search . '%')
-                    ->orWhere('description', 'like', '%' . $search . '%');
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('description', 'like', '%'.$search.'%');
             });
         }
 
@@ -51,7 +52,7 @@ class LogisticsController extends Controller implements HasMiddleware
 
         $logistics = $query->latest()
             ->paginate(15)
-            ->through(fn($logistic) => [
+            ->through(fn ($logistic) => [
                 'id' => $logistic->id,
                 'name' => $logistic->name,
                 'description' => $logistic->description,
@@ -64,6 +65,7 @@ class LogisticsController extends Controller implements HasMiddleware
                     'id' => $logistic->creator->id,
                     'name' => $logistic->creator->name,
                 ] : null,
+                'zone' => $logistic->zone ? ['id' => $logistic->zone->id, 'name' => $logistic->zone->name] : null,
                 'created_at' => $logistic->created_at->format('Y-m-d H:i'),
             ]);
 
@@ -72,8 +74,8 @@ class LogisticsController extends Controller implements HasMiddleware
             ->get(['id', 'name']);
 
         $logisticsStats = Logistics::selectRaw(
-            'COUNT(*) as total, ' .
-            'SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active, ' .
+            'COUNT(*) as total, '.
+            'SUM(CASE WHEN status = 1 THEN 1 ELSE 0 END) as active, '.
             'SUM(CASE WHEN status = 0 THEN 1 ELSE 0 END) as inactive'
         )->first();
 
@@ -100,6 +102,8 @@ class LogisticsController extends Controller implements HasMiddleware
 
         return Inertia::render('logistics/create', [
             'departments' => $departments,
+            'zones' => Zone::selectableBy(),
+            'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
 
@@ -113,6 +117,7 @@ class LogisticsController extends Controller implements HasMiddleware
             'department_id' => ['required', 'exists:departments,id'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
+            'zone_id' => Zone::validationRule(),
         ]);
 
         $validated['status'] = $validated['status'] === 'active';
@@ -120,6 +125,7 @@ class LogisticsController extends Controller implements HasMiddleware
 
         try {
             Logistics::create($validated);
+
             return redirect()->route('logistics.index')
                 ->with('success', 'Logistics created successfully.');
         } catch (\Exception $e) {
@@ -132,7 +138,7 @@ class LogisticsController extends Controller implements HasMiddleware
      */
     public function show(Logistics $logistic): Response
     {
-        $logistic->load(['department', 'creator']);
+        $logistic->load(['department', 'creator', 'zone']);
 
         return Inertia::render('logistics/show', [
             'logistic' => [
@@ -149,6 +155,7 @@ class LogisticsController extends Controller implements HasMiddleware
                     'id' => $logistic->creator->id,
                     'name' => $logistic->creator->name,
                 ] : null,
+                'zone' => $logistic->zone ? ['id' => $logistic->zone->id, 'name' => $logistic->zone->name] : null,
                 'created_at' => $logistic->created_at->format('Y-m-d H:i'),
                 'updated_at' => $logistic->updated_at->format('Y-m-d H:i'),
             ],
@@ -171,8 +178,10 @@ class LogisticsController extends Controller implements HasMiddleware
                 'department_id' => $logistic->department_id,
                 'description' => $logistic->description,
                 'status' => $logistic->status ? 'active' : 'inactive',
+                'zone_id' => $logistic->zone_id,
             ],
             'departments' => $departments,
+            'zones' => Zone::selectableBy(auth()->user(), $logistic->zone_id),
         ]);
     }
 
@@ -186,12 +195,14 @@ class LogisticsController extends Controller implements HasMiddleware
             'department_id' => ['required', 'exists:departments,id'],
             'description' => ['nullable', 'string'],
             'status' => ['required', 'in:active,inactive'],
+            'zone_id' => Zone::validationRule(),
         ]);
 
         $validated['status'] = $validated['status'] === 'active';
 
         try {
             $logistic->update($validated);
+
             return redirect()->route('logistics.index')
                 ->with('success', 'Logistics updated successfully.');
         } catch (\Exception $e) {
@@ -206,6 +217,7 @@ class LogisticsController extends Controller implements HasMiddleware
     {
         try {
             $logistic->delete();
+
             return redirect()->route('logistics.index')
                 ->with('success', 'Logistics deleted successfully.');
         } catch (\Exception $e) {
@@ -219,7 +231,7 @@ class LogisticsController extends Controller implements HasMiddleware
     public function toggleLock(Logistics $logistic): RedirectResponse
     {
         $logistic->update([
-            'status' => !$logistic->status,
+            'status' => ! $logistic->status,
         ]);
 
         $status = $logistic->status ? 'activated' : 'deactivated';

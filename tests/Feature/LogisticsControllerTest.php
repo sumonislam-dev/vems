@@ -108,14 +108,35 @@ it('filters the list by department and by status', function () {
         );
 });
 
-it('does not scope logistics by the viewer zone, since departments are not zoned', function () {
+it('scopes logistics to the viewer zone', function () {
     $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
-    $otherZoneCreator = logisticsTestUser([], ['zone_id' => Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true])->id]);
-    logisticsTestRecord($this->ops, ['name' => 'Created In CTG', 'created_by' => $otherZoneCreator->id]);
-    logisticsTestRecord($this->hr, ['name' => 'Unowned']);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    logisticsTestRecord($this->ops, ['name' => 'Dhaka Hub', 'zone_id' => $dhaka->id]);
+    logisticsTestRecord($this->hr, ['name' => 'Chattogram Hub', 'zone_id' => $ctg->id]);
 
     $this->actingAs(logisticsTestUser(['view-logistics'], ['zone_id' => $dhaka->id]))->get('/logistics')
-        ->assertInertia(fn ($page) => $page->has('logistics.data', 2));
+        ->assertInertia(fn ($page) => $page
+            ->has('logistics.data', 1)
+            ->where('logistics.data.0.name', 'Dhaka Hub')
+            ->where('logistics.data.0.zone.name', 'Dhaka'));
+});
+
+it('saves and changes the zone, offering only zones the user can pick', function () {
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $ctg = Zone::create(['name' => 'Chattogram', 'code' => 'CTG', 'is_active' => true]);
+    $user = logisticsTestUser(['create-logistics', 'edit-logistics'], ['zone_id' => $dhaka->id]);
+
+    $this->actingAs($user)->get('/logistics/create')
+        ->assertInertia(fn ($page) => $page->where('defaultZoneId', $dhaka->id)->has('zones', 1));
+
+    $this->actingAs($user)->post('/logistics', ['name' => 'Dhaka Hub', 'department_id' => $this->ops->id, 'status' => 'active', 'zone_id' => $dhaka->id])
+        ->assertSessionHasNoErrors();
+    $logistic = Logistics::where('name', 'Dhaka Hub')->sole();
+    expect($logistic->zone_id)->toBe($dhaka->id);
+
+    // A Dhaka-only user can't move it to a zone outside their access
+    $this->actingAs($user)->put("/logistics/{$logistic->id}", ['name' => 'Dhaka Hub', 'department_id' => $this->ops->id, 'status' => 'active', 'zone_id' => $ctg->id])
+        ->assertSessionHasErrors('zone_id');
 });
 
 it('shows a logistics record with its department code, creator and timestamps', function () {
