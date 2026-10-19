@@ -15,10 +15,10 @@ class VehicleObserver
     {
         if ($vehicle->driver_id) {
             VehicleDriverAssignment::create([
-                'vehicle_id'  => $vehicle->id,
-                'driver_id'   => $vehicle->driver_id,
-                'started_at'  => now(),
-                'is_current'  => true,
+                'vehicle_id' => $vehicle->id,
+                'driver_id' => $vehicle->driver_id,
+                'started_at' => now(),
+                'is_current' => true,
                 'assigned_by' => auth()->id(),
             ]);
         }
@@ -52,7 +52,7 @@ class VehicleObserver
 
             if ($prev) {
                 $prev->update([
-                    'ended_at'   => $now,
+                    'ended_at' => $now,
                     'is_current' => false,
                 ]);
             }
@@ -60,10 +60,10 @@ class VehicleObserver
             // Create new current assignment for the new driver
             if ($vehicle->driver_id) {
                 VehicleDriverAssignment::create([
-                    'vehicle_id'  => $vehicle->id,
-                    'driver_id'   => $vehicle->driver_id,
-                    'started_at'  => $now,
-                    'is_current'  => true,
+                    'vehicle_id' => $vehicle->id,
+                    'driver_id' => $vehicle->driver_id,
+                    'started_at' => $now,
+                    'is_current' => true,
                     'assigned_by' => auth()->id(),
                 ]);
             }

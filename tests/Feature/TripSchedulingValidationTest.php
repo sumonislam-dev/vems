@@ -5,14 +5,15 @@ use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedTripSchedulingPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'create-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'assign-vehicles', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeSchedulingUser(string $username): User

@@ -22,7 +22,7 @@ class UpdateDepartmentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $budget = $this->input('budget_allocation');
-        if (!is_array($budget)) {
+        if (! is_array($budget)) {
             $this->merge(['budget_allocation' => null]);
         }
     }

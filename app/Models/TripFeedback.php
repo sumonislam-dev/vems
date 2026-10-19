@@ -91,7 +91,7 @@ class TripFeedback extends Model
 
     public function transitionTo(string $newStatus, array $attributes = []): bool
     {
-        if (!$this->canTransitionTo($newStatus)) {
+        if (! $this->canTransitionTo($newStatus)) {
             return false;
         }
 

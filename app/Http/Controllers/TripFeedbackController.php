@@ -78,10 +78,10 @@ class TripFeedbackController extends Controller implements HasMiddleware
         $items = $query->paginate($request->get('per_page', 15))->withQueryString();
 
         $scopedStats = TripFeedback::visibleTo($user)->selectRaw(
-            'COUNT(*) as total, ' .
-            "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, " .
-            "SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review, " .
-            "SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved, " .
+            'COUNT(*) as total, '.
+            "SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) as open, ".
+            "SUM(CASE WHEN status = 'in_review' THEN 1 ELSE 0 END) as in_review, ".
+            "SUM(CASE WHEN status = 'resolved' THEN 1 ELSE 0 END) as resolved, ".
             "SUM(CASE WHEN status = 'closed' THEN 1 ELSE 0 END) as closed"
         )->first();
 
@@ -109,7 +109,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
 
         $tripsQuery = Trip::query()->select(['id', 'trip_number', 'scheduled_date', 'description']);
 
-        if (!$user->can('view-complaints')) {
+        if (! $user->can('view-complaints')) {
             $this->scopeTripsToUser($tripsQuery, $user);
         }
 
@@ -130,7 +130,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
         $validated = $request->validate([
             'trip_id' => 'required|exists:trips,id',
             'type' => 'required|in:feedback,complaint',
-            'category' => 'required|in:' . implode(',', array_keys(self::CATEGORIES)),
+            'category' => 'required|in:'.implode(',', array_keys(self::CATEGORIES)),
             'subject' => 'required|string|max:255',
             'description' => 'required|string',
             'driver_rating' => 'nullable|integer|min:1|max:5',
@@ -145,8 +145,8 @@ class TripFeedbackController extends Controller implements HasMiddleware
         // this user has anything to do with it — without this, anyone with
         // create-complaints could rate a driver/vehicle on a trip they never
         // requested, rode, or drove (ratings here feed User::average_rating).
-        if (!$user->can('view-complaints')
-            && !$this->scopeTripsToUser(Trip::where('id', $validated['trip_id']), $user)->exists()) {
+        if (! $user->can('view-complaints')
+            && ! $this->scopeTripsToUser(Trip::where('id', $validated['trip_id']), $user)->exists()) {
             throw ValidationException::withMessages([
                 'trip_id' => 'You can only submit feedback for a trip you requested, rode on, or drove.',
             ]);

@@ -5,11 +5,12 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedRolesAndPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
-    (new RolePermissionSeeder())->run();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+    (new RolePermissionSeeder)->run();
 }
 
 it('seeds exactly the seven roles', function () {
@@ -32,7 +33,7 @@ it('lets transport-manager run operations but not administer the system', functi
 });
 
 it('deletes permissions that are no longer listed', function () {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-live-tracking', 'guard_name' => 'web']);
 
     seedRolesAndPermissions();
@@ -73,7 +74,7 @@ it('scopes employee and driver down to their day-to-day permissions', function (
 });
 
 it('removes stale roles left over from a previous, larger role set', function () {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Role::firstOrCreate(['name' => 'fleet-supervisor', 'guard_name' => 'web']);
     Role::firstOrCreate(['name' => 'senior-driver', 'guard_name' => 'web']);
 
@@ -84,7 +85,7 @@ it('removes stale roles left over from a previous, larger role set', function ()
 });
 
 it('unassigns a user from a role that gets removed by reseeding, without error', function () {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Role::firstOrCreate(['name' => 'transport-officer', 'guard_name' => 'web']);
 
     $user = User::create([
