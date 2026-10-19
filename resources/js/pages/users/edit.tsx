@@ -394,7 +394,7 @@ export default function EditUser({
                                 {/* Identity Documents */}
                                 <div className="space-y-2">
                                     <h4 className="text-sm font-medium text-muted-foreground">Identity Documents</h4>
-                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:gap-6">
+                                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 md:gap-6">
                                         <FormField
                                             label="National ID Number"
                                             name="nid_number"

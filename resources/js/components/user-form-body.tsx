@@ -280,7 +280,7 @@ export function UserFormBody({
                     </CardHeader>
 
                     <CardContent className="space-y-4 px-4 sm:px-6">
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
                             <FormSelect
                                 label="Vendor"
                                 name="vendor_id"
@@ -292,6 +292,15 @@ export function UserFormBody({
                                 required={showDriverFields}
                             />
 
+                            <FormSelect
+                                label="Driver Status"
+                                name="driver_status"
+                                value={data.driver_status}
+                                onChange={(value) => handleFieldChange('driver_status', value)}
+                                error={getFieldError('driver_status')}
+                                options={driverStatusOptions}
+                            />
+
                             <FormField
                                 label="Driving License Number"
                                 name="driving_license_no"
@@ -300,16 +309,6 @@ export function UserFormBody({
                                 error={getFieldError('driving_license_no')}
                                 placeholder="Enter license number"
                                 required={showDriverFields}
-                            />
-
-                            <FormFileUpload
-                                label="License Scan"
-                                name="driving_license_file"
-                                value={data.driving_license_file}
-                                onChange={(file) => handleFieldChange('driving_license_file', file)}
-                                error={getFieldError('driving_license_file')}
-                                accept="image/*,.pdf"
-                                maxSize={2 * 1024 * 1024}
                             />
 
                             <FormSelect
@@ -324,7 +323,7 @@ export function UserFormBody({
                             />
                         </div>
 
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
                             <FormDatePicker
                                 label="License Issue Date"
                                 name="license_issue_date"
@@ -342,14 +341,17 @@ export function UserFormBody({
                                 required={showDriverFields}
                             />
 
-                            <FormSelect
-                                label="Driver Status"
-                                name="driver_status"
-                                value={data.driver_status}
-                                onChange={(value) => handleFieldChange('driver_status', value)}
-                                error={getFieldError('driver_status')}
-                                options={driverStatusOptions}
-                            />
+                            <div className="sm:col-span-2">
+                                <FormFileUpload
+                                    label="License Scan"
+                                    name="driving_license_file"
+                                    value={data.driving_license_file}
+                                    onChange={(file) => handleFieldChange('driving_license_file', file)}
+                                    error={getFieldError('driving_license_file')}
+                                    accept="image/*,.pdf"
+                                    maxSize={2 * 1024 * 1024}
+                                />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -399,7 +401,7 @@ export function UserFormBody({
                     {/* Identity Documents */}
                     <div className="space-y-2">
                         <h4 className="text-sm font-medium text-muted-foreground">Identity Documents</h4>
-                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:gap-5">
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 md:grid-cols-3 lg:gap-5">
                             <FormField
                                 label="National ID Number"
                                 name="nid_number"
@@ -551,7 +553,6 @@ export function UserFormBody({
                             error={getFieldError('image')}
                             accept="image/*"
                             maxSize={2 * 1024 * 1024}
-                            compact
                         />
 
                         <FormFileUpload
@@ -561,7 +562,6 @@ export function UserFormBody({
                             error={getFieldError('photo')}
                             accept="image/*"
                             maxSize={2 * 1024 * 1024}
-                            compact
                         />
                     </div>
 

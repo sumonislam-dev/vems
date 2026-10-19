@@ -217,8 +217,10 @@ export function FormSelect({
                 {required && <span className="ml-1 text-destructive">*</span>}
             </Label>
 
+            {/* An empty value only maps to 'none' when the list offers a blank
+                option; otherwise '' lets the trigger show the placeholder */}
             <Select
-                value={value.toString() || 'none'}
+                value={value.toString() || (options.some((option) => option.value.toString() === '') ? 'none' : '')}
                 onValueChange={(selectedValue) => onChange(selectedValue === 'none' ? '' : selectedValue)}
                 disabled={disabled}
                 required={required}
@@ -686,7 +688,7 @@ export function FormFileUpload({
     description,
     maxSize,
     className,
-    compact = false,
+    compact = true,
 }: FormFileUploadProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [dragActive, setDragActive] = React.useState(false);

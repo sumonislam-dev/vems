@@ -196,7 +196,6 @@ export function VehicleFormBody({
                 error={errors[field]}
                 accept="image/*,.pdf"
                 maxSize={2 * 1024 * 1024}
-                compact
             />
             {vehicle?.[field] && (
                 <a
