@@ -1,11 +1,11 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
@@ -16,11 +16,11 @@ import { AlertTriangle, CheckCircle, Edit, Eye, Plus, Trash2, UserCog, XCircle }
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 
 type AssignableDriver = {
-    id: number
-    name: string
-    email?: string
-    official_phone?: string
-}
+    id: number;
+    name: string;
+    email?: string;
+    official_phone?: string;
+};
 
 interface PaginatedVehicles {
     data: Vehicle[];
@@ -161,17 +161,13 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'brand',
             label: 'Brand',
             sortable: true,
-            render: (value) => (
-                <span className="font-medium">{value}</span>
-            ),
+            render: (value) => <span className="font-medium">{value}</span>,
         },
         {
             key: 'model',
             label: 'Model',
             sortable: true,
-            render: (value) => (
-                <span className="text-muted-foreground">{value}</span>
-            ),
+            render: (value) => <span className="text-muted-foreground">{value}</span>,
         },
         {
             key: 'vehicle_type',
@@ -201,7 +197,10 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                 <div className="flex flex-col items-start gap-1">
                     <span className="font-mono text-sm">{value}</span>
                     {row.is_placeholder && (
-                        <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                        <Badge
+                            variant="outline"
+                            className="border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                        >
                             Details pending
                         </Badge>
                     )}
@@ -214,34 +213,21 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             sortable: true,
             render: (value) => {
                 // Handle both the vendor object and the legacy vendor string
-                const vendorName = typeof value === 'object' && value !== null && 'name' in value
-                    ? value.name
-                    : (typeof value === 'string' ? value : null);
+                const vendorName =
+                    typeof value === 'object' && value !== null && 'name' in value ? value.name : typeof value === 'string' ? value : null;
 
-                return (
-                    <span className="text-muted-foreground">
-                        {vendorName || 'N/A'}
-                    </span>
-                );
+                return <span className="text-muted-foreground">{vendorName || 'N/A'}</span>;
             },
         },
         {
             key: 'zone',
             label: 'Zone',
-            render: (_, vehicle) => (
-                <span className="text-muted-foreground">
-                    {vehicle.zone?.name || 'N/A'}
-                </span>
-            ),
+            render: (_, vehicle) => <span className="text-muted-foreground">{vehicle.zone?.name || 'N/A'}</span>,
         },
         {
             key: 'default_route',
             label: 'Pick & Drop Route',
-            render: (_, vehicle) => (
-                <span className="text-muted-foreground">
-                    {vehicle.default_route?.name || '-'}
-                </span>
-            ),
+            render: (_, vehicle) => <span className="text-muted-foreground">{vehicle.default_route?.name || '-'}</span>,
         },
         {
             key: 'driver',
@@ -251,17 +237,13 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                 const driver = vehicle.driver;
 
                 if (!driver) {
-                    return (
-                        <span className="text-muted-foreground">N/A</span>
-                    );
+                    return <span className="text-muted-foreground">N/A</span>;
                 }
 
                 return (
                     <div className="flex flex-col">
-                        <span className="font-medium text-sm">{driver.name}</span>
-                        <span className="text-xs text-muted-foreground">
-                            {driver.official_phone || driver.email}
-                        </span>
+                        <span className="text-sm font-medium">{driver.name}</span>
+                        <span className="text-xs text-muted-foreground">{driver.official_phone || driver.email}</span>
                     </div>
                 );
             },
@@ -270,11 +252,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             key: 'is_active',
             label: 'Status',
             sortable: true,
-            render: (value) => (
-                <Badge variant={value ? 'default' : 'secondary'}>
-                    {value ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
+            render: (value) => <Badge variant={value ? 'default' : 'secondary'}>{value ? 'Active' : 'Inactive'}</Badge>,
         },
         {
             key: 'status' as keyof Vehicle,
@@ -515,12 +493,12 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                         {
                             label: 'Sort by Name',
                             variant: 'outline',
-                            onClick: () => handleSort('brand')
+                            onClick: () => handleSort('brand'),
                         },
                         {
                             label: 'Sort by ID',
                             variant: 'outline',
-                            onClick: () => handleSort('id')
+                            onClick: () => handleSort('id'),
                         },
                         {
                             label: 'Add Vehicle',
@@ -565,12 +543,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Activate Selected
                             </Button>
-                            <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => submitBulkStatus(false)}
-                                disabled={bulkStatusProcessing}
-                            >
+                            <Button size="sm" variant="destructive" onClick={() => submitBulkStatus(false)} disabled={bulkStatusProcessing}>
                                 <XCircle className="mr-2 h-4 w-4" />
                                 Deactivate Selected
                             </Button>
@@ -610,10 +583,7 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
                     <form className="space-y-4" onSubmit={submitAssignDriver}>
                         <div className="space-y-2">
                             <Label htmlFor="assign_driver_id">Driver</Label>
-                            <Select
-                                value={assignDriverData.driver_id}
-                                onValueChange={(value) => setAssignDriverData('driver_id', value)}
-                            >
+                            <Select value={assignDriverData.driver_id} onValueChange={(value) => setAssignDriverData('driver_id', value)}>
                                 <SelectTrigger id="assign_driver_id" className="w-full">
                                     <SelectValue placeholder="Select a driver" />
                                 </SelectTrigger>

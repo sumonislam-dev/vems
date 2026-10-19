@@ -1,20 +1,20 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
-import { useCan } from '@/lib/permissions';
-import { formatDate } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import InputError from '@/components/input-error';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
+import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Edit, Eye, Plus, Trash2, User, Mail, Car, CheckCircle } from 'lucide-react';
+import { AlertTriangle, Car, CheckCircle, Edit, Eye, Mail, Plus, Trash2, User } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 type AssignableVehicle = {
@@ -95,12 +95,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Drivers', href: '/drivers' },
 ];
 
-export default function DriversIndex({
-    users,
-    filterOptions = {},
-    stats = {},
-    queryParams = {}
-}: UsersPageProps) {
+export default function DriversIndex({ users, filterOptions = {}, stats = {}, queryParams = {} }: UsersPageProps) {
     const can = useCan();
     const canAssignVehicles = can('assign-vehicles');
     const canEditDrivers = can('edit-drivers');
@@ -151,21 +146,24 @@ export default function DriversIndex({
         confirm_reassign: false,
     });
 
-    const openAssignVehicleDialog = useCallback(async (driver: User) => {
-        setAssignVehicleData({ driver_id: String(driver.id), vehicle_id: '', confirm_reassign: false });
-        clearAssignVehicleErrors();
-        setAssignVehicleDriver(driver);
+    const openAssignVehicleDialog = useCallback(
+        async (driver: User) => {
+            setAssignVehicleData({ driver_id: String(driver.id), vehicle_id: '', confirm_reassign: false });
+            clearAssignVehicleErrors();
+            setAssignVehicleDriver(driver);
 
-        setLoadingVehicles(true);
-        try {
-            const response = await axios.get<AssignableVehicle[]>(route('drivers.assignable-vehicles', driver.id));
-            setAssignableVehicles(response.data);
-        } catch {
-            // Non-critical: the select will just show no options if this fails.
-        } finally {
-            setLoadingVehicles(false);
-        }
-    }, [setAssignVehicleData, clearAssignVehicleErrors]);
+            setLoadingVehicles(true);
+            try {
+                const response = await axios.get<AssignableVehicle[]>(route('drivers.assignable-vehicles', driver.id));
+                setAssignableVehicles(response.data);
+            } catch {
+                // Non-critical: the select will just show no options if this fails.
+            } finally {
+                setLoadingVehicles(false);
+            }
+        },
+        [setAssignVehicleData, clearAssignVehicleErrors],
+    );
 
     const closeAssignVehicleDialog = () => {
         setAssignVehicleDriver(null);
@@ -188,314 +186,304 @@ export default function DriversIndex({
     };
 
     // Define table columns
-    const columns: DataTableColumn<User>[] = useMemo(() => [
-        {
-            key: 'name',
-            label: 'User',
-            sortable: true,
-            render: (value, user) => (
-                <div className="flex items-center gap-3">
-                    <div className="flex-shrink-0 h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-gray-600" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                        <div className="font-medium text-sm text-gray-900">
-                            {value}
+    const columns: DataTableColumn<User>[] = useMemo(
+        () => [
+            {
+                key: 'name',
+                label: 'User',
+                sortable: true,
+                render: (value, user) => (
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100">
+                            <User className="h-4 w-4 text-gray-600" />
                         </div>
-                        <div className="flex items-center gap-1 text-xs text-gray-500">
-                            <Mail className="h-3 w-3" />
-                            {user.email}
-                        </div>
-                        <div className="text-xs text-gray-400">
-                            @{user.username}
+                        <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-gray-900">{value}</div>
+                            <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Mail className="h-3 w-3" />
+                                {user.email}
+                            </div>
+                            <div className="text-xs text-gray-400">@{user.username}</div>
                         </div>
                     </div>
-                </div>
-            ),
-        },
-        {
-            key: 'zone',
-            label: 'Zone',
-            filterable: true,
-            render: (value, row) => {
-                const zoneNames = row.access_zones?.length ? row.access_zones.map((z) => z.name).join(', ') : value?.name;
-                return <span className="text-sm">{zoneNames || 'No Zone'}</span>;
+                ),
             },
-        },
-        {
-            key: 'area',
-            label: 'Area',
-            sortable: true,
-            render: (value) => (
-                <span className="text-sm text-muted-foreground">
-                    {value || '-'}
-                </span>
-            ),
-        },
-        {
-            key: 'status',
-            label: 'Status',
-            sortable: true,
-            filterable: true,
-            render: (value) => {
-                const variants = {
-                    active: 'default',
-                    inactive: 'secondary',
-                    suspended: 'destructive',
-                } as const;
+            {
+                key: 'zone',
+                label: 'Zone',
+                filterable: true,
+                render: (value, row) => {
+                    const zoneNames = row.access_zones?.length ? row.access_zones.map((z) => z.name).join(', ') : value?.name;
+                    return <span className="text-sm">{zoneNames || 'No Zone'}</span>;
+                },
+            },
+            {
+                key: 'area',
+                label: 'Area',
+                sortable: true,
+                render: (value) => <span className="text-sm text-muted-foreground">{value || '-'}</span>,
+            },
+            {
+                key: 'status',
+                label: 'Status',
+                sortable: true,
+                filterable: true,
+                render: (value) => {
+                    const variants = {
+                        active: 'default',
+                        inactive: 'secondary',
+                        suspended: 'destructive',
+                    } as const;
 
-                return (
-                    <Badge variant={variants[value as keyof typeof variants]}>
-                        {value}
-                    </Badge>
-                );
+                    return <Badge variant={variants[value as keyof typeof variants]}>{value}</Badge>;
+                },
             },
-        },
-        {
-            key: 'vehicle',
-            label: 'Vehicle',
-            sortable: false,
-            render: (value) =>
-                value ? (
-                    <div className="flex flex-col gap-1">
-                        <span className="flex items-center gap-1 font-mono text-sm font-medium">
-                            <Car className="h-3 w-3 text-muted-foreground" />
-                            {value.registration_number}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                            {value.brand} {value.model}
-                        </span>
-                        {value.vehicle_type && (
-                            <Badge variant="secondary" className="w-fit text-xs capitalize">
-                                {value.vehicle_type.replace('_', ' ')}
+            {
+                key: 'vehicle',
+                label: 'Vehicle',
+                sortable: false,
+                render: (value) =>
+                    value ? (
+                        <div className="flex flex-col gap-1">
+                            <span className="flex items-center gap-1 font-mono text-sm font-medium">
+                                <Car className="h-3 w-3 text-muted-foreground" />
+                                {value.registration_number}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                                {value.brand} {value.model}
+                            </span>
+                            {value.vehicle_type && (
+                                <Badge variant="secondary" className="w-fit text-xs capitalize">
+                                    {value.vehicle_type.replace('_', ' ')}
+                                </Badge>
+                            )}
+                        </div>
+                    ) : (
+                        <span className="text-sm text-muted-foreground">Unassigned</span>
+                    ),
+            },
+            {
+                key: 'vendor',
+                label: 'Vendor',
+                sortable: false,
+                filterable: true,
+                render: (value) =>
+                    value ? (
+                        <div className="flex flex-col">
+                            <span className="text-sm font-medium">{value.name}</span>
+                            <Badge variant={value.status === 'active' ? 'default' : 'secondary'} className="w-fit text-xs">
+                                {value.status}
                             </Badge>
+                        </div>
+                    ) : (
+                        <span className="text-sm text-muted-foreground">In-house</span>
+                    ),
+            },
+            {
+                key: 'license_status' as keyof User,
+                label: 'License',
+                sortable: false,
+                render: (_, row) => {
+                    if (!row.driving_license_no) {
+                        return <span className="text-sm text-muted-foreground">-</span>;
+                    }
+
+                    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+                        valid: 'default',
+                        expiring_soon: 'outline',
+                        expired: 'destructive',
+                        not_provided: 'secondary',
+                    };
+
+                    const labels: Record<string, string> = {
+                        valid: 'Valid',
+                        expiring_soon: 'Expiring Soon',
+                        expired: 'Expired',
+                        not_provided: 'No Expiry Set',
+                    };
+
+                    return (
+                        <div className="flex flex-col gap-1">
+                            <span className="font-mono text-xs">{row.driving_license_no}</span>
+                            <Badge variant={variants[row.license_status]} className="w-fit gap-1 text-xs">
+                                {row.license_status !== 'valid' && <AlertTriangle className="h-3 w-3" />}
+                                {labels[row.license_status]}
+                            </Badge>
+                        </div>
+                    );
+                },
+            },
+            {
+                key: 'blood_group',
+                label: 'Blood Group',
+                sortable: true,
+                filterable: true,
+                render: (value) => <span className="rounded bg-red-50 px-2 py-1 font-mono text-sm text-red-700">{value || 'N/A'}</span>,
+            },
+            {
+                key: 'created_at',
+                label: 'Joined',
+                sortable: true,
+                render: (value) => formatDate(value as string),
+                className: 'text-muted-foreground',
+            },
+            {
+                key: 'actions' as keyof User,
+                label: 'Actions',
+                render: (_, row) => (
+                    <div className="flex items-center space-x-1">
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.visit(route('drivers.show', row.id));
+                            }}
+                            title="View driver"
+                            className="cursor-pointer transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600"
+                        >
+                            <Eye className="h-4 w-4" />
+                        </Button>
+                        {canEditDrivers && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    router.visit(route('drivers.edit', row.id));
+                                }}
+                                title="Edit driver"
+                                className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
+                            >
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                        )}
+                        {canAssignVehicles && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    openAssignVehicleDialog(row);
+                                }}
+                                title="Assign vehicle"
+                                className="cursor-pointer transition-all hover:scale-110 hover:bg-emerald-50 hover:text-emerald-600"
+                            >
+                                <Car className="h-4 w-4" />
+                            </Button>
+                        )}
+                        {canDeleteDrivers && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if (await confirmDelete(`Are you sure you want to delete ${row.name}?`)) {
+                                        router.delete(route('drivers.destroy', row.id), {
+                                            preserveScroll: true,
+                                        });
+                                    }
+                                }}
+                                title="Delete driver"
+                                className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
+                            >
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
                         )}
                     </div>
-                ) : (
-                    <span className="text-sm text-muted-foreground">Unassigned</span>
                 ),
-        },
-        {
-            key: 'vendor',
-            label: 'Vendor',
-            sortable: false,
-            filterable: true,
-            render: (value) =>
-                value ? (
-                    <div className="flex flex-col">
-                        <span className="text-sm font-medium">{value.name}</span>
-                        <Badge variant={value.status === 'active' ? 'default' : 'secondary'} className="w-fit text-xs">
-                            {value.status}
-                        </Badge>
-                    </div>
-                ) : (
-                    <span className="text-sm text-muted-foreground">In-house</span>
-                ),
-        },
-        {
-            key: 'license_status' as keyof User,
-            label: 'License',
-            sortable: false,
-            render: (_, row) => {
-                if (!row.driving_license_no) {
-                    return <span className="text-sm text-muted-foreground">-</span>;
-                }
-
-                const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-                    valid: 'default',
-                    expiring_soon: 'outline',
-                    expired: 'destructive',
-                    not_provided: 'secondary',
-                };
-
-                const labels: Record<string, string> = {
-                    valid: 'Valid',
-                    expiring_soon: 'Expiring Soon',
-                    expired: 'Expired',
-                    not_provided: 'No Expiry Set',
-                };
-
-                return (
-                    <div className="flex flex-col gap-1">
-                        <span className="font-mono text-xs">{row.driving_license_no}</span>
-                        <Badge variant={variants[row.license_status]} className="w-fit text-xs gap-1">
-                            {row.license_status !== 'valid' && <AlertTriangle className="h-3 w-3" />}
-                            {labels[row.license_status]}
-                        </Badge>
-                    </div>
-                );
             },
-        },
-        {
-            key: 'blood_group',
-            label: 'Blood Group',
-            sortable: true,
-            filterable: true,
-            render: (value) => (
-                <span className="font-mono text-sm bg-red-50 text-red-700 px-2 py-1 rounded">
-                    {value || 'N/A'}
-                </span>
-            ),
-        },
-        {
-            key: 'created_at',
-            label: 'Joined',
-            sortable: true,
-            render: (value) => formatDate(value as string),
-            className: 'text-muted-foreground',
-        },
-        {
-            key: 'actions' as keyof User,
-            label: 'Actions',
-            render: (_, row) => (
-                <div className="flex items-center space-x-1">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.visit(route('drivers.show', row.id));
-                        }}
-                        title="View driver"
-                        className="cursor-pointer transition-all hover:scale-110 hover:bg-blue-50 hover:text-blue-600"
-                    >
-                        <Eye className="h-4 w-4" />
-                    </Button>
-                    {canEditDrivers && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                router.visit(route('drivers.edit', row.id));
-                            }}
-                            title="Edit driver"
-                            className="cursor-pointer transition-all hover:scale-110 hover:bg-indigo-50 hover:text-indigo-600"
-                        >
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                    )}
-                    {canAssignVehicles && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                openAssignVehicleDialog(row);
-                            }}
-                            title="Assign vehicle"
-                            className="cursor-pointer transition-all hover:scale-110 hover:bg-emerald-50 hover:text-emerald-600"
-                        >
-                            <Car className="h-4 w-4" />
-                        </Button>
-                    )}
-                    {canDeleteDrivers && (
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={async (e) => {
-                                e.stopPropagation();
-                                if (await confirmDelete(`Are you sure you want to delete ${row.name}?`)) {
-                                    router.delete(route('drivers.destroy', row.id), {
-                                        preserveScroll: true,
-                                    });
-                                }
-                            }}
-                            title="Delete driver"
-                            className="cursor-pointer transition-all hover:scale-110 hover:bg-red-50 hover:text-red-600"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
-            ),
-        },
-    ], [canAssignVehicles, canEditDrivers, canDeleteDrivers, openAssignVehicleDialog]);
+        ],
+        [canAssignVehicles, canEditDrivers, canDeleteDrivers, openAssignVehicleDialog],
+    );
 
     // Define filters
-    const filters: ColumnFilter[] = useMemo(() => [
-        {
-            key: 'user_type',
-            label: 'User Type',
-            type: 'multiselect',
-            options: (filterOptions.user_types || []).map((type) => ({
-                label: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
-                value: type,
-            })),
-        },
-        {
-            key: 'driver_status',
-            label: 'Driver Status',
-            type: 'multiselect',
-            options: (filterOptions.driver_statuses || []).map((status) => ({
-                label: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '),
-                value: status,
-            })),
-        },
-        {
-            key: 'status',
-            label: 'Status',
-            type: 'multiselect',
-            options: (filterOptions.statuses || []).map((status) => ({
-                label: status.charAt(0).toUpperCase() + status.slice(1),
-                value: status,
-            })),
-        },
-        {
-            key: 'department_id',
-            label: 'Department',
-            type: 'multiselect',
-            options: (filterOptions.departments || []).map((dept) => ({
-                label: dept.name,
-                value: dept.id.toString(),
-            })),
-        },
-        {
-            key: 'zone_id',
-            label: 'Zone',
-            type: 'multiselect',
-            options: (filterOptions.zones || []).map((zone) => ({
-                label: zone.name,
-                value: zone.id.toString(),
-            })),
-        },
-        {
-            key: 'roles',
-            label: 'Roles',
-            type: 'multiselect',
-            options: (filterOptions.roles || []).map((role) => ({
-                label: role.charAt(0).toUpperCase() + role.slice(1),
-                value: role,
-            })),
-        },
-        {
-            key: 'blood_group',
-            label: 'Blood Group',
-            type: 'multiselect',
-            options: (filterOptions.blood_groups || []).map((group) => ({
-                label: group,
-                value: group,
-            })),
-        },
-        {
-            key: 'vendor_id',
-            label: 'Vendor',
-            type: 'multiselect',
-            options: (filterOptions.vendors || []).map((vendor) => ({
-                label: vendor.name,
-                value: vendor.id.toString(),
-            })),
-        },
-    ], [
-        filterOptions.user_types,
-        filterOptions.driver_statuses,
-        filterOptions.statuses,
-        filterOptions.departments,
-        filterOptions.zones,
-        filterOptions.roles,
-        filterOptions.blood_groups,
-        filterOptions.vendors,
-    ]);
+    const filters: ColumnFilter[] = useMemo(
+        () => [
+            {
+                key: 'user_type',
+                label: 'User Type',
+                type: 'multiselect',
+                options: (filterOptions.user_types || []).map((type) => ({
+                    label: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
+                    value: type,
+                })),
+            },
+            {
+                key: 'driver_status',
+                label: 'Driver Status',
+                type: 'multiselect',
+                options: (filterOptions.driver_statuses || []).map((status) => ({
+                    label: status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' '),
+                    value: status,
+                })),
+            },
+            {
+                key: 'status',
+                label: 'Status',
+                type: 'multiselect',
+                options: (filterOptions.statuses || []).map((status) => ({
+                    label: status.charAt(0).toUpperCase() + status.slice(1),
+                    value: status,
+                })),
+            },
+            {
+                key: 'department_id',
+                label: 'Department',
+                type: 'multiselect',
+                options: (filterOptions.departments || []).map((dept) => ({
+                    label: dept.name,
+                    value: dept.id.toString(),
+                })),
+            },
+            {
+                key: 'zone_id',
+                label: 'Zone',
+                type: 'multiselect',
+                options: (filterOptions.zones || []).map((zone) => ({
+                    label: zone.name,
+                    value: zone.id.toString(),
+                })),
+            },
+            {
+                key: 'roles',
+                label: 'Roles',
+                type: 'multiselect',
+                options: (filterOptions.roles || []).map((role) => ({
+                    label: role.charAt(0).toUpperCase() + role.slice(1),
+                    value: role,
+                })),
+            },
+            {
+                key: 'blood_group',
+                label: 'Blood Group',
+                type: 'multiselect',
+                options: (filterOptions.blood_groups || []).map((group) => ({
+                    label: group,
+                    value: group,
+                })),
+            },
+            {
+                key: 'vendor_id',
+                label: 'Vendor',
+                type: 'multiselect',
+                options: (filterOptions.vendors || []).map((vendor) => ({
+                    label: vendor.name,
+                    value: vendor.id.toString(),
+                })),
+            },
+        ],
+        [
+            filterOptions.user_types,
+            filterOptions.driver_statuses,
+            filterOptions.statuses,
+            filterOptions.departments,
+            filterOptions.zones,
+            filterOptions.roles,
+            filterOptions.blood_groups,
+            filterOptions.vendors,
+        ],
+    );
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
@@ -567,7 +555,7 @@ export default function DriversIndex({
                         showSerialColumn
                     />
                 ) : (
-                    <div className="text-center py-8">Loading drivers...</div>
+                    <div className="py-8 text-center">Loading drivers...</div>
                 )}
             </div>
 
@@ -616,10 +604,7 @@ export default function DriversIndex({
                     <form className="space-y-4" onSubmit={submitAssignVehicle}>
                         <div className="space-y-2">
                             <Label htmlFor="assign_vehicle_id">Vehicle</Label>
-                            <Select
-                                value={assignVehicleData.vehicle_id}
-                                onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}
-                            >
+                            <Select value={assignVehicleData.vehicle_id} onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}>
                                 <SelectTrigger id="assign_vehicle_id" className="w-full">
                                     <SelectValue placeholder={loadingVehicles ? 'Loading vehicles...' : 'Select a vehicle'} />
                                 </SelectTrigger>

@@ -1,27 +1,11 @@
-import {
-    Activity,
-    AlertTriangle,
-    Calendar,
-    CheckCircle,
-    Clock,
-    Truck,
-    UserCheck,
-    Users,
-    MessageSquare,
-} from 'lucide-react';
-import { DashboardModuleCards } from '@/components/dashboard-module-cards';
-import { DashboardCharts } from '@/components/dashboard-charts';
 import { AttendanceStatusCard } from '@/components/attendance-status-card';
+import { DashboardCharts } from '@/components/dashboard-charts';
+import { DashboardModuleCards } from '@/components/dashboard-module-cards';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
-import {
-    Cell,
-    PieChart,
-    Pie,
-    ResponsiveContainer,
-    Tooltip,
-} from 'recharts';
+import { Activity, AlertTriangle, Calendar, CheckCircle, Clock, MessageSquare, Truck, UserCheck, Users } from 'lucide-react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 
 export interface ManagementDashboardProps {
     attendanceStatus: AttendanceStatusSummary | null;
@@ -173,7 +157,7 @@ export function ManagementDashboard({
     const getIconComponent = (iconName: string) => {
         const icons: Record<string, React.ComponentType<{ className?: string }>> = {
             'check-circle': CheckCircle,
-            'truck': Truck,
+            truck: Truck,
             'alert-triangle': AlertTriangle,
             'calendar-check': Calendar,
             'user-plus': UserCheck,
@@ -183,25 +167,34 @@ export function ManagementDashboard({
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'scheduled': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
-            case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
-            case 'pending_approval': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
-            case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-            default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+            case 'scheduled':
+                return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
+            case 'in_progress':
+                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
+            case 'pending_approval':
+                return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
+            case 'completed':
+                return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+            default:
+                return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
         }
     };
 
     const getPriorityColor = (priority: string) => {
         switch (priority) {
-            case 'high': return 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300';
-            case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
-            case 'low': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-            default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+            case 'high':
+                return 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-300';
+            case 'medium':
+                return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
+            case 'low':
+                return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+            default:
+                return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
         }
     };
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-6">
             {/* Attendance status — single always-visible widget, see docs/ATTENDANCE_SYSTEM_PLAN.md §11.1 */}
             {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} factories={factories} />}
 
@@ -211,8 +204,8 @@ export function ManagementDashboard({
                     <h1 className="text-3xl font-bold text-foreground">Status At A Glance</h1>
                 </div>
                 <div className="flex items-center space-x-4">
-                    <Badge variant="outline" className="text-green-600 border-green-600">
-                        <Activity className="w-4 h-4 mr-1" />
+                    <Badge variant="outline" className="border-green-600 text-green-600">
+                        <Activity className="mr-1 h-4 w-4" />
                         System Active
                     </Badge>
                 </div>
@@ -225,12 +218,12 @@ export function ManagementDashboard({
             <DashboardCharts chartData={chartData} />
 
             {/* Main Content Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 {/* Recent Activities */}
                 <Card className="lg:col-span-2">
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Activity className="w-5 h-5 mr-2" />
+                            <Activity className="mr-2 h-5 w-5" />
                             Recent Activities
                         </CardTitle>
                         <CardDescription>Latest system activities and updates</CardDescription>
@@ -240,20 +233,27 @@ export function ManagementDashboard({
                             {recentActivities.map((activity) => {
                                 const IconComponent = getIconComponent(activity.icon);
                                 return (
-                                    <div key={activity.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                                        <div className={`p-2 rounded-full ${
-                                            activity.color === 'green' ? 'bg-green-100 text-green-600 dark:bg-green-500/15 dark:text-green-300' :
-                                            activity.color === 'blue' ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300' :
-                                            activity.color === 'orange' ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300' :
-                                            activity.color === 'purple' ? 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300' :
-                                            'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300'
-                                        }`}>
-                                            <IconComponent className="w-4 h-4" />
+                                    <div
+                                        key={activity.id}
+                                        className="flex items-start space-x-3 rounded-lg p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800"
+                                    >
+                                        <div
+                                            className={`rounded-full p-2 ${
+                                                activity.color === 'green'
+                                                    ? 'bg-green-100 text-green-600 dark:bg-green-500/15 dark:text-green-300'
+                                                    : activity.color === 'blue'
+                                                      ? 'bg-blue-100 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300'
+                                                      : activity.color === 'orange'
+                                                        ? 'bg-orange-100 text-orange-600 dark:bg-orange-500/15 dark:text-orange-300'
+                                                        : activity.color === 'purple'
+                                                          ? 'bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300'
+                                                          : 'bg-slate-100 text-slate-600 dark:bg-slate-500/15 dark:text-slate-300'
+                                            }`}
+                                        >
+                                            <IconComponent className="h-4 w-4" />
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium text-foreground">
-                                                {activity.message}
-                                            </p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium text-foreground">{activity.message}</p>
                                             <p className="text-xs text-gray-500 dark:text-gray-400">
                                                 by {activity.user} • {activity.time}
                                             </p>
@@ -269,7 +269,7 @@ export function ManagementDashboard({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Users className="w-5 h-5 mr-2" />
+                            <Users className="mr-2 h-5 w-5" />
                             Driver Performance Distribution
                         </CardTitle>
                         <CardDescription>Performance rating distribution</CardDescription>
@@ -296,21 +296,19 @@ export function ManagementDashboard({
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
-                                No rated drivers yet.
-                            </div>
+                            <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">No rated drivers yet.</div>
                         )}
                     </CardContent>
                 </Card>
             </div>
 
             {/* Upcoming Schedules & Active Issues */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {/* Upcoming Schedules */}
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Clock className="w-5 h-5 mr-2" />
+                            <Clock className="mr-2 h-5 w-5" />
                             Upcoming Schedules
                         </CardTitle>
                         <CardDescription>Next scheduled trips</CardDescription>
@@ -318,17 +316,13 @@ export function ManagementDashboard({
                     <CardContent>
                         <div className="space-y-4">
                             {upcomingSchedules.map((schedule) => (
-                                <div key={schedule.id} className="p-3 border rounded-lg hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <Badge className={getStatusColor(schedule.status)}>
-                                            {schedule.status.replace('_', ' ')}
-                                        </Badge>
+                                <div key={schedule.id} className="rounded-lg border p-3 transition-shadow hover:shadow-sm">
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <Badge className={getStatusColor(schedule.status)}>{schedule.status.replace('_', ' ')}</Badge>
                                         <span className="text-sm font-medium text-blue-600">{schedule.time}</span>
                                     </div>
-                                    <h4 className="mb-1 text-sm font-medium text-foreground">
-                                        {schedule.route}
-                                    </h4>
-                                    <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+                                    <h4 className="mb-1 text-sm font-medium text-foreground">{schedule.route}</h4>
+                                    <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
                                         <div className="flex justify-between">
                                             <span>Driver:</span>
                                             <span>{schedule.driver}</span>
@@ -352,7 +346,7 @@ export function ManagementDashboard({
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <MessageSquare className="w-5 h-5 mr-2" />
+                            <MessageSquare className="mr-2 h-5 w-5" />
                             Active Issues & Complaints
                         </CardTitle>
                         <CardDescription>Issues requiring attention</CardDescription>
@@ -360,24 +354,16 @@ export function ManagementDashboard({
                     <CardContent>
                         <div className="space-y-4">
                             {activeIssues.map((issue) => (
-                                <div key={issue.id} className="p-4 border rounded-lg hover:shadow-sm transition-shadow">
-                                    <div className="flex items-center justify-between mb-2">
+                                <div key={issue.id} className="rounded-lg border p-4 transition-shadow hover:shadow-sm">
+                                    <div className="mb-2 flex items-center justify-between">
                                         <div className="flex items-center space-x-2">
-                                            <Badge className={getPriorityColor(issue.priority)}>
-                                                {issue.priority}
-                                            </Badge>
-                                            <Badge variant="outline">
-                                                {issue.category}
-                                            </Badge>
+                                            <Badge className={getPriorityColor(issue.priority)}>{issue.priority}</Badge>
+                                            <Badge variant="outline">{issue.category}</Badge>
                                         </div>
-                                        <Badge className={getStatusColor(issue.status)}>
-                                            {issue.status.replace('_', ' ')}
-                                        </Badge>
+                                        <Badge className={getStatusColor(issue.status)}>{issue.status.replace('_', ' ')}</Badge>
                                     </div>
-                                    <h4 className="mb-2 font-medium text-foreground">
-                                        {issue.title}
-                                    </h4>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400 space-y-1">
+                                    <h4 className="mb-2 font-medium text-foreground">{issue.title}</h4>
+                                    <div className="space-y-1 text-sm text-gray-500 dark:text-gray-400">
                                         <div className="flex justify-between">
                                             <span>Reported by:</span>
                                             <span>{issue.reported_by}</span>

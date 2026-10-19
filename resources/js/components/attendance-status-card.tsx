@@ -1,26 +1,14 @@
-import { useState } from 'react';
-import { router } from '@inertiajs/react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import {
-    Dialog,
-    DialogContent,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from '@/components/ui/select';
-import { CalendarClock, Clock, Coffee, LogIn, LogOut } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
+import { router } from '@inertiajs/react';
+import { CalendarClock, Clock, Coffee, LogIn, LogOut } from 'lucide-react';
+import { useState } from 'react';
 
 interface AttendanceStatusCardProps {
     status: AttendanceStatusSummary;

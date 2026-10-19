@@ -1,21 +1,16 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler, useState, useEffect } from 'react';
+import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { PageHeader } from '@/base-components/page-header';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Save, Route as RouteIcon, MapPin, Clock, Trash2 } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/base-components/page-header';
-import { SearchableStopSelect } from '@/components/ui/searchable-stop-select';
-import { ReorderButtons } from '@/components/ui/reorder-buttons';
-import {
-  BaseForm,
-  FormField,
-  FormSelect,
-  FormTextarea
-} from '@/base-components/base-form';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ReorderButtons } from '@/components/ui/reorder-buttons';
+import { SearchableStopSelect } from '@/components/ui/searchable-stop-select';
+import AppLayout from '@/layouts/app-layout';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, Clock, MapPin, Route as RouteIcon, Save, Trash2 } from 'lucide-react';
+import { FormEventHandler, useEffect, useState } from 'react';
 
 interface Stop {
     id: number;
@@ -78,7 +73,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
     useEffect(() => {
         const initialStops: RouteStopForm[] = route.route_stops
             .sort((a, b) => a.stop_order - b.stop_order)
-            .map(routeStop => ({
+            .map((routeStop) => ({
                 stop_id: routeStop.stop_id,
                 arrival_time: routeStop.arrival_time || '',
                 departure_time: routeStop.departure_time || '',
@@ -108,9 +103,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
     };
 
     const updateStop = (index: number, field: keyof RouteStopForm, value: string | number) => {
-        const updatedStops = selectedStops.map((stop, i) =>
-            i === index ? { ...stop, [field]: value } : stop
-        );
+        const updatedStops = selectedStops.map((stop, i) => (i === index ? { ...stop, [field]: value } : stop));
         setSelectedStops(updatedStops);
         // @ts-expect-error Inertia form typing issue with arrays
         setData('stops', updatedStops);
@@ -157,15 +150,15 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
+                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
                 },
-                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null })
+                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null }),
             });
 
             if (response.ok) {
                 const result = await response.json();
                 const newStop = result.data;
-                setStops(prev => [...prev, newStop]);
+                setStops((prev) => [...prev, newStop]);
                 return newStop;
             }
         } catch {
@@ -184,7 +177,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
     };
 
     const getStopName = (stopId: number) => {
-        const stop = stops.find(s => s.id === stopId);
+        const stop = stops.find((s) => s.id === stopId);
         return stop ? stop.name : 'Select a stop';
     };
 
@@ -198,22 +191,22 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                     description="Modify route details and stops configuration"
                     actions={[
                         {
-                            label: "Back to Routes",
+                            label: 'Back to Routes',
                             icon: <ArrowLeft className="mr-2 h-4 w-4" />,
-                            href: "/routes",
-                            variant: "outline"
+                            href: '/routes',
+                            variant: 'outline',
                         },
                         {
-                            label: "View Route",
+                            label: 'View Route',
                             icon: <RouteIcon className="mr-2 h-4 w-4" />,
                             href: `/routes/${route.id}`,
-                            variant: "outline"
-                        }
+                            variant: 'outline',
+                        },
                     ]}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="space-y-6 lg:col-span-2">
                         {/* Route Information */}
                         <Card>
                             <CardHeader>
@@ -221,9 +214,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                     <RouteIcon className="h-5 w-5" />
                                     Route Information
                                 </CardTitle>
-                                <CardDescription>
-                                    Update basic information about the route
-                                </CardDescription>
+                                <CardDescription>Update basic information about the route</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <BaseForm onSubmit={handleSubmit} className="space-y-4">
@@ -278,17 +269,13 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                         <MapPin className="h-5 w-5" />
                                         Route Stops
                                     </div>
-                                    <Badge variant="secondary">
-                                        {selectedStops.length} stops
-                                    </Badge>
+                                    <Badge variant="secondary">{selectedStops.length} stops</Badge>
                                 </CardTitle>
-                                <CardDescription>
-                                    Modify and arrange stops for this route. Drag to reorder.
-                                </CardDescription>
+                                <CardDescription>Modify and arrange stops for this route. Drag to reorder.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {selectedStops.map((stop, index) => (
-                                    <div key={index} className="border rounded-lg p-4 space-y-4 bg-muted/50">
+                                    <div key={index} className="space-y-4 rounded-lg border bg-muted/50 p-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline">Stop {index + 1}</Badge>
@@ -307,14 +294,14 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => removeStop(index)}
-                                                    className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                                             <div className="space-y-2">
                                                 <Label>Stop Location</Label>
                                                 <SearchableStopSelect
@@ -353,12 +340,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                     </div>
                                 ))}
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={addStop}
-                                    className="w-full"
-                                >
+                                <Button type="button" variant="outline" onClick={addStop} className="w-full">
                                     <MapPin className="mr-2 h-4 w-4" />
                                     Add Stop
                                 </Button>
@@ -375,16 +357,12 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">Route Name</Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        {(data.name as string) || 'No name entered'}
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">{(data.name as string) || 'No name entered'}</p>
                                 </div>
 
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">Total Stops</Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        {selectedStops.length} stops
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">{selectedStops.length} stops</p>
                                 </div>
 
                                 {selectedStops.length > 0 && (
@@ -392,7 +370,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                         <Label className="text-sm font-medium">Route Sequence</Label>
                                         <div className="space-y-1">
                                             {selectedStops.map((stop, index) => (
-                                                <div key={index} className="text-xs text-muted-foreground flex items-center gap-2">
+                                                <div key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <Badge variant="outline" className="text-xs">
                                                         {index + 1}
                                                     </Badge>
@@ -403,12 +381,8 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                     </div>
                                 )}
 
-                                <div className="pt-4 space-y-2">
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={processing}
-                                        className="w-full"
-                                    >
+                                <div className="space-y-2 pt-4">
+                                    <Button onClick={handleSubmit} disabled={processing} className="w-full">
                                         <Save className="mr-2 h-4 w-4" />
                                         {processing ? 'Updating Route...' : 'Update Route'}
                                     </Button>
@@ -416,7 +390,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                     <Button
                                         type="button"
                                         variant="outline"
-                                        onClick={() => window.location.href = `/routes/${route.id}`}
+                                        onClick={() => (window.location.href = `/routes/${route.id}`)}
                                         className="w-full"
                                     >
                                         Cancel Changes

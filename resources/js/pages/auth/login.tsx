@@ -55,9 +55,7 @@ export default function Login({ status, canResetPassword }: LoginProps) {
                             placeholder="Enter username or email"
                         />
                         <InputError message={errors.login} />
-                        <p className="text-xs text-muted-foreground">
-                            You can log in using either your username or email address
-                        </p>
+                        <p className="text-xs text-muted-foreground">You can log in using either your username or email address</p>
                     </div>
 
                     <div className="grid gap-2">

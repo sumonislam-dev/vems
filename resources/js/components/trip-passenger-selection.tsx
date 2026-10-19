@@ -1,7 +1,7 @@
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { Check, ChevronDown, UserPlus, Users, X } from 'lucide-react';
@@ -76,13 +76,13 @@ export function TripPassengerSelection({
 
     return (
         <Card>
-            <CardHeader className="pb-2 pt-4 px-4">
+            <CardHeader className="px-4 pt-4 pb-2">
                 <div className="flex items-center justify-between gap-3">
-                    <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-2">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                         <UserPlus className="h-3.5 w-3.5" />
                         Passengers
                         {selectedPassengerIds.length > 0 && (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                            <Badge variant="secondary" className="px-1.5 py-0 text-xs">
                                 {selectedPassengerIds.length} named
                             </Badge>
                         )}
@@ -90,7 +90,7 @@ export function TripPassengerSelection({
                     <div className="flex items-center gap-2">
                         {userGroups && userGroups.length > 0 && (
                             <div className="flex items-center gap-1.5">
-                                <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                                <Users className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                 <div className="w-48">
                                     <Select
                                         name="passenger_group"
@@ -114,25 +114,27 @@ export function TripPassengerSelection({
                                 </div>
                             </div>
                         )}
-                        <div className="w-56 relative" ref={passengerRef}>
+                        <div className="relative w-56" ref={passengerRef}>
                             <button
                                 type="button"
                                 onClick={() => setPassengerOpen((o) => !o)}
                                 className={cn(
                                     'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm',
-                                    'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                                    'ring-offset-background focus:ring-2 focus:ring-ring focus:ring-offset-2 focus:outline-none',
                                     passengerOpen && 'ring-2 ring-ring ring-offset-2',
                                     errors.passengers && 'border-destructive',
                                 )}
                             >
                                 <span className={cn(selectedSet.size === 0 && 'text-muted-foreground')}>
-                                    {selectedSet.size === 0 ? 'Add passengers...' : `${selectedSet.size} passenger${selectedSet.size > 1 ? 's' : ''} selected`}
+                                    {selectedSet.size === 0
+                                        ? 'Add passengers...'
+                                        : `${selectedSet.size} passenger${selectedSet.size > 1 ? 's' : ''} selected`}
                                 </span>
-                                <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                                <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
                             </button>
                             {passengerOpen && (
                                 <div className="absolute right-0 z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg">
-                                    <div className="p-2 border-b">
+                                    <div className="border-b p-2">
                                         <Input
                                             id="passenger_search"
                                             name="passenger_search"
@@ -154,7 +156,7 @@ export function TripPassengerSelection({
                                                     key={opt.value}
                                                     onClick={() => togglePassenger(opt.value)}
                                                     className={cn(
-                                                        'flex items-center gap-2 px-3 py-2 text-sm cursor-pointer hover:bg-accent hover:text-accent-foreground',
+                                                        'flex cursor-pointer items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground',
                                                         selectedSet.has(opt.value) && 'bg-accent text-accent-foreground',
                                                     )}
                                                 >
@@ -179,32 +181,34 @@ export function TripPassengerSelection({
             </CardHeader>
             <CardContent className="px-4 pb-4">
                 {selectedPassengerIds.length === 0 ? (
-                    <div className="text-center py-5 text-muted-foreground border-2 border-dashed rounded-lg">
-                        <UserPlus className="h-8 w-8 mx-auto mb-1.5 opacity-25" />
+                    <div className="rounded-lg border-2 border-dashed py-5 text-center text-muted-foreground">
+                        <UserPlus className="mx-auto mb-1.5 h-8 w-8 opacity-25" />
                         <p className="text-xs">No passengers added. Use the dropdown above to add employees.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
                         {passengers.map((passenger, index) => {
                             const emp = getEmployeeDetails(passenger.user_id);
                             return (
                                 <div
                                     key={passenger.user_id}
-                                    className="group flex items-center justify-between gap-2 px-3 py-2 rounded-md border bg-muted/20 hover:bg-muted/50 transition-colors"
+                                    className="group flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2 transition-colors hover:bg-muted/50"
                                 >
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-[10px] font-bold flex items-center justify-center">
+                                    <div className="flex min-w-0 items-center gap-2">
+                                        <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                                             {index + 1}
                                         </span>
                                         <div className="min-w-0">
-                                            <p className="text-sm font-medium truncate leading-tight">{emp.name}</p>
-                                            <div className="flex items-center gap-1 mt-0.5">
+                                            <p className="truncate text-sm leading-tight font-medium">{emp.name}</p>
+                                            <div className="mt-0.5 flex items-center gap-1">
                                                 {emp.employeeId && (
-                                                    <span className="text-[10px] font-mono px-1 py-0 bg-muted text-muted-foreground rounded">
+                                                    <span className="rounded bg-muted px-1 py-0 font-mono text-[10px] text-muted-foreground">
                                                         {emp.employeeId}
                                                     </span>
                                                 )}
-                                                {emp.department && <span className="text-[10px] text-muted-foreground truncate">{emp.department}</span>}
+                                                {emp.department && (
+                                                    <span className="truncate text-[10px] text-muted-foreground">{emp.department}</span>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -212,8 +216,10 @@ export function TripPassengerSelection({
                                         type="button"
                                         variant="ghost"
                                         size="icon"
-                                        onClick={() => setSelectedPassengerIds((prev) => prev.filter((id) => id.toString() !== passenger.user_id.toString()))}
-                                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 text-muted-foreground hover:text-destructive"
+                                        onClick={() =>
+                                            setSelectedPassengerIds((prev) => prev.filter((id) => id.toString() !== passenger.user_id.toString()))
+                                        }
+                                        className="h-6 w-6 flex-shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:text-destructive"
                                     >
                                         <X className="h-3 w-3" />
                                         <span className="sr-only">Remove</span>
@@ -223,7 +229,7 @@ export function TripPassengerSelection({
                         })}
                     </div>
                 )}
-                {errors.passengers && <p className="text-xs text-red-500 mt-2">{errors.passengers}</p>}
+                {errors.passengers && <p className="mt-2 text-xs text-red-500">{errors.passengers}</p>}
             </CardContent>
         </Card>
     );

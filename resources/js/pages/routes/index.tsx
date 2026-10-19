@@ -1,13 +1,13 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { ColumnFilter, DataTableColumn } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Edit, Eye, Plus, Trash2, MapPin, Route as RouteIcon } from 'lucide-react';
+import { Edit, Eye, MapPin, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
 
 interface VehicleRoute {
     id: number;
@@ -77,13 +77,11 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
             sortable: true,
             render: (value: string, row: VehicleRoute) => (
                 <div className="flex flex-col">
-                    <span className="font-medium flex items-center gap-2">
+                    <span className="flex items-center gap-2 font-medium">
                         <RouteIcon className="h-4 w-4 text-blue-600" />
                         {value}
                     </span>
-                    {row.description && (
-                        <span className="max-w-xs truncate text-sm text-muted-foreground">{row.description}</span>
-                    )}
+                    {row.description && <span className="max-w-xs truncate text-sm text-muted-foreground">{row.description}</span>}
                 </div>
             ),
         },
@@ -92,7 +90,7 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
             label: 'Total Stops',
             sortable: true,
             render: (value: number) => (
-                <Badge variant="secondary" className="flex items-center gap-1 w-fit">
+                <Badge variant="secondary" className="flex w-fit items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     {value} stops
                 </Badge>
@@ -103,31 +101,31 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
             key: 'total_distance',
             label: 'Distance',
             sortable: true,
-            render: (value: number | string | null) => value ? (
-                <Badge variant="outline" className="flex items-center gap-1 w-fit">
-                    <RouteIcon className="h-3 w-3" />
-                    {Number(value).toFixed(2)} km
-                </Badge>
-            ) : (
-                <span className="text-muted-foreground text-sm">Not calculated</span>
-            ),
+            render: (value: number | string | null) =>
+                value ? (
+                    <Badge variant="outline" className="flex w-fit items-center gap-1">
+                        <RouteIcon className="h-3 w-3" />
+                        {Number(value).toFixed(2)} km
+                    </Badge>
+                ) : (
+                    <span className="text-sm text-muted-foreground">Not calculated</span>
+                ),
             className: 'text-center',
         },
         {
             key: 'zone',
             label: 'Zone',
-            render: (value: { id: number; name: string } | null) => (
-                <span className="text-sm">{value?.name || 'No Zone'}</span>
-            ),
+            render: (value: { id: number; name: string } | null) => <span className="text-sm">{value?.name || 'No Zone'}</span>,
         },
         {
             key: 'remarks',
             label: 'Remarks',
-            render: (value: string | null) => value ? (
-                <span className="max-w-xs truncate text-sm">{value}</span>
-            ) : (
-                <span className="text-muted-foreground text-sm">No remarks</span>
-            ),
+            render: (value: string | null) =>
+                value ? (
+                    <span className="max-w-xs truncate text-sm">{value}</span>
+                ) : (
+                    <span className="text-sm text-muted-foreground">No remarks</span>
+                ),
         },
         {
             key: 'created_at',
@@ -236,11 +234,11 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                     description="Manage vehicle routes and their stops"
                     actions={[
                         {
-                            label: "Create Route",
+                            label: 'Create Route',
                             icon: <Plus className="mr-2 h-4 w-4" />,
-                            href: "/routes/create",
+                            href: '/routes/create',
                             permission: 'create-routes',
-                        }
+                        },
                     ]}
                 />
 
@@ -249,9 +247,7 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                     {statsCards.map((stat, index) => (
                         <div key={index} className="rounded-lg border bg-card p-4">
                             <div className="flex items-center space-x-2">
-                                <div className={`rounded-md p-2 bg-${stat.color}-100 text-${stat.color}-600`}>
-                                    {stat.icon}
-                                </div>
+                                <div className={`rounded-md p-2 bg-${stat.color}-100 text-${stat.color}-600`}>{stat.icon}</div>
                                 <div>
                                     <p className="text-sm font-medium text-muted-foreground">{stat.title}</p>
                                     <p className="text-2xl font-bold">{stat.value}</p>

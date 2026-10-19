@@ -1,13 +1,13 @@
-import { Head, router } from '@inertiajs/react';
-import { confirmDelete } from '@/components/confirm-dialog';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { DataTableColumn, ColumnFilter } from '@/types';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
-import { Edit, Trash2, Plus } from 'lucide-react';
+import { ColumnFilter, DataTableColumn } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import { Edit, Plus, Trash2 } from 'lucide-react';
 
 interface Zone {
     id: number;
@@ -64,11 +64,7 @@ export default function ZonesIndex({ zones, filterOptions, queryParams }: Props)
             label: 'Status',
             sortable: true,
             filterable: true,
-            render: (value) => (
-                <Badge variant={value === 'active' ? 'default' : 'secondary'}>
-                    {value}
-                </Badge>
-            ),
+            render: (value) => <Badge variant={value === 'active' ? 'default' : 'secondary'}>{value}</Badge>,
         },
         {
             key: 'created_at',
@@ -121,7 +117,7 @@ export default function ZonesIndex({ zones, filterOptions, queryParams }: Props)
             key: 'status',
             label: 'Status',
             type: 'multiselect',
-            options: filterOptions.statuses.map(status => ({
+            options: filterOptions.statuses.map((status) => ({
                 label: status.charAt(0).toUpperCase() + status.slice(1),
                 value: status,
             })),

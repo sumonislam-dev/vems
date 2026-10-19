@@ -1,13 +1,13 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler } from 'react';
+import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Plus, Building2 } from 'lucide-react';
+import { commonValidationRules, useFormValidation, ValidationRules } from '@/hooks/use-form-validation';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
-import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
-import { useFormValidation, commonValidationRules, ValidationRules } from '@/hooks/use-form-validation';
 import { BreadcrumbItem, Zone } from '@/types';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, Building2, Plus } from 'lucide-react';
+import { FormEventHandler } from 'react';
 
 type FactoryForm = {
     account_id: string;
@@ -265,12 +265,7 @@ export default function CreateFactory({ zones, defaultZoneId }: CreateFactoryPro
                             </div>
 
                             <div className="flex justify-end space-x-4">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => window.history.back()}
-                                    disabled={processing}
-                                >
+                                <Button type="button" variant="outline" onClick={() => window.history.back()} disabled={processing}>
                                     Cancel
                                 </Button>
                                 <Button type="submit" disabled={processing}>

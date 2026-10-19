@@ -1,11 +1,5 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    AlertTriangle,
-    BarChart3,
-    Car,
-    Route,
-    TrendingUp,
-} from 'lucide-react';
+import { AlertTriangle, BarChart3, Car, Route, TrendingUp } from 'lucide-react';
 import {
     Area,
     AreaChart,
@@ -68,11 +62,11 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
     return (
         <>
             {/* Charts Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <BarChart3 className="w-5 h-5 mr-2" />
+                            <BarChart3 className="mr-2 h-5 w-5" />
                             Weekly Trip Statistics
                         </CardTitle>
                         <CardDescription>Trip completion trends over the week</CardDescription>
@@ -95,7 +89,7 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <Car className="w-5 h-5 mr-2" />
+                            <Car className="mr-2 h-5 w-5" />
                             Vehicle Status Distribution
                         </CardTitle>
                         <CardDescription>Current status of all vehicles</CardDescription>
@@ -125,11 +119,11 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
             </div>
 
             {/* Performance Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <TrendingUp className="w-5 h-5 mr-2" />
+                            <TrendingUp className="mr-2 h-5 w-5" />
                             Monthly Performance Trends
                         </CardTitle>
                         <CardDescription>Performance metrics over the last 6 months</CardDescription>
@@ -152,7 +146,7 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center">
-                            <AlertTriangle className="w-5 h-5 mr-2" />
+                            <AlertTriangle className="mr-2 h-5 w-5" />
                             Issue Categories (This Month)
                         </CardTitle>
                         <CardDescription>Breakdown of issues by category</CardDescription>
@@ -175,7 +169,7 @@ export function DashboardCharts({ chartData }: DashboardChartsProps) {
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center">
-                        <Route className="w-5 h-5 mr-2" />
+                        <Route className="mr-2 h-5 w-5" />
                         Route Performance Analysis
                     </CardTitle>
                     <CardDescription>Performance metrics for top 5 routes</CardDescription>

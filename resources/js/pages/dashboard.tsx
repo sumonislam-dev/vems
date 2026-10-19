@@ -1,9 +1,9 @@
-import { Head, usePage } from '@inertiajs/react';
-import AppLayout from '@/layouts/app-layout';
 import { DriverDashboard, type DriverDashboardProps } from '@/components/driver-dashboard';
 import { EmployeeDashboard, type EmployeeDashboardProps } from '@/components/employee-dashboard';
 import { ManagementDashboard, type ManagementDashboardProps } from '@/components/management-dashboard';
+import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
+import { Head, usePage } from '@inertiajs/react';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {

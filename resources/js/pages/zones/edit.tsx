@@ -1,12 +1,12 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { PageHeader } from '@/base-components/page-header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertCircle, ArrowLeft, Globe, Save } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/base-components/page-header';
+import { Head, Link, useForm } from '@inertiajs/react';
+import { AlertCircle, ArrowLeft, Globe, Save } from 'lucide-react';
 
 interface Zone {
     id: number;
@@ -51,16 +51,14 @@ export default function EditZone({ zone }: EditZoneProps) {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <div className="grid gap-6 lg:grid-cols-3">
-                        <div className="lg:col-span-2 space-y-6">
+                        <div className="space-y-6 lg:col-span-2">
                             <Card>
                                 <CardHeader>
                                     <CardTitle className="flex items-center space-x-2">
                                         <Globe className="h-5 w-5" />
                                         <span>Basic Information</span>
                                     </CardTitle>
-                                    <CardDescription>
-                                        Update the name and code for this zone
-                                    </CardDescription>
+                                    <CardDescription>Update the name and code for this zone</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
                                     <div className="grid gap-4 md:grid-cols-2">
@@ -76,9 +74,7 @@ export default function EditZone({ zone }: EditZoneProps) {
                                                 className={errors.name ? 'border-red-500' : ''}
                                                 required
                                             />
-                                            {errors.name && (
-                                                <p className="text-sm text-red-600">{errors.name}</p>
-                                            )}
+                                            {errors.name && <p className="text-sm text-red-600">{errors.name}</p>}
                                         </div>
 
                                         <div className="space-y-2">
@@ -93,12 +89,8 @@ export default function EditZone({ zone }: EditZoneProps) {
                                                 className={errors.code ? 'border-red-500' : ''}
                                                 required
                                             />
-                                            {errors.code && (
-                                                <p className="text-sm text-red-600">{errors.code}</p>
-                                            )}
-                                            <p className="text-sm text-gray-500">
-                                                Unique identifier for the zone
-                                            </p>
+                                            {errors.code && <p className="text-sm text-red-600">{errors.code}</p>}
+                                            <p className="text-sm text-gray-500">Unique identifier for the zone</p>
                                         </div>
                                     </div>
                                 </CardContent>
@@ -109,9 +101,7 @@ export default function EditZone({ zone }: EditZoneProps) {
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Status Settings</CardTitle>
-                                    <CardDescription>
-                                        Configure zone status
-                                    </CardDescription>
+                                    <CardDescription>Configure zone status</CardDescription>
                                 </CardHeader>
                                 <CardContent>
                                     <div className="flex items-center space-x-2">
@@ -122,23 +112,19 @@ export default function EditZone({ zone }: EditZoneProps) {
                                         />
                                         <Label htmlFor="is_active">Active Zone</Label>
                                     </div>
-                                    <p className="text-sm text-gray-500 mt-2">
+                                    <p className="mt-2 text-sm text-gray-500">
                                         {data.is_active === '1'
                                             ? 'Zone is active and selectable elsewhere in the app'
                                             : 'Zone is inactive and hidden from selection'}
                                     </p>
-                                    {errors.is_active && (
-                                        <p className="text-sm text-red-600 mt-1">{errors.is_active}</p>
-                                    )}
+                                    {errors.is_active && <p className="mt-1 text-sm text-red-600">{errors.is_active}</p>}
                                 </CardContent>
                             </Card>
 
                             <Card>
                                 <CardHeader>
                                     <CardTitle>Actions</CardTitle>
-                                    <CardDescription>
-                                        Save or cancel your changes
-                                    </CardDescription>
+                                    <CardDescription>Save or cancel your changes</CardDescription>
                                 </CardHeader>
                                 <CardContent className="space-y-3">
                                     <Button type="submit" disabled={processing} className="w-full">
@@ -157,7 +143,7 @@ export default function EditZone({ zone }: EditZoneProps) {
                             {Object.keys(errors).length > 0 && (
                                 <Card className="border-red-200">
                                     <CardHeader>
-                                        <CardTitle className="text-red-600 flex items-center space-x-2">
+                                        <CardTitle className="flex items-center space-x-2 text-red-600">
                                             <AlertCircle className="h-5 w-5" />
                                             <span>Validation Errors</span>
                                         </CardTitle>

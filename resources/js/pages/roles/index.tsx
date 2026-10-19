@@ -1,13 +1,13 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, DataTableColumn, Role } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, Plus, Shield, Trash2, Users, Key } from 'lucide-react';
+import { Edit, Eye, Key, Plus, Shield, Trash2, Users } from 'lucide-react';
 
 interface PaginatedRoles {
     data: Role[];
@@ -73,9 +73,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
             render: (_, row) => (
                 <div className="flex items-center space-x-1">
                     <Key className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm">
-                        {row.permissions?.length || 0} permissions
-                    </span>
+                    <span className="text-sm">{row.permissions?.length || 0} permissions</span>
                 </div>
             ),
         },
@@ -86,9 +84,7 @@ export default function RolesIndex({ roles, stats, queryParams }: RolesPageProps
             render: (_, row) => (
                 <div className="flex items-center space-x-1">
                     <Users className="h-3 w-3 text-gray-400" />
-                    <span className="text-sm">
-                        {row.users_count ?? 0} users
-                    </span>
+                    <span className="text-sm">{row.users_count ?? 0} users</span>
                 </div>
             ),
         },

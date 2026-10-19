@@ -4,11 +4,11 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { VehicleDowntimeCard, type VehicleDowntime } from '@/components/vehicle-downtime-card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { VehicleDowntimeCard, type VehicleDowntime } from '@/components/vehicle-downtime-card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, Vehicle } from '@/types';
@@ -17,20 +17,20 @@ import { AlertTriangle, ArrowLeft, Edit, ExternalLink, Trash2, UserCog } from 'l
 import { FormEvent, useState } from 'react';
 
 type Assignment = {
-    id: number
-    driver?: { id: number; name: string; email?: string } | null
-    assigner?: { id: number; name: string } | null
-    started_at: string
-    ended_at: string | null
-    is_current: boolean
-}
+    id: number;
+    driver?: { id: number; name: string; email?: string } | null;
+    assigner?: { id: number; name: string } | null;
+    started_at: string;
+    ended_at: string | null;
+    is_current: boolean;
+};
 
 type AssignableDriver = {
-    id: number
-    name: string
-    email?: string
-    official_phone?: string
-}
+    id: number;
+    name: string;
+    email?: string;
+    official_phone?: string;
+};
 
 interface ShowVehicleProps {
     vehicle: Vehicle;
@@ -116,15 +116,17 @@ export default function ShowVehicle({
                     <Card className="border-destructive bg-destructive/5">
                         <CardContent className="p-4">
                             <div className="flex items-start gap-2 text-destructive">
-                                <AlertTriangle className="h-5 w-5 mt-0.5" />
+                                <AlertTriangle className="mt-0.5 h-5 w-5" />
                                 <div>
                                     <h4 className="font-semibold">Document{vehicle.expiring_documents.length > 1 ? 's' : ''} Expiring Soon</h4>
-                                    <ul className="text-sm space-y-0.5 mt-1">
+                                    <ul className="mt-1 space-y-0.5 text-sm">
                                         {vehicle.expiring_documents.map((doc) => (
                                             <li key={doc.type}>
-                                                {doc.name}: {doc.days_left !== null && doc.days_left < 0
+                                                {doc.name}:{' '}
+                                                {doc.days_left !== null && doc.days_left < 0
                                                     ? `expired ${Math.abs(doc.days_left)} day(s) ago`
-                                                    : `expires in ${doc.days_left} day(s)`} ({new Date(doc.date).toLocaleDateString()})
+                                                    : `expires in ${doc.days_left} day(s)`}{' '}
+                                                ({new Date(doc.date).toLocaleDateString()})
                                             </li>
                                         ))}
                                     </ul>
@@ -152,13 +154,13 @@ export default function ShowVehicle({
                         },
                         ...(canAssignVehicles
                             ? [
-                                {
-                                    label: 'Assign Driver',
-                                    icon: <UserCog className="mr-2 h-4 w-4" />,
-                                    onClick: openAssignDriverDialog,
-                                    variant: 'outline' as const,
-                                },
-                            ]
+                                  {
+                                      label: 'Assign Driver',
+                                      icon: <UserCog className="mr-2 h-4 w-4" />,
+                                      onClick: openAssignDriverDialog,
+                                      variant: 'outline' as const,
+                                  },
+                              ]
                             : []),
                     ]}
                 />
@@ -207,7 +209,10 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Registration Number</label>
                                     <p className="font-mono text-sm font-semibold">{vehicle.registration_number}</p>
                                     {vehicle.is_placeholder && (
-                                        <Badge variant="outline" className="mt-1 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300">
+                                        <Badge
+                                            variant="outline"
+                                            className="mt-1 border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-300"
+                                        >
                                             Details pending — edit to add the real vehicle
                                         </Badge>
                                     )}
@@ -217,7 +222,7 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {typeof vehicle.vendor === 'object' && vehicle.vendor !== null
                                             ? vehicle.vendor.name
-                                            : (vehicle.vendor || 'N/A')}
+                                            : vehicle.vendor || 'N/A'}
                                     </p>
                                 </div>
                                 <div>
@@ -253,11 +258,11 @@ export default function ShowVehicle({
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Engine Number</label>
-                                    <p className="text-sm font-mono">{vehicle.engine_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.engine_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Chassis Number</label>
-                                    <p className="text-sm font-mono">{vehicle.chassis_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.chassis_number || 'N/A'}</p>
                                 </div>
                             </div>
                         </CardContent>
@@ -272,16 +277,23 @@ export default function ShowVehicle({
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Tax Token Number</label>
-                                    <p className="text-sm font-mono">{vehicle.tax_token_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.tax_token_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.tax_token_file ? (
-                                            <a href={route('vehicles.document', [vehicle.id, 'tax_token_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a
+                                                href={route('vehicles.document', [vehicle.id, 'tax_token_file'])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                            >
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
-                                        ) : 'N/A'}
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
@@ -289,12 +301,11 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.tax_token_last_date
                                             ? new Date(vehicle.tax_token_last_date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                            })
-                                            : 'N/A'
-                                        }
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                              })
+                                            : 'N/A'}
                                     </p>
                                 </div>
                                 <div>
@@ -316,16 +327,23 @@ export default function ShowVehicle({
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Fitness Certificate Number</label>
-                                    <p className="text-sm font-mono">{vehicle.fitness_certificate_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.fitness_certificate_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.fitness_certificate_file ? (
-                                            <a href={route('vehicles.document', [vehicle.id, 'fitness_certificate_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a
+                                                href={route('vehicles.document', [vehicle.id, 'fitness_certificate_file'])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                            >
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
-                                        ) : 'N/A'}
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
@@ -333,12 +351,11 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.fitness_certificate_last_date
                                             ? new Date(vehicle.fitness_certificate_last_date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                            })
-                                            : 'N/A'
-                                        }
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                              })
+                                            : 'N/A'}
                                     </p>
                                 </div>
                                 <div>
@@ -360,16 +377,23 @@ export default function ShowVehicle({
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Route Permit Number</label>
-                                    <p className="text-sm font-mono">{vehicle.route_permit_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.route_permit_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.route_permit_file ? (
-                                            <a href={route('vehicles.document', [vehicle.id, 'route_permit_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a
+                                                href={route('vehicles.document', [vehicle.id, 'route_permit_file'])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                            >
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
-                                        ) : 'N/A'}
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
@@ -377,12 +401,11 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.route_permit_last_date
                                             ? new Date(vehicle.route_permit_last_date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                            })
-                                            : 'N/A'
-                                        }
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                              })
+                                            : 'N/A'}
                                     </p>
                                 </div>
                                 <div>
@@ -403,22 +426,27 @@ export default function ShowVehicle({
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Insurance Type</label>
-                                    <p className="text-sm capitalize">
-                                        {vehicle.insurance_type ? vehicle.insurance_type.replace('_', ' ') : 'N/A'}
-                                    </p>
+                                    <p className="text-sm capitalize">{vehicle.insurance_type ? vehicle.insurance_type.replace('_', ' ') : 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Insurance Policy Number</label>
-                                    <p className="text-sm font-mono">{vehicle.insurance_policy_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.insurance_policy_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.insurance_policy_file ? (
-                                            <a href={route('vehicles.document', [vehicle.id, 'insurance_policy_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a
+                                                href={route('vehicles.document', [vehicle.id, 'insurance_policy_file'])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                            >
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
-                                        ) : 'N/A'}
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
@@ -430,12 +458,11 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.insurance_last_date
                                             ? new Date(vehicle.insurance_last_date).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                            })
-                                            : 'N/A'
-                                        }
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                              })
+                                            : 'N/A'}
                                     </p>
                                 </div>
                                 <div>
@@ -457,16 +484,23 @@ export default function ShowVehicle({
                             <div className="grid grid-cols-1 gap-4">
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Registration Certificate Number</label>
-                                    <p className="text-sm font-mono">{vehicle.registration_certificate_number || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.registration_certificate_number || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Document</label>
                                     <p className="text-sm">
                                         {vehicle.registration_certificate_file ? (
-                                            <a href={route('vehicles.document', [vehicle.id, 'registration_certificate_file'])} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
+                                            <a
+                                                href={route('vehicles.document', [vehicle.id, 'registration_certificate_file'])}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                            >
                                                 <ExternalLink className="h-3 w-3" /> View file
                                             </a>
-                                        ) : 'N/A'}
+                                        ) : (
+                                            'N/A'
+                                        )}
                                     </p>
                                 </div>
                                 <div>
@@ -483,7 +517,7 @@ export default function ShowVehicle({
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Owner NID</label>
-                                    <p className="text-sm font-mono">{vehicle.owner_nid || 'N/A'}</p>
+                                    <p className="font-mono text-sm">{vehicle.owner_nid || 'N/A'}</p>
                                 </div>
                                 <div>
                                     <label className="text-sm font-medium text-muted-foreground">Owner Address</label>
@@ -513,12 +547,12 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.created_at
                                             ? new Date(vehicle.created_at).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit',
+                                              })
                                             : 'N/A'}
                                     </p>
                                 </div>
@@ -527,12 +561,12 @@ export default function ShowVehicle({
                                     <p className="text-sm">
                                         {vehicle.updated_at
                                             ? new Date(vehicle.updated_at).toLocaleDateString('en-US', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })
+                                                  year: 'numeric',
+                                                  month: 'long',
+                                                  day: 'numeric',
+                                                  hour: '2-digit',
+                                                  minute: '2-digit',
+                                              })
                                             : 'N/A'}
                                     </p>
                                 </div>
@@ -547,7 +581,7 @@ export default function ShowVehicle({
                                 <CardTitle>Vendor / Service Provider Information</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Service Provider Name</label>
                                         <p className="text-sm font-medium">{vehicle.vendor.name}</p>
@@ -555,7 +589,8 @@ export default function ShowVehicle({
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Status</label>
                                         <Badge variant={vehicle.vendor.status === 'active' ? 'default' : 'secondary'}>
-                                            {vehicle.vendor.status === 'active' ? 'Active' : 'Inactive'}</Badge>
+                                            {vehicle.vendor.status === 'active' ? 'Active' : 'Inactive'}
+                                        </Badge>
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Phone</label>
@@ -573,7 +608,12 @@ export default function ShowVehicle({
                                         <div className="md:col-span-2">
                                             <label className="text-sm font-medium text-muted-foreground">Website</label>
                                             <p className="text-sm">
-                                                <a href={vehicle.vendor.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                                                <a
+                                                    href={vehicle.vendor.website}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-600 hover:underline"
+                                                >
                                                     {vehicle.vendor.website}
                                                 </a>
                                             </p>
@@ -590,28 +630,22 @@ export default function ShowVehicle({
                                 {/* Contact Persons */}
                                 {vehicle.vendor.contact_persons && vehicle.vendor.contact_persons.length > 0 && (
                                     <div className="mt-6">
-                                        <h4 className="text-sm font-medium text-muted-foreground mb-3">Contact Persons</h4>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <h4 className="mb-3 text-sm font-medium text-muted-foreground">Contact Persons</h4>
+                                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                             {vehicle.vendor.contact_persons.map((contact) => (
-                                                <div key={contact.id} className="border rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-2">
+                                                <div key={contact.id} className="rounded-lg border p-4">
+                                                    <div className="mb-2 flex items-center justify-between">
                                                         <h5 className="font-medium">{contact.name}</h5>
                                                         {contact.is_primary && (
-                                                            <Badge variant="outline" className="text-xs">Primary</Badge>
+                                                            <Badge variant="outline" className="text-xs">
+                                                                Primary
+                                                            </Badge>
                                                         )}
                                                     </div>
-                                                    {contact.position && (
-                                                        <p className="text-sm text-muted-foreground mb-1">{contact.position}</p>
-                                                    )}
-                                                    {contact.phone && (
-                                                        <p className="text-sm">📞 {contact.phone}</p>
-                                                    )}
-                                                    {contact.email && (
-                                                        <p className="text-sm">✉️ {contact.email}</p>
-                                                    )}
-                                                    {contact.notes && (
-                                                        <p className="text-sm text-muted-foreground mt-2">{contact.notes}</p>
-                                                    )}
+                                                    {contact.position && <p className="mb-1 text-sm text-muted-foreground">{contact.position}</p>}
+                                                    {contact.phone && <p className="text-sm">📞 {contact.phone}</p>}
+                                                    {contact.email && <p className="text-sm">✉️ {contact.email}</p>}
+                                                    {contact.notes && <p className="mt-2 text-sm text-muted-foreground">{contact.notes}</p>}
                                                 </div>
                                             ))}
                                         </div>
@@ -628,27 +662,25 @@ export default function ShowVehicle({
                                 <CardTitle>Driver Information</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Driver Name</label>
                                         <p className="text-sm font-medium">{vehicle.driver.name}</p>
                                     </div>
                                     <div>
                                         <label className="text-sm font-medium text-muted-foreground">Driver Type</label>
-                                        <Badge variant="outline">
-                                            {vehicle.driver.user_type?.toUpperCase() || 'DRIVER'}
-                                        </Badge>
+                                        <Badge variant="outline">{vehicle.driver.user_type?.toUpperCase() || 'DRIVER'}</Badge>
                                     </div>
                                     {vehicle.driver.driving_license_no && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">Driving License</label>
-                                            <p className="text-sm font-mono">{vehicle.driver.driving_license_no}</p>
+                                            <p className="font-mono text-sm">{vehicle.driver.driving_license_no}</p>
                                         </div>
                                     )}
                                     {vehicle.driver.nid_number && (
                                         <div>
                                             <label className="text-sm font-medium text-muted-foreground">NID Number</label>
-                                            <p className="text-sm font-mono">{vehicle.driver.nid_number}</p>
+                                            <p className="font-mono text-sm">{vehicle.driver.nid_number}</p>
                                         </div>
                                     )}
                                     {vehicle.driver.email && (
@@ -733,7 +765,9 @@ export default function ShowVehicle({
                                                 <td className="px-3 py-2">{a.ended_at ? new Date(a.ended_at).toLocaleString() : '-'}</td>
                                                 <td className="px-3 py-2">{a.assigner?.name ?? '-'}</td>
                                                 <td className="px-3 py-2">
-                                                    <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    <span
+                                                        className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
+                                                    >
                                                         {a.is_current ? 'Current' : 'Past'}
                                                     </span>
                                                 </td>
@@ -755,20 +789,13 @@ export default function ShowVehicle({
                         <CardContent>
                             <div className="flex space-x-4">
                                 {canEdit && (
-                                    <Button
-                                        onClick={() => router.visit(route('vehicles.edit', vehicle.id))}
-                                        className="flex items-center"
-                                    >
+                                    <Button onClick={() => router.visit(route('vehicles.edit', vehicle.id))} className="flex items-center">
                                         <Edit className="mr-2 h-4 w-4" />
                                         Edit Vehicle
                                     </Button>
                                 )}
                                 {canDelete && (
-                                    <Button
-                                        variant="destructive"
-                                        onClick={handleDelete}
-                                        className="flex items-center"
-                                    >
+                                    <Button variant="destructive" onClick={handleDelete} className="flex items-center">
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         Delete Vehicle
                                     </Button>
@@ -789,10 +816,7 @@ export default function ShowVehicle({
                     <form className="space-y-4" onSubmit={submitAssignDriver}>
                         <div className="space-y-2">
                             <Label htmlFor="assign_driver_id">Driver</Label>
-                            <Select
-                                value={assignDriverData.driver_id}
-                                onValueChange={(value) => setAssignDriverData('driver_id', value)}
-                            >
+                            <Select value={assignDriverData.driver_id} onValueChange={(value) => setAssignDriverData('driver_id', value)}>
                                 <SelectTrigger id="assign_driver_id" className="w-full">
                                     <SelectValue placeholder="Select a driver" />
                                 </SelectTrigger>

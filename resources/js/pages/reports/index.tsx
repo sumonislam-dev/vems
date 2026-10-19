@@ -1,5 +1,5 @@
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,20 +9,7 @@ import { BreadcrumbItem } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import { BarChart3, Download, Filter, Route, TrendingUp, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import {
-    Bar,
-    BarChart,
-    CartesianGrid,
-    Cell,
-    Line,
-    LineChart,
-    Pie,
-    PieChart,
-    ResponsiveContainer,
-    Tooltip,
-    XAxis,
-    YAxis,
-} from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 interface ReportPageProps {
     report: {
@@ -176,9 +163,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                 <div className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-6 md:flex-row md:items-center md:justify-between dark:border-slate-800 dark:from-slate-950 dark:via-slate-900 dark:to-emerald-950/40">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Reports Module</h1>
-                        <p className="text-sm text-muted-foreground">
-                            Analyze trip operations, passenger movement, and route efficiency.
-                        </p>
+                        <p className="text-sm text-muted-foreground">Analyze trip operations, passenger movement, and route efficiency.</p>
                     </div>
                 </div>
 
@@ -197,11 +182,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                 value={filters.from}
                                 onChange={(event) => setFilters((prev) => ({ ...prev, from: event.target.value }))}
                             />
-                            <Input
-                                type="date"
-                                value={filters.to}
-                                onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))}
-                            />
+                            <Input type="date" value={filters.to} onChange={(event) => setFilters((prev) => ({ ...prev, to: event.target.value }))} />
                             <Select
                                 value={filters.schedule_type}
                                 onValueChange={(value) => setFilters((prev) => ({ ...prev, schedule_type: value }))}
@@ -226,10 +207,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                     <SelectItem value="Assigned">Assigned</SelectItem>
                                 </SelectContent>
                             </Select>
-                            <Select
-                                value={filters.status}
-                                onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}
-                            >
+                            <Select value={filters.status} onValueChange={(value) => setFilters((prev) => ({ ...prev, status: value }))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
@@ -242,10 +220,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Select
-                                value={filters.driver_id}
-                                onValueChange={(value) => setFilters((prev) => ({ ...prev, driver_id: value }))}
-                            >
+                            <Select value={filters.driver_id} onValueChange={(value) => setFilters((prev) => ({ ...prev, driver_id: value }))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Driver" />
                                 </SelectTrigger>
@@ -258,10 +233,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Select
-                                value={filters.route_id}
-                                onValueChange={(value) => setFilters((prev) => ({ ...prev, route_id: value }))}
-                            >
+                            <Select value={filters.route_id} onValueChange={(value) => setFilters((prev) => ({ ...prev, route_id: value }))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Route" />
                                 </SelectTrigger>
@@ -274,10 +246,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                     ))}
                                 </SelectContent>
                             </Select>
-                            <Select
-                                value={filters.vehicle_id}
-                                onValueChange={(value) => setFilters((prev) => ({ ...prev, vehicle_id: value }))}
-                            >
+                            <Select value={filters.vehicle_id} onValueChange={(value) => setFilters((prev) => ({ ...prev, vehicle_id: value }))}>
                                 <SelectTrigger>
                                     <SelectValue placeholder="Vehicle" />
                                 </SelectTrigger>
@@ -298,9 +267,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                             {can('export-reports') && (
                                 <Select
                                     value={filters.export_format}
-                                    onValueChange={(value: 'csv' | 'excel' | 'pdf') =>
-                                        setFilters((prev) => ({ ...prev, export_format: value }))
-                                    }
+                                    onValueChange={(value: 'csv' | 'excel' | 'pdf') => setFilters((prev) => ({ ...prev, export_format: value }))}
                                 >
                                     <SelectTrigger>
                                         <SelectValue placeholder="Export Format" />
@@ -363,9 +330,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                             <CardDescription>Active Vehicles</CardDescription>
                             <CardTitle className="text-2xl">{report.summary.active_vehicles}</CardTitle>
                         </CardHeader>
-                        <CardContent className="text-xs text-muted-foreground">
-                            Cancellation Rate: {report.summary.cancellation_rate}%
-                        </CardContent>
+                        <CardContent className="text-xs text-muted-foreground">Cancellation Rate: {report.summary.cancellation_rate}%</CardContent>
                     </Card>
                 </div>
 
@@ -484,9 +449,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                 <Card>
                     <CardHeader>
                         <CardTitle>Trip History</CardTitle>
-                        <CardDescription>
-                            {report.trip_histories.total} trips found with current filters.
-                        </CardDescription>
+                        <CardDescription>{report.trip_histories.total} trips found with current filters.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="overflow-x-auto rounded-md border">
@@ -528,9 +491,7 @@ export default function ReportsIndex({ report }: ReportPageProps) {
                                             <td className="px-3 py-2">{trip.driver?.name || '-'}</td>
                                             <td className="px-3 py-2">{trip.vehicle?.registration_number || '-'}</td>
                                             <td className="px-3 py-2">
-                                                <Badge className={getStatusClass(trip.status)}>
-                                                    {trip.status.replace('_', ' ')}
-                                                </Badge>
+                                                <Badge className={getStatusClass(trip.status)}>{trip.status.replace('_', ' ')}</Badge>
                                             </td>
                                             <td className="px-3 py-2">{trip.schedule_type}</td>
                                         </tr>

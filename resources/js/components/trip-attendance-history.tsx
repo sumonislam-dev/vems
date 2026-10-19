@@ -116,7 +116,8 @@ export function AttendanceHistoryCard({
                             <History className="h-5 w-5" />
                             Attendance Event History
                             <Badge variant="outline" className="ml-1 font-normal">
-                                {attendanceEvents.length}{hasActiveFilters ? ` / ${allAttendanceEvents.length}` : ''}
+                                {attendanceEvents.length}
+                                {hasActiveFilters ? ` / ${allAttendanceEvents.length}` : ''}
                             </Badge>
                         </CardTitle>
                         <CardDescription className="mt-1">Append-only history with voided records retained for audit and correction.</CardDescription>
@@ -138,7 +139,13 @@ export function AttendanceHistoryCard({
                             Filters
                             {hasActiveFilters && (
                                 <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary-foreground text-[10px] font-bold text-primary">
-                                    {filterEventTypes.length + filterSources.length + (filterValidity !== 'all' ? 1 : 0) + (filterPassengerId ? 1 : 0) + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0) + (filterAreaSearch ? 1 : 0)}
+                                    {filterEventTypes.length +
+                                        filterSources.length +
+                                        (filterValidity !== 'all' ? 1 : 0) +
+                                        (filterPassengerId ? 1 : 0) +
+                                        (filterDateFrom ? 1 : 0) +
+                                        (filterDateTo ? 1 : 0) +
+                                        (filterAreaSearch ? 1 : 0)}
                                 </span>
                             )}
                         </Button>
@@ -148,9 +155,9 @@ export function AttendanceHistoryCard({
             <CardContent className="space-y-0 p-0">
                 <div className="flex min-h-0 flex-col lg:flex-row">
                     {filtersOpen && (
-                        <aside className="w-full shrink-0 space-y-5 border-b p-5 lg:w-64 lg:border-b-0 lg:border-r">
+                        <aside className="w-full shrink-0 space-y-5 border-b p-5 lg:w-64 lg:border-r lg:border-b-0">
                             <div>
-                                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Event Type</p>
+                                <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Event Type</p>
                                 <div className="space-y-2">
                                     {(['check_in', 'check_out', 'no_show', 'manual_override', 'correction'] as const).map((type) => (
                                         <label key={type} className="flex cursor-pointer items-center gap-2">
@@ -167,7 +174,7 @@ export function AttendanceHistoryCard({
                             </div>
                             <Separator />
                             <div>
-                                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Validity</p>
+                                <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Validity</p>
                                 <div className="space-y-2">
                                     {(['all', 'valid', 'voided'] as const).map((opt) => (
                                         <label key={opt} className="flex cursor-pointer items-center gap-2">
@@ -188,7 +195,7 @@ export function AttendanceHistoryCard({
                                 <>
                                     <Separator />
                                     <div>
-                                        <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Source</p>
+                                        <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Source</p>
                                         <div className="space-y-2">
                                             {uniqueSources.map((src) => (
                                                 <label key={src} className="flex cursor-pointer items-center gap-2">
@@ -207,14 +214,14 @@ export function AttendanceHistoryCard({
                             )}
                             <Separator />
                             <div>
-                                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Passenger</p>
+                                <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Passenger</p>
                                 <select
                                     id="filter_passenger_id"
                                     name="passenger_id"
                                     aria-label="Passenger"
                                     value={filterPassengerId}
                                     onChange={(e) => setFilterPassengerId(e.target.value)}
-                                    className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                    className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:ring-1 focus:ring-ring focus:outline-none"
                                 >
                                     <option value="">All passengers</option>
                                     {passengers.map((p) => (
@@ -226,10 +233,12 @@ export function AttendanceHistoryCard({
                             </div>
                             <Separator />
                             <div>
-                                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date Range</p>
+                                <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Date Range</p>
                                 <div className="space-y-2">
                                     <div>
-                                        <Label htmlFor="filter_date_from" className="mb-1 text-xs text-muted-foreground">From</Label>
+                                        <Label htmlFor="filter_date_from" className="mb-1 text-xs text-muted-foreground">
+                                            From
+                                        </Label>
                                         <Input
                                             id="filter_date_from"
                                             name="date_from"
@@ -240,7 +249,9 @@ export function AttendanceHistoryCard({
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="filter_date_to" className="mb-1 text-xs text-muted-foreground">To</Label>
+                                        <Label htmlFor="filter_date_to" className="mb-1 text-xs text-muted-foreground">
+                                            To
+                                        </Label>
                                         <Input
                                             id="filter_date_to"
                                             name="date_to"
@@ -254,7 +265,7 @@ export function AttendanceHistoryCard({
                             </div>
                             <Separator />
                             <div>
-                                <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Area</p>
+                                <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Area</p>
                                 <Input
                                     id="filter_area"
                                     name="area"
@@ -298,12 +309,24 @@ export function AttendanceHistoryCard({
                                                 <span className="text-sm font-medium">{passenger.user?.name ?? 'Unknown passenger'}</span>
                                             </div>
                                             <div className="grid grid-cols-1 gap-2 text-sm text-gray-600 md:grid-cols-2 xl:grid-cols-3">
-                                                <p>Time: <span className="font-medium text-gray-900">{formatDateTime(event.event_time)}</span></p>
-                                                <p>Area: <span className="font-medium text-gray-900">{event.area_name ?? 'Not captured'}</span></p>
-                                                <p>IP: <span className="font-medium text-gray-900">{event.ip_address ?? 'Not captured'}</span></p>
-                                                <p>Source: <span className="font-medium text-gray-900">{event.source ?? 'Unknown'}</span></p>
-                                                <p>Stop: <span className="font-medium text-gray-900">{event.stop?.name ?? 'Not linked'}</span></p>
-                                                <p>Actor: <span className="font-medium text-gray-900">{event.actor?.name ?? 'System'}</span></p>
+                                                <p>
+                                                    Time: <span className="font-medium text-gray-900">{formatDateTime(event.event_time)}</span>
+                                                </p>
+                                                <p>
+                                                    Area: <span className="font-medium text-gray-900">{event.area_name ?? 'Not captured'}</span>
+                                                </p>
+                                                <p>
+                                                    IP: <span className="font-medium text-gray-900">{event.ip_address ?? 'Not captured'}</span>
+                                                </p>
+                                                <p>
+                                                    Source: <span className="font-medium text-gray-900">{event.source ?? 'Unknown'}</span>
+                                                </p>
+                                                <p>
+                                                    Stop: <span className="font-medium text-gray-900">{event.stop?.name ?? 'Not linked'}</span>
+                                                </p>
+                                                <p>
+                                                    Actor: <span className="font-medium text-gray-900">{event.actor?.name ?? 'System'}</span>
+                                                </p>
                                             </div>
                                             {(event.latitude || event.longitude || event.gps_accuracy_meters) && (
                                                 <p className="text-xs text-gray-500">

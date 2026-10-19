@@ -147,11 +147,26 @@ export default function AnalyticsReport({ slug, title, description, usesDateRang
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
                             {usesDateRange && (
                                 <>
-                                    <Input type="date" aria-label="From" value={form.from} onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))} />
-                                    <Input type="date" aria-label="To" value={form.to} onChange={(e) => setForm((p) => ({ ...p, to: e.target.value }))} />
+                                    <Input
+                                        type="date"
+                                        aria-label="From"
+                                        value={form.from}
+                                        onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))}
+                                    />
+                                    <Input
+                                        type="date"
+                                        aria-label="To"
+                                        value={form.to}
+                                        onChange={(e) => setForm((p) => ({ ...p, to: e.target.value }))}
+                                    />
                                 </>
                             )}
-                            {select('zone_id', 'Office', 'All offices', filterOptions.zones.map((z) => ({ value: String(z.id), label: z.name })))}
+                            {select(
+                                'zone_id',
+                                'Office',
+                                'All offices',
+                                filterOptions.zones.map((z) => ({ value: String(z.id), label: z.name })),
+                            )}
                             {filterOptions.extra.map((f) => select(f.key, f.label, f.all, f.options))}
                         </div>
                         {(errors.from || errors.to) && <p className="text-sm text-destructive">{errors.from || errors.to}</p>}

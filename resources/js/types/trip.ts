@@ -1,6 +1,6 @@
+import type { Department, Factory, Logistics, Stop, VehicleRoute, Zone } from './common';
 import type { User } from './user';
 import type { Vehicle } from './vehicle';
-import type { VehicleRoute, Stop, Department, Factory, Logistics, Zone } from './common';
 
 export interface Trip {
     id: number;
@@ -60,7 +60,14 @@ export interface Trip {
     other_costs?: number;
     total_cost?: number;
     status: 'pending' | 'approved' | 'rejected' | 'assigned' | 'in_progress' | 'completed' | 'cancelled';
-    cancellation_reason?: 'passenger_no_show' | 'vehicle_breakdown' | 'driver_unavailable' | 'route_blocked' | 'weather_conditions' | 'emergency' | 'other';
+    cancellation_reason?:
+        | 'passenger_no_show'
+        | 'vehicle_breakdown'
+        | 'driver_unavailable'
+        | 'route_blocked'
+        | 'weather_conditions'
+        | 'emergency'
+        | 'other';
     cancellation_notes?: string;
     cancelled_by?: number;
     cancelled_at?: string;

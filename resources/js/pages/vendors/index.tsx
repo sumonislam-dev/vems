@@ -1,6 +1,6 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,23 +55,17 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
         {
             key: 'address',
             label: 'Address',
-            render: (value) => (
-                <span className="text-sm">{value || 'N/A'}</span>
-            ),
+            render: (value) => <span className="text-sm">{value || 'N/A'}</span>,
         },
         {
             key: 'phone',
             label: 'Phone',
-            render: (value) => (
-                <span className="text-sm font-mono">{value || 'N/A'}</span>
-            ),
+            render: (value) => <span className="font-mono text-sm">{value || 'N/A'}</span>,
         },
         {
             key: 'email',
             label: 'Email',
-            render: (value) => (
-                <span className="text-sm">{value || 'N/A'}</span>
-            ),
+            render: (value) => <span className="text-sm">{value || 'N/A'}</span>,
         },
         {
             key: 'contact_persons',
@@ -79,9 +73,7 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
             render: (value, vendor) => (
                 <div className="flex items-center space-x-1">
                     <Users className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">
-                        {vendor.contact_persons?.length || 0}
-                    </span>
+                    <span className="text-sm">{vendor.contact_persons?.length || 0}</span>
                 </div>
             ),
         },
@@ -89,18 +81,12 @@ export default function VendorsIndex({ vendors, stats, queryParams }: VendorsPag
             key: 'status',
             label: 'Status',
             sortable: true,
-            render: (value) => (
-                <Badge variant={value === 'active' ? 'default' : 'secondary'}>
-                    {value === 'active' ? 'Active' : 'Inactive'}
-                </Badge>
-            ),
+            render: (value) => <Badge variant={value === 'active' ? 'default' : 'secondary'}>{value === 'active' ? 'Active' : 'Inactive'}</Badge>,
         },
         {
             key: 'zone',
             label: 'Zone',
-            render: (value) => (
-                <span className="text-sm">{value?.name || 'No Zone'}</span>
-            ),
+            render: (value) => <span className="text-sm">{value?.name || 'No Zone'}</span>,
         },
         {
             key: 'actions',

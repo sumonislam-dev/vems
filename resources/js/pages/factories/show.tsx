@@ -1,13 +1,13 @@
-import { Head, router } from '@inertiajs/react';
+import { PageHeader } from '@/base-components/page-header';
 import { confirmDelete } from '@/components/confirm-dialog';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Building2, MapPin, Edit, Trash2, Navigation } from 'lucide-react';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
 import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import { ArrowLeft, Building2, Edit, MapPin, Navigation, Trash2 } from 'lucide-react';
 
 interface Factory {
     id: number;
@@ -83,7 +83,7 @@ export default function ShowFactory({ factory }: ShowFactoryProps) {
                         <CardContent className="space-y-4">
                             <div>
                                 <label className="text-sm font-medium text-muted-foreground">Account ID</label>
-                                <p className="text-lg font-mono">{factory.account_id}</p>
+                                <p className="font-mono text-lg">{factory.account_id}</p>
                             </div>
 
                             <div>

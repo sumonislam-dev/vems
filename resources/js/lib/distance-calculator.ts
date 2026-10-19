@@ -1,4 +1,4 @@
-import { getDistance, getCenter } from 'geolib';
+import { getCenter, getDistance } from 'geolib';
 import type { GeolibInputCoordinates } from 'geolib/es/types';
 
 /**
@@ -9,12 +9,7 @@ import type { GeolibInputCoordinates } from 'geolib/es/types';
  * @param lon2 Longitude of second point
  * @returns Distance in kilometers
  */
-export function calculateDistance(
-    lat1: number,
-    lon1: number,
-    lat2: number,
-    lon2: number
-): number {
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
     const point1: GeolibInputCoordinates = { latitude: lat1, longitude: lon1 };
     const point2: GeolibInputCoordinates = { latitude: lat2, longitude: lon2 };
 
@@ -30,12 +25,10 @@ export function calculateDistance(
  * @param stops Array of stops with coordinates and order
  * @returns Total distance in kilometers
  */
-export function calculateRouteDistance(
-    stops: Array<{order?: number, latitude: number | null, longitude: number | null}>
-): number {
+export function calculateRouteDistance(stops: Array<{ order?: number; latitude: number | null; longitude: number | null }>): number {
     // If order is provided, sort by order, otherwise use array order
-    const sortedStops = stops.filter(stop => stop.latitude !== null && stop.longitude !== null);
-    if (stops.some(stop => stop.order !== undefined)) {
+    const sortedStops = stops.filter((stop) => stop.latitude !== null && stop.longitude !== null);
+    if (stops.some((stop) => stop.order !== undefined)) {
         sortedStops.sort((a, b) => (a.order || 0) - (b.order || 0));
     }
 
@@ -47,7 +40,7 @@ export function calculateRouteDistance(
             sortedStops[i - 1].latitude!,
             sortedStops[i - 1].longitude!,
             sortedStops[i].latitude!,
-            sortedStops[i].longitude!
+            sortedStops[i].longitude!,
         );
     }
 
@@ -59,9 +52,7 @@ export function calculateRouteDistance(
  * @param stops Array of stops with latitude and longitude
  * @returns Array of distances from previous stop (first stop has 0)
  */
-export function calculateStopDistances(
-    stops: Array<{latitude: number | null, longitude: number | null}>
-): number[] {
+export function calculateStopDistances(stops: Array<{ latitude: number | null; longitude: number | null }>): number[] {
     if (stops.length === 0) return [];
 
     const distances = [0]; // First stop has no previous stop
@@ -71,12 +62,7 @@ export function calculateStopDistances(
         const current = stops[i];
 
         if (prev.latitude && prev.longitude && current.latitude && current.longitude) {
-            distances.push(calculateDistance(
-                prev.latitude,
-                prev.longitude,
-                current.latitude,
-                current.longitude
-            ));
+            distances.push(calculateDistance(prev.latitude, prev.longitude, current.latitude, current.longitude));
         } else {
             distances.push(0);
         }
@@ -91,11 +77,11 @@ export function calculateStopDistances(
  * @returns Array of stops with cumulative distances
  */
 export function calculateCumulativeDistances(
-    stops: Array<{id: number, order?: number, latitude: number | null, longitude: number | null}>
-): Array<{id: number, order?: number, latitude: number | null, longitude: number | null, cumulativeDistance: number}> {
+    stops: Array<{ id: number; order?: number; latitude: number | null; longitude: number | null }>,
+): Array<{ id: number; order?: number; latitude: number | null; longitude: number | null; cumulativeDistance: number }> {
     // If order is provided, sort by order, otherwise use array order
-    const sortedStops = stops.filter(stop => stop.latitude !== null && stop.longitude !== null);
-    if (stops.some(stop => stop.order !== undefined)) {
+    const sortedStops = stops.filter((stop) => stop.latitude !== null && stop.longitude !== null);
+    if (stops.some((stop) => stop.order !== undefined)) {
         sortedStops.sort((a, b) => (a.order || 0) - (b.order || 0));
     }
 
@@ -110,14 +96,14 @@ export function calculateCumulativeDistances(
                 sortedStops[i - 1].latitude!,
                 sortedStops[i - 1].longitude!,
                 sortedStops[i].latitude!,
-                sortedStops[i].longitude!
+                sortedStops[i].longitude!,
             );
             cumulativeDistance += distance;
         }
 
         result.push({
             ...sortedStops[i],
-            cumulativeDistance: Math.round(cumulativeDistance * 100) / 100
+            cumulativeDistance: Math.round(cumulativeDistance * 100) / 100,
         });
     }
 
@@ -130,15 +116,15 @@ export function calculateCumulativeDistances(
  * @returns Center point coordinates
  */
 export function calculateCenterPoint(
-    coordinates: Array<{latitude: number | null, longitude: number | null}>
-): {latitude: number, longitude: number} | null {
+    coordinates: Array<{ latitude: number | null; longitude: number | null }>,
+): { latitude: number; longitude: number } | null {
     const validCoords = coordinates
-        .filter(coord => coord.latitude !== null && coord.longitude !== null)
-        .map(coord => ({ latitude: coord.latitude!, longitude: coord.longitude! }));
+        .filter((coord) => coord.latitude !== null && coord.longitude !== null)
+        .map((coord) => ({ latitude: coord.latitude!, longitude: coord.longitude! }));
 
     if (validCoords.length === 0) return null;
 
-    return getCenter(validCoords) as {latitude: number, longitude: number};
+    return getCenter(validCoords) as { latitude: number; longitude: number };
 }
 
 /**
@@ -148,25 +134,22 @@ export function calculateCenterPoint(
  * @returns Sorted array of stops with distances
  */
 export function sortStopsByDistance(
-    referencePoint: {latitude: number, longitude: number},
-    stops: Array<{id: number, latitude: number | null, longitude: number | null, name: string}>
-): Array<{id: number, latitude: number | null, longitude: number | null, name: string, distance: number}> {
+    referencePoint: { latitude: number; longitude: number },
+    stops: Array<{ id: number; latitude: number | null; longitude: number | null; name: string }>,
+): Array<{ id: number; latitude: number | null; longitude: number | null; name: string; distance: number }> {
     const stopsWithValidCoords = stops
-        .filter(stop => stop.latitude !== null && stop.longitude !== null)
-        .map(stop => ({
+        .filter((stop) => stop.latitude !== null && stop.longitude !== null)
+        .map((stop) => ({
             id: stop.id,
             name: stop.name,
             latitude: stop.latitude!,
-            longitude: stop.longitude!
+            longitude: stop.longitude!,
         }));
 
     // Calculate distances and sort
-    const stopsWithDistances = stopsWithValidCoords.map(stop => ({
+    const stopsWithDistances = stopsWithValidCoords.map((stop) => ({
         ...stop,
-        distance: getDistance(
-            referencePoint,
-            { latitude: stop.latitude, longitude: stop.longitude }
-        ) / 1000 // Convert to kilometers
+        distance: getDistance(referencePoint, { latitude: stop.latitude, longitude: stop.longitude }) / 1000, // Convert to kilometers
     }));
 
     // Sort by distance

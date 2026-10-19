@@ -9,12 +9,11 @@ import { initializeTheme } from './hooks/use-appearance';
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
 createInertiaApp({
-    title: (title) => title ? `${title} - ${appName}` : appName,
+    title: (title) => (title ? `${title} - ${appName}` : appName),
     resolve: (name) =>
-        resolvePageComponent(
-            `./pages/${name}.tsx`,
-            import.meta.glob<{ default: ResolvedComponent }>('./pages/**/*.tsx'),
-        ).then((module) => module.default),
+        resolvePageComponent(`./pages/${name}.tsx`, import.meta.glob<{ default: ResolvedComponent }>('./pages/**/*.tsx')).then(
+            (module) => module.default,
+        ),
     setup({ el, App, props }) {
         const root = createRoot(el);
 

@@ -1,13 +1,13 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Marker as GMarker, GoogleMap, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { GoogleMap, Marker as GMarker, InfoWindow, useJsApiLoader } from '@react-google-maps/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Plus, Navigation, Search, X } from 'lucide-react';
+import { MapPin, Navigation, Plus, Search, X } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, useMapEvents } from 'react-leaflet';
 
 // Fix for default markers in React-Leaflet
 // @ts-expect-error - Leaflet marker icon fix
@@ -56,7 +56,7 @@ const USE_GOOGLE_MAPS = MAP_PROVIDER === 'google' && GOOGLE_MAPS_API_KEY.length 
 
 if (MAP_PROVIDER === 'google' && !GOOGLE_MAPS_API_KEY && import.meta.env.DEV) {
     console.warn(
-        'VITE_MAP_PROVIDER is "google" but VITE_GOOGLE_MAPS_API_KEY is empty — falling back to the free OpenStreetMap map. Set the key in .env to actually use Google Maps.'
+        'VITE_MAP_PROVIDER is "google" but VITE_GOOGLE_MAPS_API_KEY is empty — falling back to the free OpenStreetMap map. Set the key in .env to actually use Google Maps.',
     );
 }
 
@@ -72,17 +72,21 @@ const stopIcon = new L.Icon({
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
-    shadowSize: [41, 41]
+    shadowSize: [41, 41],
 });
 
-const NEW_STOP_ICON_URL = 'data:image/svg+xml;base64,' + btoa(`
+const NEW_STOP_ICON_URL =
+    'data:image/svg+xml;base64,' +
+    btoa(`
     <svg xmlns="http://www.w3.org/2000/svg" width="25" height="41" viewBox="0 0 25 41">
         <path fill="#ef4444" stroke="#dc2626" stroke-width="1" d="M12.5 0C5.6 0 0 5.6 0 12.5c0 6.9 12.5 28.5 12.5 28.5S25 19.4 25 12.5C25 5.6 19.4 0 12.5 0z"/>
         <circle fill="#ffffff" cx="12.5" cy="12.5" r="4"/>
     </svg>
 `);
 
-const USER_LOCATION_ICON_URL = 'data:image/svg+xml;base64,' + btoa(`
+const USER_LOCATION_ICON_URL =
+    'data:image/svg+xml;base64,' +
+    btoa(`
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
         <circle fill="#3b82f6" cx="10" cy="10" r="8" stroke="#ffffff" stroke-width="2"/>
         <circle fill="#ffffff" cx="10" cy="10" r="3"/>
@@ -132,33 +136,15 @@ interface GeocodingResult {
 // Shared, provider-agnostic pieces
 // ---------------------------------------------------------------------------
 
-function MapControls({
-    isCreatingStop,
-    onToggleCreate,
-    onLocate,
-}: {
-    isCreatingStop: boolean;
-    onToggleCreate: () => void;
-    onLocate: () => void;
-}) {
+function MapControls({ isCreatingStop, onToggleCreate, onLocate }: { isCreatingStop: boolean; onToggleCreate: () => void; onLocate: () => void }) {
     return (
-        <div className="flex gap-2 flex-wrap">
-            <Button
-                type="button"
-                variant={isCreatingStop ? "destructive" : "outline"}
-                onClick={onToggleCreate}
-                className="flex items-center gap-2"
-            >
+        <div className="flex flex-wrap gap-2">
+            <Button type="button" variant={isCreatingStop ? 'destructive' : 'outline'} onClick={onToggleCreate} className="flex items-center gap-2">
                 <Plus className="h-4 w-4" />
                 {isCreatingStop ? 'Cancel Creation' : 'Create New Stop'}
             </Button>
 
-            <Button
-                type="button"
-                variant="outline"
-                onClick={onLocate}
-                className="flex items-center gap-2"
-            >
+            <Button type="button" variant="outline" onClick={onLocate} className="flex items-center gap-2">
                 <Navigation className="h-4 w-4" />
                 My Location
             </Button>
@@ -186,20 +172,20 @@ function CreateStopForm({
     return (
         <Card>
             <CardHeader>
-                <CardTitle className="text-sm flex items-center gap-2">
+                <CardTitle className="flex items-center gap-2 text-sm">
                     <MapPin className="h-4 w-4 text-red-500" />
                     Create New Stop
                 </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                    Click on the map to select the location for your new stop.
-                </p>
+                <p className="text-sm text-muted-foreground">Click on the map to select the location for your new stop.</p>
 
                 {newStopPosition && (
                     <div className="space-y-3">
                         <div>
-                            <label htmlFor="new_stop_name" className="text-sm font-medium">Stop Name</label>
+                            <label htmlFor="new_stop_name" className="text-sm font-medium">
+                                Stop Name
+                            </label>
                             <Input
                                 id="new_stop_name"
                                 name="new_stop_name"
@@ -211,7 +197,9 @@ function CreateStopForm({
                         </div>
 
                         <div>
-                            <label htmlFor="new_stop_address" className="text-sm font-medium">Address</label>
+                            <label htmlFor="new_stop_address" className="text-sm font-medium">
+                                Address
+                            </label>
                             <Input
                                 id="new_stop_address"
                                 name="new_stop_address"
@@ -223,19 +211,10 @@ function CreateStopForm({
                         </div>
 
                         <div className="flex gap-2">
-                            <Button
-                                type="button"
-                                onClick={onCreate}
-                                disabled={!newStopName.trim()}
-                                className="flex-1"
-                            >
+                            <Button type="button" onClick={onCreate} disabled={!newStopName.trim()} className="flex-1">
                                 Create Stop
                             </Button>
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={onCancel}
-                            >
+                            <Button type="button" variant="outline" onClick={onCancel}>
                                 Cancel
                             </Button>
                         </div>
@@ -247,11 +226,11 @@ function CreateStopForm({
 }
 
 function isStopSelectedIn(selectedStops: MapStopPickerProps['selectedStops'], stopId: number) {
-    return selectedStops.some(selected => selected.stop_id === stopId);
+    return selectedStops.some((selected) => selected.stop_id === stopId);
 }
 
 function getStopOrderIn(selectedStops: MapStopPickerProps['selectedStops'], stopId: number) {
-    return selectedStops.find(selected => selected.stop_id === stopId)?.order;
+    return selectedStops.find((selected) => selected.stop_id === stopId)?.order;
 }
 
 // Search box shared by both providers: filters saved stops locally, and
@@ -290,44 +269,51 @@ function LocationSearch({
         };
     }, []);
 
-    const runSearch = useCallback(async (query: string) => {
-        if (!query.trim() || query.length < 2) {
-            setSearchResults([]);
-            setSavedStopResults([]);
-            setShowSearchResults(false);
-            return;
-        }
-
-        setIsSearching(true);
-        try {
-            const filteredStops = stops.filter(stop =>
-                stop.name.toLowerCase().includes(query.toLowerCase()) ||
-                stop.address.toLowerCase().includes(query.toLowerCase())
-            ).slice(0, 5);
-
-            setSavedStopResults(filteredStops);
-
-            let geocodingResults: GeocodingResult[] = [];
-            if (query.length >= 3) {
-                geocodingResults = await searchGeocoding(query);
+    const runSearch = useCallback(
+        async (query: string) => {
+            if (!query.trim() || query.length < 2) {
+                setSearchResults([]);
+                setSavedStopResults([]);
+                setShowSearchResults(false);
+                return;
             }
 
-            setSearchResults(geocodingResults);
-            setShowSearchResults(filteredStops.length > 0 || geocodingResults.length > 0);
-        } catch (error) {
-            console.error('Error searching location:', error);
-        } finally {
-            setIsSearching(false);
-        }
-    }, [stops, searchGeocoding]);
+            setIsSearching(true);
+            try {
+                const filteredStops = stops
+                    .filter(
+                        (stop) => stop.name.toLowerCase().includes(query.toLowerCase()) || stop.address.toLowerCase().includes(query.toLowerCase()),
+                    )
+                    .slice(0, 5);
 
-    const handleSearchChange = useCallback((query: string) => {
-        setSearchQuery(query);
-        const timeoutId = setTimeout(() => {
-            runSearch(query);
-        }, 300);
-        return () => clearTimeout(timeoutId);
-    }, [runSearch]);
+                setSavedStopResults(filteredStops);
+
+                let geocodingResults: GeocodingResult[] = [];
+                if (query.length >= 3) {
+                    geocodingResults = await searchGeocoding(query);
+                }
+
+                setSearchResults(geocodingResults);
+                setShowSearchResults(filteredStops.length > 0 || geocodingResults.length > 0);
+            } catch (error) {
+                console.error('Error searching location:', error);
+            } finally {
+                setIsSearching(false);
+            }
+        },
+        [stops, searchGeocoding],
+    );
+
+    const handleSearchChange = useCallback(
+        (query: string) => {
+            setSearchQuery(query);
+            const timeoutId = setTimeout(() => {
+                runSearch(query);
+            }, 300);
+            return () => clearTimeout(timeoutId);
+        },
+        [runSearch],
+    );
 
     const handleGeocodingSelect = (result: GeocodingResult) => {
         onSelectGeocodingResult(result);
@@ -344,7 +330,7 @@ function LocationSearch({
     return (
         <div className="relative z-[1100]" ref={searchRef}>
             <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-muted-foreground" />
                 <Input
                     id="map_location_search"
                     name="map_location_search"
@@ -352,7 +338,7 @@ function LocationSearch({
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder="Search for a location..."
-                    className="pl-10 pr-10"
+                    className="pr-10 pl-10"
                 />
                 {searchQuery && (
                     <Button
@@ -365,7 +351,7 @@ function LocationSearch({
                             setSavedStopResults([]);
                             setShowSearchResults(false);
                         }}
-                        className="absolute right-1 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0"
+                        className="absolute top-1/2 right-1 h-8 w-8 -translate-y-1/2 transform p-0"
                     >
                         <X className="h-4 w-4" />
                     </Button>
@@ -373,27 +359,21 @@ function LocationSearch({
             </div>
 
             {showSearchResults && (
-                <Card className="absolute z-[1200] w-full mt-1 shadow-lg border max-h-60 overflow-auto">
+                <Card className="absolute z-[1200] mt-1 max-h-60 w-full overflow-auto border shadow-lg">
                     <CardContent className="p-0">
                         {savedStopResults.length > 0 && (
                             <>
-                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50 border-b">
-                                    Saved Stops
-                                </div>
+                                <div className="border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">Saved Stops</div>
                                 {savedStopResults.map((stop) => (
                                     <button
                                         key={`saved-${stop.id}`}
                                         onClick={() => handleSavedStopSelect(stop)}
-                                        className="w-full px-4 py-3 text-left hover:bg-muted transition-colors border-b last:border-b-0 flex items-start gap-3"
+                                        className="flex w-full items-start gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted"
                                     >
-                                        <MapPin className="h-4 w-4 mt-0.5 text-blue-600 flex-shrink-0" />
+                                        <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-blue-600" />
                                         <div className="min-w-0 flex-1">
-                                            <div className="text-sm font-medium truncate">
-                                                {stop.name}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground truncate">
-                                                {stop.address}
-                                            </div>
+                                            <div className="truncate text-sm font-medium">{stop.name}</div>
+                                            <div className="truncate text-xs text-muted-foreground">{stop.address}</div>
                                         </div>
                                         {isStopSelectedIn(selectedStops, stop.id) && (
                                             <Badge variant="secondary" className="text-xs">
@@ -407,26 +387,20 @@ function LocationSearch({
 
                         {searchResults.length > 0 && (
                             <>
-                                <div className="px-3 py-2 text-xs font-medium text-muted-foreground bg-muted/50 border-b">
+                                <div className="border-b bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground">
                                     Map Locations (Click to create stop)
                                 </div>
                                 {searchResults.map((result) => (
                                     <button
                                         key={`geocoding-${result.place_id}`}
                                         onClick={() => handleGeocodingSelect(result)}
-                                        className="w-full px-4 py-3 text-left hover:bg-muted transition-colors border-b last:border-b-0 flex items-start gap-3"
+                                        className="flex w-full items-start gap-3 border-b px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-muted"
                                     >
-                                        <Plus className="h-4 w-4 mt-0.5 text-green-600 flex-shrink-0" />
+                                        <Plus className="mt-0.5 h-4 w-4 flex-shrink-0 text-green-600" />
                                         <div className="min-w-0 flex-1">
-                                            <div className="text-sm font-medium truncate">
-                                                {result.display_name.split(',')[0].trim()}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground truncate">
-                                                {result.display_name}
-                                            </div>
-                                            <div className="text-xs text-green-600 mt-1">
-                                                Click to create and add as stop
-                                            </div>
+                                            <div className="truncate text-sm font-medium">{result.display_name.split(',')[0].trim()}</div>
+                                            <div className="truncate text-xs text-muted-foreground">{result.display_name}</div>
+                                            <div className="mt-1 text-xs text-green-600">Click to create and add as stop</div>
                                         </div>
                                     </button>
                                 ))}
@@ -434,17 +408,15 @@ function LocationSearch({
                         )}
 
                         {savedStopResults.length === 0 && searchResults.length === 0 && (
-                            <div className="px-4 py-3 text-sm text-muted-foreground text-center">
-                                No locations found
-                            </div>
+                            <div className="px-4 py-3 text-center text-sm text-muted-foreground">No locations found</div>
                         )}
                     </CardContent>
                 </Card>
             )}
 
             {isSearching && (
-                <div className="absolute right-10 top-1/2 transform -translate-y-1/2 z-[1300]">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
+                <div className="absolute top-1/2 right-10 z-[1300] -translate-y-1/2 transform">
+                    <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-primary"></div>
                 </div>
             )}
         </div>
@@ -465,13 +437,7 @@ function MapClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number
 // OpenStreetMap / Leaflet implementation (default, free, no API key)
 // ---------------------------------------------------------------------------
 
-function LeafletStopMap({
-    stops,
-    selectedStops,
-    onStopSelect,
-    onCreateStop,
-    className = ''
-}: MapStopPickerProps) {
+function LeafletStopMap({ stops, selectedStops, onStopSelect, onCreateStop, className = '' }: MapStopPickerProps) {
     const [isCreatingStop, setIsCreatingStop] = useState(false);
     const [newStopPosition, setNewStopPosition] = useState<{ lat: number; lng: number } | null>(null);
     const [newStopName, setNewStopName] = useState('');
@@ -491,7 +457,7 @@ function LeafletStopMap({
                 },
                 (error) => {
                     console.error('Error getting location:', error);
-                }
+                },
             );
         }
     }, []);
@@ -502,7 +468,7 @@ function LeafletStopMap({
     // hard cutoff).
     const searchGeocoding = useCallback(async (query: string): Promise<GeocodingResult[]> => {
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1&countrycodes=${MAP_COUNTRY_CODE}&viewbox=${MAP_BOUNDS_WEST},${MAP_BOUNDS_NORTH},${MAP_BOUNDS_EAST},${MAP_BOUNDS_SOUTH}&bounded=0`
+            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1&countrycodes=${MAP_COUNTRY_CODE}&viewbox=${MAP_BOUNDS_WEST},${MAP_BOUNDS_NORTH},${MAP_BOUNDS_EAST},${MAP_BOUNDS_SOUTH}&bounded=0`,
         );
 
         if (!response.ok) {
@@ -510,12 +476,7 @@ function LeafletStopMap({
         }
 
         const rawResults = await response.json();
-        return rawResults.map((result: {
-            display_name: string;
-            lat: string;
-            lon: string;
-            place_id: string;
-        }) => ({
+        return rawResults.map((result: { display_name: string; lat: string; lon: string; place_id: string }) => ({
             display_name: result.display_name,
             lat: result.lat,
             lon: result.lon,
@@ -540,7 +501,7 @@ function LeafletStopMap({
             name: nameFromDisplay,
             address: result.display_name,
             latitude: lat,
-            longitude: lng
+            longitude: lng,
         });
     };
 
@@ -551,12 +512,15 @@ function LeafletStopMap({
         onStopSelect(stop);
     };
 
-    const handleMapClick = useCallback((lat: number, lng: number) => {
-        if (isCreatingStop) {
-            setNewStopPosition({ lat, lng });
-            setNewStopAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        }
-    }, [isCreatingStop]);
+    const handleMapClick = useCallback(
+        (lat: number, lng: number) => {
+            if (isCreatingStop) {
+                setNewStopPosition({ lat, lng });
+                setNewStopAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+            }
+        },
+        [isCreatingStop],
+    );
 
     const handleCreateStop = () => {
         if (newStopPosition && newStopName.trim()) {
@@ -564,7 +528,7 @@ function LeafletStopMap({
                 name: newStopName.trim(),
                 address: newStopAddress.trim() || `${newStopPosition.lat.toFixed(6)}, ${newStopPosition.lng.toFixed(6)}`,
                 latitude: newStopPosition.lat,
-                longitude: newStopPosition.lng
+                longitude: newStopPosition.lng,
             });
 
             setIsCreatingStop(false);
@@ -582,7 +546,7 @@ function LeafletStopMap({
     };
 
     const getMapCenter = (): [number, number] => {
-        const validStops = stops.filter(stop => stop.latitude !== null && stop.longitude !== null);
+        const validStops = stops.filter((stop) => stop.latitude !== null && stop.longitude !== null);
         if (validStops.length === 0) {
             return MAP_DEFAULT_CENTER;
         }
@@ -594,11 +558,7 @@ function LeafletStopMap({
 
     return (
         <div className={`space-y-4 ${className}`}>
-            <MapControls
-                isCreatingStop={isCreatingStop}
-                onToggleCreate={() => setIsCreatingStop(!isCreatingStop)}
-                onLocate={getCurrentLocation}
-            />
+            <MapControls isCreatingStop={isCreatingStop} onToggleCreate={() => setIsCreatingStop(!isCreatingStop)} onLocate={getCurrentLocation} />
 
             <LocationSearch
                 stops={stops}
@@ -620,7 +580,7 @@ function LeafletStopMap({
                 />
             )}
 
-            <div className="h-96 rounded-lg overflow-hidden border">
+            <div className="h-96 overflow-hidden rounded-lg border">
                 <MapContainer
                     center={getMapCenter()}
                     zoom={MAP_DEFAULT_ZOOM}
@@ -638,8 +598,8 @@ function LeafletStopMap({
                     <MapClickHandler onMapClick={handleMapClick} />
 
                     {stops
-                        .filter(stop => stop.latitude !== null && stop.longitude !== null)
-                        .map(stop => (
+                        .filter((stop) => stop.latitude !== null && stop.longitude !== null)
+                        .map((stop) => (
                             <Marker
                                 key={stop.id}
                                 position={[stop.latitude!, stop.longitude!]}
@@ -649,7 +609,7 @@ function LeafletStopMap({
                                         if (!isCreatingStop) {
                                             onStopSelect(stop);
                                         }
-                                    }
+                                    },
                                 }}
                             >
                                 <Popup>
@@ -662,25 +622,17 @@ function LeafletStopMap({
                                             </Badge>
                                         )}
                                         {!isCreatingStop && !isStopSelectedIn(selectedStops, stop.id) && (
-                                            <Button
-                                                size="sm"
-                                                className="mt-2 w-full"
-                                                onClick={() => onStopSelect(stop)}
-                                            >
+                                            <Button size="sm" className="mt-2 w-full" onClick={() => onStopSelect(stop)}>
                                                 Add to Route
                                             </Button>
                                         )}
                                     </div>
                                 </Popup>
                             </Marker>
-                        ))
-                    }
+                        ))}
 
                     {newStopPosition && (
-                        <Marker
-                            position={[newStopPosition.lat, newStopPosition.lng]}
-                            icon={newStopIcon}
-                        >
+                        <Marker position={[newStopPosition.lat, newStopPosition.lng]} icon={newStopIcon}>
                             <Popup>
                                 <div className="p-2">
                                     <h3 className="font-semibold text-red-600">New Stop Location</h3>
@@ -695,11 +647,13 @@ function LeafletStopMap({
                     {userLocation && (
                         <Marker
                             position={[userLocation.lat, userLocation.lng]}
-                            icon={new L.Icon({
-                                iconUrl: USER_LOCATION_ICON_URL,
-                                iconSize: [20, 20],
-                                iconAnchor: [10, 10],
-                            })}
+                            icon={
+                                new L.Icon({
+                                    iconUrl: USER_LOCATION_ICON_URL,
+                                    iconSize: [20, 20],
+                                    iconAnchor: [10, 10],
+                                })
+                            }
                         >
                             <Popup>
                                 <div className="p-2">
@@ -735,13 +689,7 @@ const googleMapOptions: google.maps.MapOptions = {
     },
 };
 
-function GoogleStopMap({
-    stops,
-    selectedStops,
-    onStopSelect,
-    onCreateStop,
-    className = ''
-}: MapStopPickerProps) {
+function GoogleStopMap({ stops, selectedStops, onStopSelect, onCreateStop, className = '' }: MapStopPickerProps) {
     const { isLoaded, loadError } = useJsApiLoader({
         id: 'vems-google-map-script',
         googleMapsApiKey: GOOGLE_MAPS_API_KEY,
@@ -772,7 +720,7 @@ function GoogleStopMap({
                 },
                 (error) => {
                     console.error('Error getting location:', error);
-                }
+                },
             );
         }
     }, []);
@@ -783,69 +731,78 @@ function GoogleStopMap({
     // Places API (AutocompleteSuggestion/Place) rather than the deprecated
     // AutocompleteService/PlacesService — Google stopped allowing new Cloud
     // projects to enable the legacy Places API as of March 2025.
-    const searchGeocoding = useCallback(async (query: string): Promise<GeocodingResult[]> => {
-        if (!isLoaded || !google.maps.places?.AutocompleteSuggestion) {
-            return [];
-        }
+    const searchGeocoding = useCallback(
+        async (query: string): Promise<GeocodingResult[]> => {
+            if (!isLoaded || !google.maps.places?.AutocompleteSuggestion) {
+                return [];
+            }
 
-        try {
-            const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
-                input: query,
-                includedRegionCodes: MAP_COUNTRY_CODE ? [MAP_COUNTRY_CODE] : undefined,
-            });
+            try {
+                const { suggestions } = await google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions({
+                    input: query,
+                    includedRegionCodes: MAP_COUNTRY_CODE ? [MAP_COUNTRY_CODE] : undefined,
+                });
 
-            return suggestions
-                .filter((suggestion) => suggestion.placePrediction)
-                .map((suggestion) => ({
-                    display_name: suggestion.placePrediction!.text.text,
-                    place_id: suggestion.placePrediction!.placeId,
-                }));
-        } catch (error) {
-            console.error('Places Autocomplete request failed:', error);
-            return [];
-        }
-    }, [isLoaded]);
+                return suggestions
+                    .filter((suggestion) => suggestion.placePrediction)
+                    .map((suggestion) => ({
+                        display_name: suggestion.placePrediction!.text.text,
+                        place_id: suggestion.placePrediction!.placeId,
+                    }));
+            } catch (error) {
+                console.error('Places Autocomplete request failed:', error);
+                return [];
+            }
+        },
+        [isLoaded],
+    );
 
     // Autocomplete predictions only carry a place_id — resolve the actual
     // lat/lng via Place.fetchFields() once the user picks one.
-    const handleSelectGeocodingResult = useCallback(async (result: GeocodingResult) => {
-        if (!isLoaded || !google.maps.places?.Place) {
-            return;
-        }
-
-        try {
-            const place = new google.maps.places.Place({ id: result.place_id });
-            await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
-
-            if (!place.location) {
-                console.error('Could not resolve location for the selected place');
+    const handleSelectGeocodingResult = useCallback(
+        async (result: GeocodingResult) => {
+            if (!isLoaded || !google.maps.places?.Place) {
                 return;
             }
 
-            const lat = place.location.lat();
-            const lng = place.location.lng();
-            mapRef.current?.panTo({ lat, lng });
-            mapRef.current?.setZoom(15);
+            try {
+                const place = new google.maps.places.Place({ id: result.place_id });
+                await place.fetchFields({ fields: ['location', 'formattedAddress', 'displayName'] });
 
-            onCreateStop({
-                name: (place.displayName || result.display_name).split(',')[0].trim(),
-                address: place.formattedAddress || result.display_name,
-                latitude: lat,
-                longitude: lng,
-            });
-        } catch (error) {
-            console.error('Place Details request failed:', error);
-        }
-    }, [isLoaded, onCreateStop]);
+                if (!place.location) {
+                    console.error('Could not resolve location for the selected place');
+                    return;
+                }
 
-    const handleMapClick = useCallback((e: google.maps.MapMouseEvent) => {
-        if (isCreatingStop && e.latLng) {
-            const lat = e.latLng.lat();
-            const lng = e.latLng.lng();
-            setNewStopPosition({ lat, lng });
-            setNewStopAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
-        }
-    }, [isCreatingStop]);
+                const lat = place.location.lat();
+                const lng = place.location.lng();
+                mapRef.current?.panTo({ lat, lng });
+                mapRef.current?.setZoom(15);
+
+                onCreateStop({
+                    name: (place.displayName || result.display_name).split(',')[0].trim(),
+                    address: place.formattedAddress || result.display_name,
+                    latitude: lat,
+                    longitude: lng,
+                });
+            } catch (error) {
+                console.error('Place Details request failed:', error);
+            }
+        },
+        [isLoaded, onCreateStop],
+    );
+
+    const handleMapClick = useCallback(
+        (e: google.maps.MapMouseEvent) => {
+            if (isCreatingStop && e.latLng) {
+                const lat = e.latLng.lat();
+                const lng = e.latLng.lng();
+                setNewStopPosition({ lat, lng });
+                setNewStopAddress(`${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+            }
+        },
+        [isCreatingStop],
+    );
 
     const handleCreateStop = () => {
         if (newStopPosition && newStopName.trim()) {
@@ -853,7 +810,7 @@ function GoogleStopMap({
                 name: newStopName.trim(),
                 address: newStopAddress.trim() || `${newStopPosition.lat.toFixed(6)}, ${newStopPosition.lng.toFixed(6)}`,
                 latitude: newStopPosition.lat,
-                longitude: newStopPosition.lng
+                longitude: newStopPosition.lng,
             });
 
             setIsCreatingStop(false);
@@ -879,7 +836,7 @@ function GoogleStopMap({
     };
 
     const getMapCenter = (): google.maps.LatLngLiteral => {
-        const validStops = stops.filter(stop => stop.latitude !== null && stop.longitude !== null);
+        const validStops = stops.filter((stop) => stop.latitude !== null && stop.longitude !== null);
         if (validStops.length === 0) {
             return { lat: MAP_DEFAULT_CENTER[0], lng: MAP_DEFAULT_CENTER[1] };
         }
@@ -891,11 +848,7 @@ function GoogleStopMap({
 
     return (
         <div className={`space-y-4 ${className}`}>
-            <MapControls
-                isCreatingStop={isCreatingStop}
-                onToggleCreate={() => setIsCreatingStop(!isCreatingStop)}
-                onLocate={getCurrentLocation}
-            />
+            <MapControls isCreatingStop={isCreatingStop} onToggleCreate={() => setIsCreatingStop(!isCreatingStop)} onLocate={getCurrentLocation} />
 
             <LocationSearch
                 stops={stops}
@@ -917,17 +870,16 @@ function GoogleStopMap({
                 />
             )}
 
-            <div className="h-96 rounded-lg overflow-hidden border">
+            <div className="h-96 overflow-hidden rounded-lg border">
                 {loadError && (
-                    <div className="h-full w-full flex items-center justify-center text-sm text-destructive text-center p-4">
-                        Failed to load Google Maps. Check VITE_GOOGLE_MAPS_API_KEY and that billing
-                        is enabled on the Google Cloud project.
+                    <div className="flex h-full w-full items-center justify-center p-4 text-center text-sm text-destructive">
+                        Failed to load Google Maps. Check VITE_GOOGLE_MAPS_API_KEY and that billing is enabled on the Google Cloud project.
                     </div>
                 )}
 
                 {!loadError && !isLoaded && (
-                    <div className="h-full w-full flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <div className="flex h-full w-full items-center justify-center">
+                        <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-primary"></div>
                     </div>
                 )}
 
@@ -941,8 +893,8 @@ function GoogleStopMap({
                         onLoad={handleMapLoad}
                     >
                         {stops
-                            .filter(stop => stop.latitude !== null && stop.longitude !== null)
-                            .map(stop => (
+                            .filter((stop) => stop.latitude !== null && stop.longitude !== null)
+                            .map((stop) => (
                                 <GMarker
                                     key={stop.id}
                                     position={{ lat: stop.latitude!, lng: stop.longitude! }}
@@ -964,11 +916,7 @@ function GoogleStopMap({
                                                     </Badge>
                                                 )}
                                                 {!isStopSelectedIn(selectedStops, stop.id) && (
-                                                    <Button
-                                                        size="sm"
-                                                        className="mt-2 w-full"
-                                                        onClick={() => onStopSelect(stop)}
-                                                    >
+                                                    <Button size="sm" className="mt-2 w-full" onClick={() => onStopSelect(stop)}>
                                                         Add to Route
                                                     </Button>
                                                 )}
@@ -976,8 +924,7 @@ function GoogleStopMap({
                                         </InfoWindow>
                                     )}
                                 </GMarker>
-                            ))
-                        }
+                            ))}
 
                         {newStopPosition && (
                             <GMarker

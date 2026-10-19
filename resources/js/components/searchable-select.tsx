@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Search, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface Option {
     label: string;
@@ -25,7 +25,7 @@ export function SearchableSelect({
     onChange,
     options,
     error,
-    placeholder = "Search and select...",
+    placeholder = 'Search and select...',
     required = false,
     disabled = false,
 }: SearchableSelectProps) {
@@ -36,15 +36,13 @@ export function SearchableSelect({
     const inputRef = useRef<HTMLInputElement>(null);
 
     // Get the display value
-    const selectedOption = options.find(option => String(option.value) === String(value));
+    const selectedOption = options.find((option) => String(option.value) === String(value));
     const displayValue = selectedOption ? selectedOption.label : '';
 
     // Filter options based on search term
     useEffect(() => {
         if (searchTerm) {
-            const filtered = options.filter(option =>
-                option.label.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const filtered = options.filter((option) => option.label.toLowerCase().includes(searchTerm.toLowerCase()));
             setFilteredOptions(filtered);
         } else {
             setFilteredOptions(options);
@@ -91,25 +89,18 @@ export function SearchableSelect({
         <div className="space-y-2">
             {/* The trigger is a div, not a form control, so this is a plain
                 span it points to with aria-labelledby (a <label> would need one) */}
-            <span
-                id={`${name}-label`}
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300"
-            >
+            <span id={`${name}-label`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {label}
-                {required && <span className="text-red-500 ml-1">*</span>}
+                {required && <span className="ml-1 text-red-500">*</span>}
             </span>
 
             <div className="relative" ref={dropdownRef}>
                 <div
-                    className={`
-                        relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm
-                        ${error
+                    className={`relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm ${
+                        error
                             ? 'border-red-300 focus-within:border-red-500 focus-within:ring-red-500'
                             : 'border-input focus-within:border-indigo-500 focus-within:ring-indigo-500'
-                        }
-                        ${disabled ? 'cursor-not-allowed bg-muted/70' : 'hover:border-border'}
-                        focus-within:ring-1 transition-colors
-                    `}
+                    } ${disabled ? 'cursor-not-allowed bg-muted/70' : 'hover:border-border'} transition-colors focus-within:ring-1`}
                     onClick={handleToggle}
                     role="combobox"
                     aria-labelledby={`${name}-label`}
@@ -119,11 +110,11 @@ export function SearchableSelect({
                 >
                     {isOpen ? (
                         <div className="flex items-center">
-                            <Search className="h-4 w-4 text-gray-400 dark:text-gray-500 mr-2" />
+                            <Search className="mr-2 h-4 w-4 text-gray-400 dark:text-gray-500" />
                             <input
                                 ref={inputRef}
                                 type="text"
-                                className="flex-1 border-none bg-transparent p-0 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0"
+                                className="flex-1 border-none bg-transparent p-0 text-gray-900 placeholder-gray-500 focus:ring-0 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
                                 id={`${name}-search`}
                                 name={`${name}-search`}
                                 placeholder="Type to search..."
@@ -135,7 +126,9 @@ export function SearchableSelect({
                         </div>
                     ) : (
                         <div className="flex items-center justify-between">
-                            <span className={`block truncate ${displayValue ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}>
+                            <span
+                                className={`block truncate ${displayValue ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}
+                            >
                                 {displayValue || placeholder}
                             </span>
                             <div className="flex items-center space-x-1">
@@ -148,7 +141,9 @@ export function SearchableSelect({
                                         <X className="h-4 w-4" />
                                     </button>
                                 )}
-                                <ChevronDown className={`h-4 w-4 text-gray-400 dark:text-gray-500 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+                                <ChevronDown
+                                    className={`h-4 w-4 text-gray-400 transition-transform dark:text-gray-500 ${isOpen ? 'rotate-180' : ''}`}
+                                />
                             </div>
                         </div>
                     )}
@@ -161,31 +156,25 @@ export function SearchableSelect({
                                 filteredOptions.map((option) => (
                                     <div
                                         key={option.value}
-                                        className={`
-                                            cursor-pointer select-none px-3 py-2 text-sm
-                                            ${option.value === value
-                                                ? 'bg-indigo-100 dark:bg-indigo-900 text-indigo-900 dark:text-indigo-100'
-                                                : 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                            }
-                                        `}
+                                        className={`cursor-pointer px-3 py-2 text-sm select-none ${
+                                            option.value === value
+                                                ? 'bg-indigo-100 text-indigo-900 dark:bg-indigo-900 dark:text-indigo-100'
+                                                : 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700'
+                                        } `}
                                         onClick={() => handleSelect(option)}
                                     >
                                         {option.label}
                                     </div>
                                 ))
                             ) : (
-                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">
-                                    No options found
-                                </div>
+                                <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No options found</div>
                             )}
                         </div>
                     </div>
                 )}
             </div>
 
-            {error && (
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            )}
+            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
         </div>
     );
 }

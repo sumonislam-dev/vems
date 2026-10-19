@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, Zone } from '@/types';
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, Plus, Trash2, UserPlus, LayoutGrid } from 'lucide-react';
+import { ArrowLeft, LayoutGrid, Plus, Trash2, UserPlus } from 'lucide-react';
 
 type ContactPerson = {
     name: string;
@@ -91,7 +91,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
             },
             onSuccess: () => {
                 // redirect handled by controller
-            }
+            },
         });
     };
 
@@ -168,8 +168,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                             {/* Basic Information */}
                             <Card>
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-base flex items-center">
-                                        <LayoutGrid className="h-4 w-4 mr-2" />
+                                    <CardTitle className="flex items-center text-base">
+                                        <LayoutGrid className="mr-2 h-4 w-4" />
                                         Basic Information
                                     </CardTitle>
                                 </CardHeader>
@@ -198,7 +198,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                     options={statusOptions}
                                                     error={errors.status}
                                                     required
-                                                    className="text-xs w-28"
+                                                    className="w-28 text-xs"
                                                 />
                                             </div>
 
@@ -215,7 +215,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                                             <div>
                                                 <FormField
                                                     label="Email"
@@ -243,7 +243,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                                             <div>
                                                 <FormSelect
                                                     label="Zone"
@@ -258,7 +258,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             </div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                        <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
                                             <div>
                                                 <FormField
                                                     label="Address"
@@ -294,19 +294,33 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                             {/* Documents & Bank Details */}
                             <Card>
                                 <CardHeader className="pb-2">
-                                    <CardTitle className="text-base flex items-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 mr-2"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <CardTitle className="flex items-center text-base">
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="16"
+                                            height="16"
+                                            viewBox="0 0 24 24"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            strokeWidth="2"
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            className="mr-2 h-4 w-4"
+                                        >
+                                            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+                                            <polyline points="14 2 14 8 20 8" />
+                                        </svg>
                                         Documents & Bank Details
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="pt-3">
                                     <div className="grid gap-3">
                                         {/* Document Tabs - Compact Design */}
-                                        <div className="border rounded-md overflow-hidden">
+                                        <div className="overflow-hidden rounded-md border">
                                             {/* Trade License */}
                                             <div className="border-b px-3 py-2.5">
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                    <div className="flex-1 min-w-[180px]">
+                                                    <div className="min-w-[180px] flex-1">
                                                         <FormField
                                                             label="Trade License No."
                                                             name="trade_license"
@@ -317,8 +331,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             className="text-sm"
                                                         />
                                                     </div>
-                                                    <div className="flex-1 min-w-[220px]">
-                                                        <label htmlFor="trade_license_file" className="block text-xs font-medium mb-1">
+                                                    <div className="min-w-[220px] flex-1">
+                                                        <label htmlFor="trade_license_file" className="mb-1 block text-xs font-medium">
                                                             Upload Document
                                                         </label>
                                                         <input
@@ -326,11 +340,11 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             name="trade_license_file"
                                                             type="file"
                                                             accept=".pdf,.jpg,.jpeg,.png"
-                                                            className="block w-full text-xs border border-input rounded-md file:mr-2 file:py-1 file:px-2 file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                                                            className="block w-full rounded-md border border-input text-xs file:mr-2 file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                                                             onChange={(e) => handleFileChange('trade_license_file', e)}
                                                         />
                                                         {errors.trade_license_file && (
-                                                            <p className="text-destructive text-xs mt-1">{errors.trade_license_file}</p>
+                                                            <p className="mt-1 text-xs text-destructive">{errors.trade_license_file}</p>
                                                         )}
                                                     </div>
                                                 </div>
@@ -339,7 +353,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             {/* TIN */}
                                             <div className="border-b px-3 py-2.5">
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                    <div className="flex-1 min-w-[180px]">
+                                                    <div className="min-w-[180px] flex-1">
                                                         <FormField
                                                             label="TIN Number"
                                                             name="tin"
@@ -350,8 +364,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             className="text-sm"
                                                         />
                                                     </div>
-                                                    <div className="flex-1 min-w-[220px]">
-                                                        <label htmlFor="tin_file" className="block text-xs font-medium mb-1">
+                                                    <div className="min-w-[220px] flex-1">
+                                                        <label htmlFor="tin_file" className="mb-1 block text-xs font-medium">
                                                             Upload Document
                                                         </label>
                                                         <input
@@ -359,12 +373,10 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             name="tin_file"
                                                             type="file"
                                                             accept=".pdf,.jpg,.jpeg,.png"
-                                                            className="block w-full text-xs border border-input rounded-md file:mr-2 file:py-1 file:px-2 file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                                                            className="block w-full rounded-md border border-input text-xs file:mr-2 file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                                                             onChange={(e) => handleFileChange('tin_file', e)}
                                                         />
-                                                        {errors.tin_file && (
-                                                            <p className="text-destructive text-xs mt-1">{errors.tin_file}</p>
-                                                        )}
+                                                        {errors.tin_file && <p className="mt-1 text-xs text-destructive">{errors.tin_file}</p>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -372,7 +384,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             {/* BIN */}
                                             <div className="border-b px-3 py-2.5">
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                    <div className="flex-1 min-w-[180px]">
+                                                    <div className="min-w-[180px] flex-1">
                                                         <FormField
                                                             label="BIN Number"
                                                             name="bin"
@@ -383,8 +395,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             className="text-sm"
                                                         />
                                                     </div>
-                                                    <div className="flex-1 min-w-[220px]">
-                                                        <label htmlFor="bin_file" className="block text-xs font-medium mb-1">
+                                                    <div className="min-w-[220px] flex-1">
+                                                        <label htmlFor="bin_file" className="mb-1 block text-xs font-medium">
                                                             Upload Document
                                                         </label>
                                                         <input
@@ -392,12 +404,10 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             name="bin_file"
                                                             type="file"
                                                             accept=".pdf,.jpg,.jpeg,.png"
-                                                            className="block w-full text-xs border border-input rounded-md file:mr-2 file:py-1 file:px-2 file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                                                            className="block w-full rounded-md border border-input text-xs file:mr-2 file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                                                             onChange={(e) => handleFileChange('bin_file', e)}
                                                         />
-                                                        {errors.bin_file && (
-                                                            <p className="text-destructive text-xs mt-1">{errors.bin_file}</p>
-                                                        )}
+                                                        {errors.bin_file && <p className="mt-1 text-xs text-destructive">{errors.bin_file}</p>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -405,7 +415,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                             {/* Tax Return */}
                                             <div className="px-3 py-2.5">
                                                 <div className="flex flex-wrap items-center gap-3">
-                                                    <div className="flex-1 min-w-[180px]">
+                                                    <div className="min-w-[180px] flex-1">
                                                         <FormField
                                                             label="Tax Return Reference"
                                                             name="tax_return"
@@ -416,8 +426,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             className="text-sm"
                                                         />
                                                     </div>
-                                                    <div className="flex-1 min-w-[220px]">
-                                                        <label htmlFor="tax_return_file" className="block text-xs font-medium mb-1">
+                                                    <div className="min-w-[220px] flex-1">
+                                                        <label htmlFor="tax_return_file" className="mb-1 block text-xs font-medium">
                                                             Upload Document
                                                         </label>
                                                         <input
@@ -425,11 +435,11 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             name="tax_return_file"
                                                             type="file"
                                                             accept=".pdf,.jpg,.jpeg,.png"
-                                                            className="block w-full text-xs border border-input rounded-md file:mr-2 file:py-1 file:px-2 file:border-0 file:text-xs file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                                                            className="block w-full rounded-md border border-input text-xs file:mr-2 file:border-0 file:bg-secondary file:px-2 file:py-1 file:text-xs file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                                                             onChange={(e) => handleFileChange('tax_return_file', e)}
                                                         />
                                                         {errors.tax_return_file && (
-                                                            <p className="text-destructive text-xs mt-1">{errors.tax_return_file}</p>
+                                                            <p className="mt-1 text-xs text-destructive">{errors.tax_return_file}</p>
                                                         )}
                                                     </div>
                                                 </div>
@@ -456,31 +466,25 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
 
                             {/* Contact Persons */}
                             <Card>
-                                <CardHeader className="pb-2 flex flex-row items-center justify-between">
-                                    <CardTitle className="text-base flex items-center">
-                                        <UserPlus className="h-4 w-4 mr-2" />
+                                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                                    <CardTitle className="flex items-center text-base">
+                                        <UserPlus className="mr-2 h-4 w-4" />
                                         Contact Persons (Min. 1 Required)
                                     </CardTitle>
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 text-xs"
-                                        onClick={addContactPerson}
-                                    >
-                                        <Plus className="h-3 w-3 mr-1" />
+                                    <Button type="button" variant="outline" size="sm" className="h-8 text-xs" onClick={addContactPerson}>
+                                        <Plus className="mr-1 h-3 w-3" />
                                         Add Person
                                     </Button>
                                 </CardHeader>
                                 <CardContent className="pt-3">
                                     <div className="space-y-4">
                                         {data.contact_persons.map((contact, index) => (
-                                            <div key={index} className="border rounded-lg p-3">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <h4 className="text-sm font-medium flex items-center">
+                                            <div key={index} className="rounded-lg border p-3">
+                                                <div className="mb-3 flex items-center justify-between">
+                                                    <h4 className="flex items-center text-sm font-medium">
                                                         Contact Person {index + 1}
                                                         {contact.is_primary && (
-                                                            <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-sm">
+                                                            <span className="ml-2 rounded-sm bg-blue-100 px-1.5 py-0.5 text-xs text-blue-800">
                                                                 Primary
                                                             </span>
                                                         )}
@@ -491,7 +495,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             variant="ghost"
                                                             size="sm"
                                                             onClick={() => removeContactPerson(index)}
-                                                            className="text-red-600 hover:text-red-700 h-7 w-7 p-0"
+                                                            className="h-7 w-7 p-0 text-red-600 hover:text-red-700"
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                         </Button>
@@ -547,7 +551,7 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                                                             id={`primary_${index}`}
                                                             checked={contact.is_primary}
                                                             onChange={(e) => updateContactPerson(index, 'is_primary', e.target.checked)}
-                                                            className="h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+                                                            className="focus:ring-opacity-50 h-3.5 w-3.5 rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200"
                                                         />
                                                         <label htmlFor={`primary_${index}`} className="text-xs font-medium text-gray-700">
                                                             Primary Contact
@@ -586,13 +590,8 @@ export default function CreateVendor({ zones, defaultZoneId }: CreateVendorProps
                             >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                disabled={processing}
-                                size="sm"
-                                className="h-8 text-xs"
-                            >
-                                <Plus className="h-3 w-3 mr-1" />
+                            <Button type="submit" disabled={processing} size="sm" className="h-8 text-xs">
+                                <Plus className="mr-1 h-3 w-3" />
                                 Create Vendor
                             </Button>
                         </div>

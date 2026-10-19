@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { confirmDelete } from '@/components/confirm-dialog';
-import { Head, router } from '@inertiajs/react';
-import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
-import { PageHeader } from '@/base-components/page-header';
 import { ServerSideDataTable } from '@/base-components/base-data-table';
-import { DataTableColumn, ColumnFilter } from '@/types';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Eye, Edit, Trash2, Plus, Upload } from 'lucide-react';
+import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
+import { ColumnFilter, DataTableColumn } from '@/types';
+import { Head, router } from '@inertiajs/react';
+import { Edit, Eye, Plus, Trash2, Upload } from 'lucide-react';
+import { useState } from 'react';
 
 interface Department {
     id: number;
@@ -91,9 +91,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
             render: (value, department) => (
                 <div>
                     <div className="font-medium">{value}</div>
-                    {department.code && (
-                        <div className="text-sm text-muted-foreground">{department.code}</div>
-                    )}
+                    {department.code && <div className="text-sm text-muted-foreground">{department.code}</div>}
                 </div>
             ),
         },
@@ -106,7 +104,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
         {
             key: 'head' as keyof Department,
             label: 'Department Head',
-            render: (_, department) => (
+            render: (_, department) =>
                 department.head ? (
                     <div>
                         <div className="font-medium">{department.head.name}</div>
@@ -114,8 +112,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     </div>
                 ) : (
                     <span className="text-muted-foreground">No head assigned</span>
-                )
-            ),
+                ),
         },
         {
             key: 'users_count' as keyof Department,
@@ -131,11 +128,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
             label: 'Status',
             sortable: true,
             filterable: true,
-            render: (value) => (
-                <Badge variant={value === 'active' ? 'default' : 'secondary'}>
-                    {value}
-                </Badge>
-            ),
+            render: (value) => <Badge variant={value === 'active' ? 'default' : 'secondary'}>{value}</Badge>,
         },
         {
             key: 'created_at',
@@ -200,7 +193,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
             key: 'status',
             label: 'Status',
             type: 'multiselect',
-            options: filterOptions.statuses.map(status => ({
+            options: filterOptions.statuses.map((status) => ({
                 label: status.charAt(0).toUpperCase() + status.slice(1),
                 value: status,
             })),
@@ -254,13 +247,13 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                     <DialogHeader>
                         <DialogTitle>Import Departments</DialogTitle>
                         <DialogDescription>
-                            Upload a CSV or Excel file with columns: name, code, description, location, phone,
-                            email, is_active, attendance_mode. Only name and code are required.
+                            Upload a CSV or Excel file with columns: name, code, description, location, phone, email, is_active, attendance_mode. Only
+                            name and code are required.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div>
-                        <label htmlFor="departments_import_file" className="block text-sm font-medium mb-1">
+                        <label htmlFor="departments_import_file" className="mb-1 block text-sm font-medium">
                             File
                         </label>
                         <input
@@ -268,7 +261,7 @@ export default function DepartmentsIndex({ departments, filterOptions, queryPara
                             name="file"
                             type="file"
                             accept=".csv,.txt,.xlsx,.xls"
-                            className="block w-full text-sm border border-input rounded-md file:mr-2 file:py-1.5 file:px-3 file:border-0 file:text-sm file:font-medium file:bg-secondary file:text-secondary-foreground hover:file:bg-secondary/80"
+                            className="block w-full rounded-md border border-input text-sm file:mr-2 file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
                             onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
                         />
                     </div>

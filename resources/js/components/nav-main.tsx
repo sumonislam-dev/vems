@@ -1,5 +1,14 @@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarMenuSub, SidebarMenuSubButton, SidebarMenuSubItem } from '@/components/ui/sidebar';
+import {
+    SidebarGroup,
+    SidebarGroupLabel,
+    SidebarMenu,
+    SidebarMenuButton,
+    SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
+} from '@/components/ui/sidebar';
 import { type NavItem } from '@/types';
 import { Link } from '@inertiajs/react';
 import { ChevronRight } from 'lucide-react';
@@ -19,7 +28,10 @@ export function NavMain({ items = [], label = 'Platform', activeHref = null }: {
                         >
                             <SidebarMenuItem>
                                 <CollapsibleTrigger asChild>
-                                    <SidebarMenuButton tooltip={{ children: item.title }} isActive={item.children.some((child) => child.href === activeHref)}>
+                                    <SidebarMenuButton
+                                        tooltip={{ children: item.title }}
+                                        isActive={item.children.some((child) => child.href === activeHref)}
+                                    >
                                         {item.icon && <item.icon />}
                                         <span>{item.title}</span>
                                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />

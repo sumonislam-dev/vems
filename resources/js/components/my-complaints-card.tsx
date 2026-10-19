@@ -1,8 +1,8 @@
-import { Link } from '@inertiajs/react';
-import { MessagesSquare, PlusCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from '@inertiajs/react';
+import { MessagesSquare, PlusCircle } from 'lucide-react';
 
 export interface MyComplaintSummary {
     id: number;
@@ -22,11 +22,15 @@ export interface MyComplaintsCardProps {
 
 const complaintStatusColor = (status: string) => {
     switch (status) {
-        case 'open': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
-        case 'in_review': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
+        case 'open':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
+        case 'in_review':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
         case 'resolved':
-        case 'closed': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-        default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+        case 'closed':
+            return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+        default:
+            return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
     }
 };
 
@@ -36,7 +40,7 @@ export function MyComplaintsCard({ complaints }: MyComplaintsCardProps) {
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle className="flex items-center">
-                        <MessagesSquare className="w-5 h-5 mr-2" />
+                        <MessagesSquare className="mr-2 h-5 w-5" />
                         My Complaints
                     </CardTitle>
                     <CardDescription>Feedback & complaints you've submitted</CardDescription>
@@ -63,18 +67,16 @@ export function MyComplaintsCard({ complaints }: MyComplaintsCardProps) {
                             <Link
                                 key={complaint.id}
                                 href={route('complaints.show', complaint.id)}
-                                className="flex items-center justify-between p-3 border rounded-lg hover:shadow-sm transition-shadow"
+                                className="flex items-center justify-between rounded-lg border p-3 transition-shadow hover:shadow-sm"
                             >
-                                <p className="text-sm font-medium text-foreground truncate pr-2">{complaint.subject}</p>
-                                <Badge className={complaintStatusColor(complaint.status)}>
-                                    {complaint.status.replace('_', ' ')}
-                                </Badge>
+                                <p className="truncate pr-2 text-sm font-medium text-foreground">{complaint.subject}</p>
+                                <Badge className={complaintStatusColor(complaint.status)}>{complaint.status.replace('_', ' ')}</Badge>
                             </Link>
                         ))}
                     </div>
                 ) : (
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
-                        <PlusCircle className="w-4 h-4" />
+                    <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <PlusCircle className="h-4 w-4" />
                         Nothing submitted yet.
                     </p>
                 )}

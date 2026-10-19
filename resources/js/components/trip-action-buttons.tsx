@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Trip } from '@/types';
-import { ArrowLeft, Edit, Play } from 'lucide-react';
 import { router } from '@inertiajs/react';
+import { ArrowLeft, Edit, Play } from 'lucide-react';
 
 interface TripActionButtonsProps {
     trip: Trip;

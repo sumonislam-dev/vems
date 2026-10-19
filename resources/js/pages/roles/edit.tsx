@@ -1,12 +1,12 @@
 import { BaseForm, FormField, FormSelect } from '@/base-components/base-form';
-import { confirmDelete } from '@/components/confirm-dialog';
 import { PageHeader } from '@/base-components/page-header';
+import { confirmDelete } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { BreadcrumbItem, Permission } from '@/types';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save, Shield, Trash2 } from 'lucide-react';
 
 interface Role {
@@ -40,7 +40,7 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
     const { data, setData, put, processing, errors } = useForm<RoleForm>({
         name: role.name,
         guard_name: role.guard_name,
-        permissions: role.permissions.map(p => p.id),
+        permissions: role.permissions.map((p) => p.id),
     });
 
     const submit = (e: React.FormEvent) => {
@@ -58,12 +58,18 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
         if (checked) {
             setData('permissions', [...data.permissions, permissionId]);
         } else {
-            setData('permissions', data.permissions.filter(id => id !== permissionId));
+            setData(
+                'permissions',
+                data.permissions.filter((id) => id !== permissionId),
+            );
         }
     };
 
     const selectAllPermissions = () => {
-        setData('permissions', permissions.map(p => p.id));
+        setData(
+            'permissions',
+            permissions.map((p) => p.id),
+        );
     };
 
     const deselectAllPermissions = () => {
@@ -71,14 +77,17 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
     };
 
     // Group permissions by category
-    const groupedPermissions = permissions.reduce((groups, permission) => {
-        const category = permission.name.split(' ').slice(1).join(' ') || 'general';
-        if (!groups[category]) {
-            groups[category] = [];
-        }
-        groups[category].push(permission);
-        return groups;
-    }, {} as Record<string, Permission[]>);
+    const groupedPermissions = permissions.reduce(
+        (groups, permission) => {
+            const category = permission.name.split(' ').slice(1).join(' ') || 'general';
+            if (!groups[category]) {
+                groups[category] = [];
+            }
+            groups[category].push(permission);
+            return groups;
+        },
+        {} as Record<string, Permission[]>,
+    );
 
     return (
         <AppSidebarLayout breadcrumbs={breadcrumbs}>
@@ -133,12 +142,18 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                         required
                                     />
 
-                                    <div className="pt-4 border-t">
-                                        <div className="text-sm text-gray-600 space-y-1">
-                                            <p><strong>Created:</strong> {new Date(role.created_at).toLocaleDateString()}</p>
-                                            <p><strong>Updated:</strong> {new Date(role.updated_at).toLocaleDateString()}</p>
+                                    <div className="border-t pt-4">
+                                        <div className="space-y-1 text-sm text-gray-600">
+                                            <p>
+                                                <strong>Created:</strong> {new Date(role.created_at).toLocaleDateString()}
+                                            </p>
+                                            <p>
+                                                <strong>Updated:</strong> {new Date(role.updated_at).toLocaleDateString()}
+                                            </p>
                                             {role.users_count !== undefined && (
-                                                <p><strong>Users:</strong> {role.users_count}</p>
+                                                <p>
+                                                    <strong>Users:</strong> {role.users_count}
+                                                </p>
                                             )}
                                         </div>
                                     </div>
@@ -151,20 +166,10 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                     <div className="flex items-center justify-between">
                                         <CardTitle>Permissions</CardTitle>
                                         <div className="flex space-x-2">
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={selectAllPermissions}
-                                            >
+                                            <Button type="button" variant="outline" size="sm" onClick={selectAllPermissions}>
                                                 Select All
                                             </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={deselectAllPermissions}
-                                            >
+                                            <Button type="button" variant="outline" size="sm" onClick={deselectAllPermissions}>
                                                 Deselect All
                                             </Button>
                                         </div>
@@ -174,10 +179,8 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                     <div className="space-y-6">
                                         {Object.entries(groupedPermissions).map(([category, categoryPermissions]) => (
                                             <div key={category}>
-                                                <h4 className="font-medium text-gray-900 mb-3 capitalize">
-                                                    {category} Permissions
-                                                </h4>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <h4 className="mb-3 font-medium text-gray-900 capitalize">{category} Permissions</h4>
+                                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                     {categoryPermissions.map((permission) => (
                                                         <div key={permission.id} className="flex items-center space-x-2">
                                                             <Checkbox
@@ -189,7 +192,7 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                                             />
                                                             <label
                                                                 htmlFor={`permission-${permission.id}`}
-                                                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                                                className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                                                             >
                                                                 {permission.name}
                                                             </label>
@@ -199,39 +202,24 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                             </div>
                                         ))}
                                     </div>
-                                    {errors.permissions && (
-                                        <p className="text-sm text-red-600 mt-2">{errors.permissions}</p>
-                                    )}
+                                    {errors.permissions && <p className="mt-2 text-sm text-red-600">{errors.permissions}</p>}
                                 </CardContent>
                             </Card>
                         </div>
 
                         <div className="flex justify-between pt-6">
                             <div className="flex gap-3">
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => window.history.back()}
-                                    disabled={processing}
-                                >
+                                <Button type="button" variant="outline" onClick={() => window.history.back()} disabled={processing}>
                                     Cancel
                                 </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={processing}
-                                >
+                                <Button type="submit" disabled={processing}>
                                     <Save className="mr-2 h-4 w-4" />
                                     Update Role
                                 </Button>
                             </div>
 
                             {/* Danger Zone */}
-                            <Button
-                                type="button"
-                                variant="destructive"
-                                onClick={handleDelete}
-                                disabled={processing}
-                            >
+                            <Button type="button" variant="destructive" onClick={handleDelete} disabled={processing}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Delete Role
                             </Button>

@@ -1,5 +1,5 @@
-import { SearchableSelect } from '@/components/searchable-select';
 import { confirmDelete } from '@/components/confirm-dialog';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -162,7 +162,12 @@ export function VehicleDowntimeCard({ vehicleId, downtimes, reasons, replacement
                                             <td className="px-3 py-2">
                                                 <div className="flex justify-end gap-1">
                                                     {!d.ends_on && (
-                                                        <Button size="sm" variant="outline" onClick={() => endNow(d)} title="Vehicle is back in service">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => endNow(d)}
+                                                            title="Vehicle is back in service"
+                                                        >
                                                             <Square className="mr-1 h-3 w-3" />
                                                             End now
                                                         </Button>
@@ -194,7 +199,13 @@ export function VehicleDowntimeCard({ vehicleId, downtimes, reasons, replacement
                         <div className="grid grid-cols-2 gap-3">
                             <div className="space-y-1">
                                 <Label htmlFor="starts_on">From</Label>
-                                <Input id="starts_on" type="date" value={data.starts_on} onChange={(e) => setData('starts_on', e.target.value)} required />
+                                <Input
+                                    id="starts_on"
+                                    type="date"
+                                    value={data.starts_on}
+                                    onChange={(e) => setData('starts_on', e.target.value)}
+                                    required
+                                />
                                 {errors.starts_on && <p className="text-xs text-destructive">{errors.starts_on}</p>}
                             </div>
                             <div className="space-y-1">

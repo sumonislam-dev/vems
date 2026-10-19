@@ -1,5 +1,3 @@
-import { Link, usePage } from '@inertiajs/react';
-import { AlertTriangle, Car, CheckCircle2, ListChecks, MessageSquarePlus } from 'lucide-react';
 import { AttendanceStatusCard } from '@/components/attendance-status-card';
 import { MyComplaintsCard, type MyComplaintsCardProps } from '@/components/my-complaints-card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { hasPermission } from '@/lib/permissions';
 import type { SharedData } from '@/types';
 import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
+import { Link, usePage } from '@inertiajs/react';
+import { AlertTriangle, Car, CheckCircle2, ListChecks, MessageSquarePlus } from 'lucide-react';
 
 interface DriverTripSummary {
     id: number;
@@ -33,21 +33,30 @@ export interface DriverDashboardProps {
 
 const tripStatusColor = (status: string) => {
     switch (status) {
-        case 'pending': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
+        case 'pending':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
         case 'approved':
-        case 'assigned': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
-        case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
-        case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-        default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+        case 'assigned':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
+        case 'in_progress':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
+        case 'completed':
+            return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+        default:
+            return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
     }
 };
 
 const driverStatusColor = (status: string) => {
     switch (status) {
-        case 'available': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-        case 'on_trip': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
-        case 'on_leave': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
-        default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+        case 'available':
+            return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+        case 'on_trip':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
+        case 'on_leave':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
+        default:
+            return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
     }
 };
 
@@ -55,7 +64,7 @@ function TripListItem({ trip }: { trip: DriverTripSummary }) {
     return (
         <Link
             href={route('trips.show', trip.id)}
-            className="flex items-center justify-between p-3 border rounded-lg hover:shadow-sm transition-shadow"
+            className="flex items-center justify-between rounded-lg border p-3 transition-shadow hover:shadow-sm"
         >
             <div>
                 <p className="text-sm font-medium text-foreground">{trip.trip_number}</p>
@@ -74,13 +83,13 @@ export function DriverDashboard({ attendanceStatus, factories, myTrips, myCompla
     const permissions = auth.permissions ?? [];
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-6">
             {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} factories={factories} />}
 
             {license.status !== 'valid' && (
                 <Card className="border-orange-300 dark:border-orange-500/40">
                     <CardContent className="flex items-center gap-2 py-4 text-sm text-orange-700 dark:text-orange-300">
-                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
                         {license.status === 'not_provided' && "Your driving license details haven't been provided yet."}
                         {license.status === 'expiring_soon' && `Your driving license expires soon (${license.expiry_date}).`}
                         {license.status === 'expired' && `Your driving license expired on ${license.expiry_date}.`}
@@ -101,26 +110,26 @@ export function DriverDashboard({ attendanceStatus, factories, myTrips, myCompla
             <div className="flex flex-wrap gap-3">
                 <Button asChild>
                     <Link href={route('trips.index')}>
-                        <Car className="w-4 h-4 mr-2" />
+                        <Car className="mr-2 h-4 w-4" />
                         View My Trips
                     </Link>
                 </Button>
                 {hasPermission(permissions, 'create-complaints') && (
                     <Button asChild variant="outline">
                         <Link href={route('complaints.create')}>
-                            <MessageSquarePlus className="w-4 h-4 mr-2" />
+                            <MessageSquarePlus className="mr-2 h-4 w-4" />
                             Submit Feedback/Complaint
                         </Link>
                     </Button>
                 )}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center">
-                                <ListChecks className="w-5 h-5 mr-2" />
+                                <ListChecks className="mr-2 h-5 w-5" />
                                 Today's Trips
                             </CardTitle>
                             <CardDescription>Trips assigned to your vehicle today</CardDescription>
@@ -152,15 +161,15 @@ export function DriverDashboard({ attendanceStatus, factories, myTrips, myCompla
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                <CheckCircle2 className="w-4 h-4" />
+                            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <CheckCircle2 className="h-4 w-4" />
                                 No trips scheduled for today.
                             </p>
                         )}
 
                         {myTrips.upcoming.length > 0 && (
                             <div className="pt-2">
-                                <p className="text-xs font-medium text-muted-foreground mb-2">Upcoming</p>
+                                <p className="mb-2 text-xs font-medium text-muted-foreground">Upcoming</p>
                                 <div className="space-y-2">
                                     {myTrips.upcoming.map((trip) => (
                                         <TripListItem key={trip.id} trip={trip} />

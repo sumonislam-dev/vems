@@ -1,4 +1,5 @@
 import { ExportButton } from '@/base-components/base-export-button';
+import { FormMultiSelect } from '@/base-components/base-form';
 import { PageHeader } from '@/base-components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { FormMultiSelect } from '@/base-components/base-form';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { hasPermission } from '@/lib/permissions';
 import { cn } from '@/lib/utils';
@@ -373,13 +373,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                 key: 'actions',
                 label: 'Actions',
                 render: (record) => (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 w-8 p-0"
-                        title="View attendance details"
-                        onClick={() => setReviewRecord(record)}
-                    >
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0" title="View attendance details" onClick={() => setReviewRecord(record)}>
                         <Eye className="h-4 w-4" />
                     </Button>
                 ),
@@ -520,7 +514,10 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                                 </div>
                                 <div className="flex flex-col gap-1">
                                     <Label className="text-xs">Source</Label>
-                                    <Select value={filters.source} onValueChange={(v) => setFilters((f) => ({ ...f, source: v === '_all' ? '' : v }))}>
+                                    <Select
+                                        value={filters.source}
+                                        onValueChange={(v) => setFilters((f) => ({ ...f, source: v === '_all' ? '' : v }))}
+                                    >
                                         <SelectTrigger>
                                             <SelectValue placeholder="All sources" />
                                         </SelectTrigger>
@@ -577,7 +574,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                         <div className="flex items-center justify-between">
                             <CardTitle className="text-sm font-semibold">
                                 Records
-                                <span className="ml-2 text-muted-foreground font-normal">({records.total} total)</span>
+                                <span className="ml-2 font-normal text-muted-foreground">({records.total} total)</span>
                             </CardTitle>
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
@@ -586,7 +583,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                                         Columns
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-64 max-h-96 overflow-y-auto">
+                                <DropdownMenuContent align="end" className="max-h-96 w-64 overflow-y-auto">
                                     <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
                                     <DropdownMenuSeparator />
                                     {columns.map((column, index) => {
@@ -638,7 +635,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                                         </tr>
                                     ) : (
                                         records.data.map((record) => (
-                                            <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
+                                            <tr key={record.id} className="border-b transition-colors hover:bg-muted/30">
                                                 {visibleColumnDefs.map((column) => (
                                                     <td key={column.key} className={cn('px-4 py-3', column.className)}>
                                                         {column.render(record)}
@@ -750,7 +747,9 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                             </div>
                         ))}
 
-                        {(reviewRecord?.events ?? []).length === 0 && <p className="text-sm text-muted-foreground">No events recorded for this day.</p>}
+                        {(reviewRecord?.events ?? []).length === 0 && (
+                            <p className="text-sm text-muted-foreground">No events recorded for this day.</p>
+                        )}
                     </div>
 
                     <DialogFooter>

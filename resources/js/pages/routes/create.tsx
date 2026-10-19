@@ -1,24 +1,19 @@
-import { Head, useForm } from '@inertiajs/react';
-import { FormEventHandler, useState } from 'react';
+import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { PageHeader } from '@/base-components/page-header';
+import MapStopPicker from '@/components/MapStopPicker';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Plus, Route as RouteIcon, MapPin, Clock, Trash2, Map } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { PageHeader } from '@/base-components/page-header';
-import { EnhancedStopSelect } from '@/components/ui/enhanced-stop-select';
-import { ReorderButtons } from '@/components/ui/reorder-buttons';
 import { DistanceDisplay, RouteDistanceSummary } from '@/components/ui/distance-display';
-import { calculateStopDistances } from '@/lib/distance-calculator';
-import MapStopPicker from '@/components/MapStopPicker';
-import {
-  BaseForm,
-  FormField,
-  FormSelect,
-  FormTextarea
-} from '@/base-components/base-form';
-import { Badge } from '@/components/ui/badge';
+import { EnhancedStopSelect } from '@/components/ui/enhanced-stop-select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ReorderButtons } from '@/components/ui/reorder-buttons';
+import AppLayout from '@/layouts/app-layout';
+import { calculateStopDistances } from '@/lib/distance-calculator';
+import { Head, useForm } from '@inertiajs/react';
+import { ArrowLeft, Clock, Map, MapPin, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
+import { FormEventHandler, useState } from 'react';
 
 interface Stop {
     id: number;
@@ -64,10 +59,12 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
 
     // Calculate route statistics
     const getSelectedStopsWithCoordinates = () => {
-        return selectedStops.map(routeStop => {
-            const stop = stops.find(s => s.id === routeStop.stop_id);
-            return stop || null;
-        }).filter(Boolean) as Stop[];
+        return selectedStops
+            .map((routeStop) => {
+                const stop = stops.find((s) => s.id === routeStop.stop_id);
+                return stop || null;
+            })
+            .filter(Boolean) as Stop[];
     };
 
     const routeStopsWithCoords = getSelectedStopsWithCoordinates();
@@ -89,9 +86,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                 const currentStop = routeStopsWithCoords[i];
                 const previousStop = routeStopsWithCoords[i - 1];
 
-                if (currentStop && previousStop &&
-                    currentStop.latitude && currentStop.longitude &&
-                    previousStop.latitude && previousStop.longitude) {
+                if (currentStop && previousStop && currentStop.latitude && currentStop.longitude && previousStop.latitude && previousStop.longitude) {
                     const calculatedDistances = calculateStopDistances([previousStop, currentStop]);
                     distanceFromPrevious = calculatedDistances[1] || 0;
                 }
@@ -125,9 +120,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
     };
 
     const updateStop = (index: number, field: keyof RouteStopForm, value: string | number | null) => {
-        const updatedStops = selectedStops.map((stop, i) =>
-            i === index ? { ...stop, [field]: value } : stop
-        );
+        const updatedStops = selectedStops.map((stop, i) => (i === index ? { ...stop, [field]: value } : stop));
         setSelectedStops(updatedStops);
         // @ts-expect-error Inertia form typing issue with arrays
         setData('stops', updatedStops);
@@ -174,15 +167,15 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || ''
+                    'X-CSRF-TOKEN': document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')?.content || '',
                 },
-                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null })
+                body: JSON.stringify({ ...stopData, zone_id: data.zone_id || null }),
             });
 
             if (response.ok) {
                 const result = await response.json();
                 const newStop = result.data;
-                setStops(prev => [...prev, newStop]);
+                setStops((prev) => [...prev, newStop]);
                 return newStop;
             }
         } catch {
@@ -212,7 +205,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                 name: stopData.name,
                 description: stopData.address,
                 latitude: stopData.latitude,
-                longitude: stopData.longitude
+                longitude: stopData.longitude,
             });
 
             if (newStop && mapPickerStopIndex !== null) {
@@ -247,16 +240,16 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                     description="Create a new vehicle route with multiple stops"
                     actions={[
                         {
-                            label: "Back to Routes",
+                            label: 'Back to Routes',
                             icon: <ArrowLeft className="mr-2 h-4 w-4" />,
-                            href: "/routes",
-                            variant: "outline"
-                        }
+                            href: '/routes',
+                            variant: 'outline',
+                        },
                     ]}
                 />
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="space-y-6 lg:col-span-2">
                         {/* Route Information */}
                         <Card>
                             <CardHeader>
@@ -264,9 +257,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                     <RouteIcon className="h-5 w-5" />
                                     Route Information
                                 </CardTitle>
-                                <CardDescription>
-                                    Enter basic information about the route
-                                </CardDescription>
+                                <CardDescription>Enter basic information about the route</CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <BaseForm onSubmit={handleSubmit} className="space-y-4">
@@ -324,25 +315,21 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                     <div className="flex items-center gap-2">
                                         <Button
                                             type="button"
-                                            variant={manualDistanceMode ? "default" : "outline"}
+                                            variant={manualDistanceMode ? 'default' : 'outline'}
                                             size="sm"
                                             onClick={() => setManualDistanceMode(!manualDistanceMode)}
                                             className="text-xs"
                                         >
-                                            {manualDistanceMode ? "Auto Distance" : "Manual Distance"}
+                                            {manualDistanceMode ? 'Auto Distance' : 'Manual Distance'}
                                         </Button>
-                                        <Badge variant="secondary">
-                                            {selectedStops.length} stops
-                                        </Badge>
+                                        <Badge variant="secondary">{selectedStops.length} stops</Badge>
                                     </div>
                                 </CardTitle>
-                                <CardDescription>
-                                    Add and arrange stops for this route. Drag to reorder.
-                                </CardDescription>
+                                <CardDescription>Add and arrange stops for this route. Drag to reorder.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {selectedStops.map((stop, index) => (
-                                    <div key={index} className="border rounded-lg p-4 space-y-4 bg-muted/50">
+                                    <div key={index} className="space-y-4 rounded-lg border bg-muted/50 p-4">
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-2">
                                                 <Badge variant="outline">Stop {index + 1}</Badge>
@@ -361,7 +348,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                                     variant="ghost"
                                                     size="sm"
                                                     onClick={() => removeStop(index)}
-                                                    className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -387,7 +374,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                                     <DistanceDisplay
                                                         distances={{
                                                             fromPrevious: stopDistances[index] || null,
-                                                            cumulative: cumulativeDistances[index] || null
+                                                            cumulative: cumulativeDistances[index] || null,
                                                         }}
                                                         stopIndex={index}
                                                         className="mt-1"
@@ -407,7 +394,9 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                                         step="0.01"
                                                         min="0"
                                                         value={stop.manual_distance || ''}
-                                                        onChange={(e) => updateStop(index, 'manual_distance', e.target.value ? parseFloat(e.target.value) : null)}
+                                                        onChange={(e) =>
+                                                            updateStop(index, 'manual_distance', e.target.value ? parseFloat(e.target.value) : null)
+                                                        }
                                                         placeholder="0.00"
                                                     />
                                                     <div className="text-xs text-muted-foreground">
@@ -443,12 +432,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                     </div>
                                 ))}
 
-                                <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={addStop}
-                                    className="w-full"
-                                >
+                                <Button type="button" variant="outline" onClick={addStop} className="w-full">
                                     <Plus className="mr-2 h-4 w-4" />
                                     Add Stop
                                 </Button>
@@ -459,10 +443,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                     {/* Summary Card */}
                     <div className="space-y-6">
                         {/* Route Distance Summary */}
-                        <RouteDistanceSummary
-                            totalDistance={totalDistance}
-                            stopCount={selectedStops.length}
-                        />
+                        <RouteDistanceSummary totalDistance={totalDistance} stopCount={selectedStops.length} />
 
                         <Card>
                             <CardHeader>
@@ -471,9 +452,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                             <CardContent className="space-y-4">
                                 <div className="space-y-2">
                                     <Label className="text-sm font-medium">Route Name</Label>
-                                    <p className="text-sm text-muted-foreground">
-                                        {(data.name as string) || 'No name entered'}
-                                    </p>
+                                    <p className="text-sm text-muted-foreground">{(data.name as string) || 'No name entered'}</p>
                                 </div>
 
                                 {selectedStops.length > 0 && (
@@ -481,15 +460,15 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                         <Label className="text-sm font-medium">Route Sequence</Label>
                                         <div className="space-y-1">
                                             {selectedStops.map((stop, index) => {
-                                                const stopInfo = stops.find(s => s.id === stop.stop_id);
+                                                const stopInfo = stops.find((s) => s.id === stop.stop_id);
                                                 return (
-                                                    <div key={index} className="text-xs text-muted-foreground flex items-center gap-2">
+                                                    <div key={index} className="flex items-center gap-2 text-xs text-muted-foreground">
                                                         <Badge variant="outline" className="text-xs">
                                                             {index + 1}
                                                         </Badge>
                                                         <span className="flex-1">{stopInfo?.name || 'Select a stop'}</span>
                                                         {index < cumulativeDistances.length && cumulativeDistances[index] > 0 && (
-                                                            <span className="text-blue-600 font-mono text-xs">
+                                                            <span className="font-mono text-xs text-blue-600">
                                                                 {cumulativeDistances[index].toFixed(1)}km
                                                             </span>
                                                         )}
@@ -500,12 +479,8 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                     </div>
                                 )}
 
-                                <div className="pt-4 space-y-2">
-                                    <Button
-                                        onClick={handleSubmit}
-                                        disabled={processing}
-                                        className="w-full"
-                                    >
+                                <div className="space-y-2 pt-4">
+                                    <Button onClick={handleSubmit} disabled={processing} className="w-full">
                                         {processing ? 'Creating Route...' : 'Create Route'}
                                     </Button>
 
@@ -531,8 +506,8 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
             {showMapPicker && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50">
                     <div className="mx-4 max-h-[90vh] w-full max-w-4xl overflow-auto rounded-lg bg-card p-6 text-card-foreground">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-lg font-semibold flex items-center gap-2">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h2 className="flex items-center gap-2 text-lg font-semibold">
                                 <Map className="h-5 w-5" />
                                 Select Stop from Map
                             </h2>
@@ -548,26 +523,28 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                         </div>
 
                         <MapStopPicker
-                            stops={stops.map(stop => ({
+                            stops={stops.map((stop) => ({
                                 id: stop.id,
                                 name: stop.name,
                                 address: stop.description || '',
                                 latitude: stop.latitude,
-                                longitude: stop.longitude
+                                longitude: stop.longitude,
                             }))}
                             selectedStops={selectedStops.map((stop, index) => ({
                                 stop_id: stop.stop_id,
                                 order: index + 1,
-                                stop: stops.find(s => s.id === stop.stop_id) ? {
-                                    id: stops.find(s => s.id === stop.stop_id)!.id,
-                                    name: stops.find(s => s.id === stop.stop_id)!.name,
-                                    address: stops.find(s => s.id === stop.stop_id)!.description || '',
-                                    latitude: stops.find(s => s.id === stop.stop_id)!.latitude,
-                                    longitude: stops.find(s => s.id === stop.stop_id)!.longitude
-                                } : undefined
+                                stop: stops.find((s) => s.id === stop.stop_id)
+                                    ? {
+                                          id: stops.find((s) => s.id === stop.stop_id)!.id,
+                                          name: stops.find((s) => s.id === stop.stop_id)!.name,
+                                          address: stops.find((s) => s.id === stop.stop_id)!.description || '',
+                                          latitude: stops.find((s) => s.id === stop.stop_id)!.latitude,
+                                          longitude: stops.find((s) => s.id === stop.stop_id)!.longitude,
+                                      }
+                                    : undefined,
                             }))}
                             onStopSelect={(mapStop) => {
-                                const originalStop = stops.find(s => s.id === mapStop.id);
+                                const originalStop = stops.find((s) => s.id === mapStop.id);
                                 if (originalStop) {
                                     handleMapStopSelect(originalStop);
                                 }

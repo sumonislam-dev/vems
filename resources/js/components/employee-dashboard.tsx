@@ -1,5 +1,3 @@
-import { Link, usePage } from '@inertiajs/react';
-import { CalendarPlus, Car, CheckCircle2, Clock, MessageSquarePlus } from 'lucide-react';
 import { AttendanceStatusCard } from '@/components/attendance-status-card';
 import { MyComplaintsCard, type MyComplaintsCardProps } from '@/components/my-complaints-card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { hasPermission } from '@/lib/permissions';
 import type { SharedData } from '@/types';
 import type { AttendanceStatusSummary, Factory } from '@/types/attendance';
+import { Link, usePage } from '@inertiajs/react';
+import { CalendarPlus, Car, CheckCircle2, Clock, MessageSquarePlus } from 'lucide-react';
 
 interface MyTripSummary {
     id: number;
@@ -29,12 +29,17 @@ export interface EmployeeDashboardProps {
 
 const tripStatusColor = (status: string) => {
     switch (status) {
-        case 'pending': return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
+        case 'pending':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-500/15 dark:text-orange-300';
         case 'approved':
-        case 'assigned': return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
-        case 'in_progress': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
-        case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
-        default: return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
+        case 'assigned':
+            return 'bg-blue-100 text-blue-800 dark:bg-blue-500/15 dark:text-blue-300';
+        case 'in_progress':
+            return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300';
+        case 'completed':
+            return 'bg-green-100 text-green-800 dark:bg-green-500/15 dark:text-green-300';
+        default:
+            return 'bg-slate-100 text-slate-800 dark:bg-slate-500/15 dark:text-slate-300';
     }
 };
 
@@ -43,7 +48,7 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
     const permissions = auth.permissions ?? [];
 
     return (
-        <div className="p-6 space-y-6">
+        <div className="space-y-6 p-6">
             {attendanceStatus && <AttendanceStatusCard status={attendanceStatus} factories={factories} />}
 
             <div>
@@ -56,7 +61,7 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
                 {hasPermission(permissions, 'create-trips') && (
                     <Button asChild>
                         <Link href={route('trips.create')}>
-                            <CalendarPlus className="w-4 h-4 mr-2" />
+                            <CalendarPlus className="mr-2 h-4 w-4" />
                             Request a Trip
                         </Link>
                     </Button>
@@ -64,7 +69,7 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
                 {hasPermission(permissions, 'create-complaints') && (
                     <Button asChild variant="outline">
                         <Link href={route('complaints.create')}>
-                            <MessageSquarePlus className="w-4 h-4 mr-2" />
+                            <MessageSquarePlus className="mr-2 h-4 w-4" />
                             Submit Feedback/Complaint
                         </Link>
                     </Button>
@@ -72,12 +77,12 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
             </div>
 
             {/* My Trips / My Complaints summary cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                 <Card className="lg:col-span-2">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="flex items-center">
-                                <Car className="w-5 h-5 mr-2" />
+                                <Car className="mr-2 h-5 w-5" />
                                 My Trips
                             </CardTitle>
                             <CardDescription>Trips you requested, are riding, or are driving</CardDescription>
@@ -108,7 +113,7 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
                                     <Link
                                         key={trip.id}
                                         href={route('trips.show', trip.id)}
-                                        className="flex items-center justify-between p-3 border rounded-lg hover:shadow-sm transition-shadow"
+                                        className="flex items-center justify-between rounded-lg border p-3 transition-shadow hover:shadow-sm"
                                     >
                                         <div>
                                             <p className="text-sm font-medium text-foreground">{trip.trip_number}</p>
@@ -116,15 +121,13 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
                                                 {trip.scheduled_date} • {trip.schedule_type}
                                             </p>
                                         </div>
-                                        <Badge className={tripStatusColor(trip.status)}>
-                                            {trip.status.replace('_', ' ')}
-                                        </Badge>
+                                        <Badge className={tripStatusColor(trip.status)}>{trip.status.replace('_', ' ')}</Badge>
                                     </Link>
                                 ))}
                             </div>
                         ) : (
                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <CheckCircle2 className="w-4 h-4" />
+                                <CheckCircle2 className="h-4 w-4" />
                                 {hasPermission(permissions, 'create-trips') ? (
                                     <span>
                                         No upcoming trips.{' '}
@@ -147,7 +150,7 @@ export function EmployeeDashboard({ attendanceStatus, factories, myTrips, myComp
             {hasPermission(permissions, 'capture-own-attendance') && !attendanceStatus && (
                 <Card>
                     <CardContent className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-                        <Clock className="w-4 h-4" />
+                        <Clock className="h-4 w-4" />
                         <Link href={route('attendance.index')} className="underline">
                             Go to Attendance
                         </Link>

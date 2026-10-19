@@ -7,7 +7,11 @@ interface AppContentProps extends React.ComponentProps<'main'> {
 
 export function AppContent({ variant = 'header', children, className, ...props }: AppContentProps) {
     if (variant === 'sidebar') {
-        return <SidebarInset className={`!rounded-none !m-0 !shadow-none ${className || ''}`} {...props}>{children}</SidebarInset>;
+        return (
+            <SidebarInset className={`!m-0 !rounded-none !shadow-none ${className || ''}`} {...props}>
+                {children}
+            </SidebarInset>
+        );
     }
 
     return (

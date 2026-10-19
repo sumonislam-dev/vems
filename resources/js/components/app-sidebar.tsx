@@ -1,11 +1,34 @@
-
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
 import { hasPermission } from '@/lib/permissions';
 import { type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BarChart3, Boxes, Briefcase, Building2, CalendarClock, Car, ClipboardCheck, ClipboardList, Factory, FileSpreadsheet, Gauge, Globe, History, LayoutGrid, MapPin, MessageSquareWarning, PieChart, Route, Shield, ShieldAlert, UserCheck, Users, UsersRound } from 'lucide-react';
+import {
+    BarChart3,
+    Boxes,
+    Briefcase,
+    Building2,
+    CalendarClock,
+    Car,
+    ClipboardCheck,
+    ClipboardList,
+    Factory,
+    FileSpreadsheet,
+    Gauge,
+    Globe,
+    History,
+    LayoutGrid,
+    MapPin,
+    MessageSquareWarning,
+    PieChart,
+    Route,
+    Shield,
+    ShieldAlert,
+    UserCheck,
+    Users,
+    UsersRound,
+} from 'lucide-react';
 import AppLogo from './app-logo';
 
 // `permission` gates each item to match its target page's controller middleware
@@ -21,7 +44,12 @@ const navSections: { label: string; items: NavItem[] }[] = [
         items: [
             { title: 'Trips', href: '/trips', icon: MapPin, permission: ['view-trips', 'view-own-trips'] },
             { title: 'Passenger Events', href: '/trips/passenger-events', icon: CalendarClock, permission: 'view-trips' },
-            { title: 'Feedback & Complaints', href: '/complaints', icon: MessageSquareWarning, permission: ['view-complaints', 'view-own-complaints'] },
+            {
+                title: 'Feedback & Complaints',
+                href: '/complaints',
+                icon: MessageSquareWarning,
+                permission: ['view-complaints', 'view-own-complaints'],
+            },
             { title: 'Attendance', href: '/attendance', icon: ClipboardCheck, permission: 'capture-own-attendance' },
             { title: 'Attendance Reports', href: '/attendance/reports', icon: ClipboardList, permission: 'view-attendance-reports' },
         ],
@@ -99,7 +127,7 @@ export function AppSidebar() {
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild tooltip={{ children: "RSC Vehicle Management System" }}>
+                        <SidebarMenuButton size="lg" asChild tooltip={{ children: 'RSC Vehicle Management System' }}>
                             <Link href="/dashboard" prefetch>
                                 <AppLogo />
                             </Link>
@@ -115,7 +143,6 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-
                 <NavUser />
             </SidebarFooter>
         </Sidebar>

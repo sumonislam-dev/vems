@@ -5,9 +5,11 @@ This directory contains reusable form components designed to work seamlessly wit
 ## Components Overview
 
 ### 1. Base Form Components (`base-form.tsx`)
+
 Simple, lightweight form components that integrate directly with Inertia's `useForm` hook.
 
 **Features:**
+
 - ✅ Works with existing Inertia.js setup
 - ✅ Built-in client-side validation
 - ✅ Consistent styling with shadcn/ui
@@ -16,9 +18,11 @@ Simple, lightweight form components that integrate directly with Inertia's `useF
 - ✅ Loading states and error handling
 
 ### 2. Advanced Form Components (`advanced-form.tsx`)
+
 More powerful form components that integrate with React Hook Form for complex validation scenarios.
 
 **Features:**
+
 - ✅ Schema-based validation (Zod, Yup)
 - ✅ Better performance for large forms
 - ✅ Advanced form features (field arrays, conditional fields)
@@ -30,151 +34,142 @@ More powerful form components that integrate with React Hook Form for complex va
 
 ```tsx
 import { useForm } from '@inertiajs/react';
-import { 
-  BaseForm, 
-  FormField, 
-  FormSelect, 
-  FormActions 
-} from '@/base-components/base-form';
+import { BaseForm, FormField, FormSelect, FormActions } from '@/base-components/base-form';
 
 export default function UserForm() {
-  const { data, setData, post, processing, errors } = useForm({
-    name: '',
-    email: '',
-    role: ''
-  });
+    const { data, setData, post, processing, errors } = useForm({
+        name: '',
+        email: '',
+        role: '',
+    });
 
-  const submit = (e) => {
-    e.preventDefault();
-    post(route('users.store'));
-  };
+    const submit = (e) => {
+        e.preventDefault();
+        post(route('users.store'));
+    };
 
-  return (
-    <BaseForm onSubmit={submit} processing={processing}>
-      <FormField
-        label="Name"
-        name="name"
-        value={data.name}
-        onChange={(value) => setData('name', value)}
-        error={errors.name}
-        required
-      />
-      
-      <FormField
-        label="Email"
-        name="email"
-        type="email"
-        value={data.email}
-        onChange={(value) => setData('email', value)}
-        error={errors.email}
-        required
-      />
-      
-      <FormSelect
-        label="Role"
-        name="role"
-        value={data.role}
-        onChange={(value) => setData('role', value)}
-        error={errors.role}
-        options={[
-          { label: 'Admin', value: 'admin' },
-          { label: 'User', value: 'user' }
-        ]}
-      />
-      
-      <FormActions>
-        <Button type="submit">Save</Button>
-      </FormActions>
-    </BaseForm>
-  );
+    return (
+        <BaseForm onSubmit={submit} processing={processing}>
+            <FormField label="Name" name="name" value={data.name} onChange={(value) => setData('name', value)} error={errors.name} required />
+
+            <FormField
+                label="Email"
+                name="email"
+                type="email"
+                value={data.email}
+                onChange={(value) => setData('email', value)}
+                error={errors.email}
+                required
+            />
+
+            <FormSelect
+                label="Role"
+                name="role"
+                value={data.role}
+                onChange={(value) => setData('role', value)}
+                error={errors.role}
+                options={[
+                    { label: 'Admin', value: 'admin' },
+                    { label: 'User', value: 'user' },
+                ]}
+            />
+
+            <FormActions>
+                <Button type="submit">Save</Button>
+            </FormActions>
+        </BaseForm>
+    );
 }
 ```
 
 ## Available Components
 
 ### BaseForm
+
 Main form container that handles submission and loading states.
 
 ```tsx
 <BaseForm onSubmit={handleSubmit} processing={processing}>
-  {/* Form fields */}
+    {/* Form fields */}
 </BaseForm>
 ```
 
 ### FormField
+
 Standard input field with label, validation, and error display.
 
 ```tsx
 <FormField
-  label="Email"
-  name="email"
-  type="email"
-  value={data.email}
-  onChange={(value) => setData('email', value)}
-  error={errors.email}
-  required
-  placeholder="user@example.com"
-  description="We'll never share your email"
-  validation={[
-    validationRules.required(),
-    validationRules.email()
-  ]}
+    label="Email"
+    name="email"
+    type="email"
+    value={data.email}
+    onChange={(value) => setData('email', value)}
+    error={errors.email}
+    required
+    placeholder="user@example.com"
+    description="We'll never share your email"
+    validation={[validationRules.required(), validationRules.email()]}
 />
 ```
 
 ### FormSelect
+
 Dropdown select field.
 
 ```tsx
 <FormSelect
-  label="Country"
-  name="country"
-  value={data.country}
-  onChange={(value) => setData('country', value)}
-  error={errors.country}
-  options={[
-    { label: 'United States', value: 'us' },
-    { label: 'Canada', value: 'ca' }
-  ]}
-  placeholder="Select a country..."
+    label="Country"
+    name="country"
+    value={data.country}
+    onChange={(value) => setData('country', value)}
+    error={errors.country}
+    options={[
+        { label: 'United States', value: 'us' },
+        { label: 'Canada', value: 'ca' },
+    ]}
+    placeholder="Select a country..."
 />
 ```
 
 ### FormTextarea
+
 Multi-line text input.
 
 ```tsx
 <FormTextarea
-  label="Description"
-  name="description"
-  value={data.description}
-  onChange={(value) => setData('description', value)}
-  error={errors.description}
-  rows={4}
-  maxLength={500}
-  placeholder="Enter description..."
+    label="Description"
+    name="description"
+    value={data.description}
+    onChange={(value) => setData('description', value)}
+    error={errors.description}
+    rows={4}
+    maxLength={500}
+    placeholder="Enter description..."
 />
 ```
 
 ### FormCheckbox
+
 Checkbox input with label.
 
 ```tsx
 <FormCheckbox
-  label="Subscribe to newsletter"
-  name="newsletter"
-  checked={data.newsletter}
-  onChange={(checked) => setData('newsletter', checked)}
-  error={errors.newsletter}
-  description="Receive weekly updates"
+    label="Subscribe to newsletter"
+    name="newsletter"
+    checked={data.newsletter}
+    onChange={(checked) => setData('newsletter', checked)}
+    error={errors.newsletter}
+    description="Receive weekly updates"
 />
 ```
 
 ### FormSection
+
 Groups related form fields with optional title and description.
 
 ```tsx
-<FormSection 
+<FormSection
   title="Personal Information"
   description="Enter your basic details"
 >
@@ -184,12 +179,15 @@ Groups related form fields with optional title and description.
 ```
 
 ### FormActions
+
 Container for form buttons with automatic loading states.
 
 ```tsx
 <FormActions align="right">
-  <Button type="button" variant="outline">Cancel</Button>
-  <Button type="submit">Save</Button>
+    <Button type="button" variant="outline">
+        Cancel
+    </Button>
+    <Button type="submit">Save</Button>
 </FormActions>
 ```
 
@@ -201,15 +199,15 @@ The base form components include built-in validation rules:
 import { validationRules } from '@/base-components/base-form';
 
 <FormField
-  // ... other props
-  validation={[
-    validationRules.required('Name is required'),
-    validationRules.minLength(2, 'Must be at least 2 characters'),
-    validationRules.maxLength(50, 'Must be less than 50 characters'),
-    validationRules.email('Please enter a valid email'),
-    validationRules.pattern(/^[A-Z]/, 'Must start with uppercase letter')
-  ]}
-/>
+    // ... other props
+    validation={[
+        validationRules.required('Name is required'),
+        validationRules.minLength(2, 'Must be at least 2 characters'),
+        validationRules.maxLength(50, 'Must be less than 50 characters'),
+        validationRules.email('Please enter a valid email'),
+        validationRules.pattern(/^[A-Z]/, 'Must start with uppercase letter'),
+    ]}
+/>;
 ```
 
 ## Advanced Usage with React Hook Form
@@ -227,30 +225,25 @@ import * as z from 'zod';
 import { AdvancedForm, AdvancedFormField } from '@/base-components/advanced-form';
 
 const schema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  email: z.string().email('Invalid email'),
+    name: z.string().min(1, 'Name is required'),
+    email: z.string().email('Invalid email'),
 });
 
 export default function AdvancedUserForm() {
-  const form = useForm({
-    resolver: zodResolver(schema),
-    defaultValues: { name: '', email: '' }
-  });
+    const form = useForm({
+        resolver: zodResolver(schema),
+        defaultValues: { name: '', email: '' },
+    });
 
-  const onSubmit = (data) => {
-    // Handle form submission
-  };
+    const onSubmit = (data) => {
+        // Handle form submission
+    };
 
-  return (
-    <AdvancedForm form={form} onSubmit={onSubmit}>
-      <AdvancedFormField
-        form={form}
-        name="name"
-        label="Name"
-        render={({ field }) => <Input {...field} />}
-      />
-    </AdvancedForm>
-  );
+    return (
+        <AdvancedForm form={form} onSubmit={onSubmit}>
+            <AdvancedFormField form={form} name="name" label="Name" render={({ field }) => <Input {...field} />} />
+        </AdvancedForm>
+    );
 }
 ```
 
@@ -262,30 +255,26 @@ For completely dynamic forms, use the FormBuilder component:
 import { FormBuilder } from '@/base-components/advanced-form';
 
 const formFields = [
-  {
-    name: 'name',
-    label: 'Full Name',
-    type: 'text',
-    required: true,
-    placeholder: 'Enter your name'
-  },
-  {
-    name: 'role',
-    label: 'Role',
-    type: 'select',
-    required: true,
-    options: [
-      { label: 'Admin', value: 'admin' },
-      { label: 'User', value: 'user' }
-    ]
-  }
+    {
+        name: 'name',
+        label: 'Full Name',
+        type: 'text',
+        required: true,
+        placeholder: 'Enter your name',
+    },
+    {
+        name: 'role',
+        label: 'Role',
+        type: 'select',
+        required: true,
+        options: [
+            { label: 'Admin', value: 'admin' },
+            { label: 'User', value: 'user' },
+        ],
+    },
 ];
 
-<FormBuilder
-  fields={formFields}
-  onSubmit={handleSubmit}
-  processing={processing}
-/>
+<FormBuilder fields={formFields} onSubmit={handleSubmit} processing={processing} />;
 ```
 
 ## Best Practices
@@ -308,28 +297,19 @@ To migrate existing forms:
 5. Use FormActions for buttons
 
 Before:
+
 ```tsx
 <div className="grid gap-2">
-  <Label htmlFor="name">Name</Label>
-  <Input
-    id="name"
-    value={data.name}
-    onChange={(e) => setData('name', e.target.value)}
-    disabled={processing}
-  />
-  <InputError message={errors.name} />
+    <Label htmlFor="name">Name</Label>
+    <Input id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} disabled={processing} />
+    <InputError message={errors.name} />
 </div>
 ```
 
 After:
+
 ```tsx
-<FormField
-  label="Name"
-  name="name"
-  value={data.name}
-  onChange={(value) => setData('name', value)}
-  error={errors.name}
-/>
+<FormField label="Name" name="name" value={data.name} onChange={(value) => setData('name', value)} error={errors.name} />
 ```
 
 ## Examples

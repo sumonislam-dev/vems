@@ -133,8 +133,7 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
         rental_type: filters.rental_type ?? ALL,
     });
 
-    const query = () =>
-        Object.fromEntries(Object.entries(form).filter(([, value]) => value && value !== ALL)) as Record<string, string>;
+    const query = () => Object.fromEntries(Object.entries(form).filter(([, value]) => value && value !== ALL)) as Record<string, string>;
 
     const apply = () => router.get(route('reports.monthly-vehicle'), query(), { preserveState: true, preserveScroll: true });
 
@@ -204,10 +203,25 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                     </CardHeader>
                     <CardContent className="space-y-3">
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                            <Input type="date" aria-label="From" value={form.from} onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))} />
+                            <Input
+                                type="date"
+                                aria-label="From"
+                                value={form.from}
+                                onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))}
+                            />
                             <Input type="date" aria-label="To" value={form.to} onChange={(e) => setForm((p) => ({ ...p, to: e.target.value }))} />
-                            {selectFilter('zone_id', 'Office', 'All offices', filterOptions.zones.map((z) => ({ value: String(z.id), label: z.name })))}
-                            {selectFilter('vendor_id', 'Vendor', 'All vendors', filterOptions.vendors.map((v) => ({ value: String(v.id), label: v.name })))}
+                            {selectFilter(
+                                'zone_id',
+                                'Office',
+                                'All offices',
+                                filterOptions.zones.map((z) => ({ value: String(z.id), label: z.name })),
+                            )}
+                            {selectFilter(
+                                'vendor_id',
+                                'Vendor',
+                                'All vendors',
+                                filterOptions.vendors.map((v) => ({ value: String(v.id), label: v.name })),
+                            )}
                             {selectFilter(
                                 'vehicle_id',
                                 'Vehicle',
@@ -248,8 +262,8 @@ export default function MonthlyVehicleReport({ report, filters, filterOptions, m
                             <CardHeader>
                                 <CardTitle className="text-base">Daily vehicles by purpose</CardTitle>
                                 <CardDescription>
-                                    Purpose rows count distinct vehicles per day. Staff Pick &amp; Drop is shown separately. Total vehicles counts each
-                                    vehicle once per day.
+                                    Purpose rows count distinct vehicles per day. Staff Pick &amp; Drop is shown separately. Total vehicles counts
+                                    each vehicle once per day.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="overflow-x-auto">
@@ -526,7 +540,10 @@ function GroupRows({ group }: { group: MonthlyVehicleReportProps['report']['deta
                     {v.cells.map((cell, i) => (
                         <TableCell
                             key={i}
-                            className={cn('min-w-24 px-1 align-top', cell?.down && 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300')}
+                            className={cn(
+                                'min-w-24 px-1 align-top',
+                                cell?.down && 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+                            )}
                             title={cell && !cell.down ? `${cell.trips} trip(s)` : undefined}
                         >
                             {cell && (

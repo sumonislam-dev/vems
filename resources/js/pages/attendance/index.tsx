@@ -88,7 +88,7 @@ export default function AttendanceIndex({ attendanceMode, today, history, factor
                                         </tr>
                                     ) : (
                                         history.map((record) => (
-                                            <tr key={record.id} className="border-b hover:bg-muted/30 transition-colors">
+                                            <tr key={record.id} className="border-b transition-colors hover:bg-muted/30">
                                                 <td className="px-4 py-3 whitespace-nowrap">{record.work_date}</td>
                                                 <td className="px-4 py-3">{formatTime(record.check_in_at)}</td>
                                                 <td className="px-4 py-3">{formatTime(record.check_out_at)}</td>
