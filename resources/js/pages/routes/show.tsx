@@ -11,7 +11,6 @@ interface VehicleRoute {
     id: number;
     name: string;
     description: string | null;
-    remarks: string | null;
     total_distance: number | null;
     created_at: string;
     updated_at: string;
@@ -89,13 +88,6 @@ export default function ShowRoute({ route }: ShowRouteProps) {
                                     <div>
                                         <h3 className="font-medium">Description</h3>
                                         <p className="text-muted-foreground">{route.description}</p>
-                                    </div>
-                                )}
-
-                                {route.remarks && (
-                                    <div>
-                                        <h3 className="font-medium">Remarks</h3>
-                                        <p className="text-muted-foreground">{route.remarks}</p>
                                     </div>
                                 )}
 

@@ -13,7 +13,6 @@ interface VehicleRoute {
     id: number;
     name: string;
     description: string | null;
-    remarks: string | null;
     total_distance: number | null;
     route_stops_count: number;
     created_at: string;
@@ -116,16 +115,6 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
             key: 'zone',
             label: 'Zone',
             render: (value: { id: number; name: string } | null) => <span className="text-sm">{value?.name || 'No Zone'}</span>,
-        },
-        {
-            key: 'remarks',
-            label: 'Remarks',
-            render: (value: string | null) =>
-                value ? (
-                    <span className="max-w-xs truncate text-sm">{value}</span>
-                ) : (
-                    <span className="text-sm text-muted-foreground">No remarks</span>
-                ),
         },
         {
             key: 'created_at',

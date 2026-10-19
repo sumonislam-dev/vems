@@ -1,6 +1,7 @@
-import { BaseForm, FormField, FormSelect, FormTextarea } from '@/base-components/base-form';
+import { BaseForm, FormField, FormTextarea } from '@/base-components/base-form';
 import { PageHeader } from '@/base-components/page-header';
 import MapStopPicker from '@/components/MapStopPicker';
+import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -46,7 +47,6 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
     const { data, setData, post, processing, errors, reset } = useForm({
         name: '',
         description: '',
-        remarks: '',
         zone_id: defaultZoneId?.toString() || '',
         stops: [],
     });
@@ -252,12 +252,30 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                     <div className="space-y-6 lg:col-span-2">
                         {/* Route Information */}
                         <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
-                                    <RouteIcon className="h-5 w-5" />
-                                    Route Information
-                                </CardTitle>
-                                <CardDescription>Enter basic information about the route</CardDescription>
+                            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="space-y-1.5">
+                                    <CardTitle className="flex items-center gap-2">
+                                        <RouteIcon className="h-5 w-5" />
+                                        Route Information
+                                    </CardTitle>
+                                    <CardDescription>Enter basic information about the route</CardDescription>
+                                </div>
+                                {/* Zone sits in the title bar; the label stays for screen readers */}
+                                <div className="flex items-center gap-2 sm:w-64">
+                                    <span className="text-sm font-medium text-muted-foreground">Zone</span>
+                                    <div className="flex-1">
+                                        <SearchableSelect
+                                            label="Zone"
+                                            name="zone_id"
+                                            value={data.zone_id as string}
+                                            onChange={(value) => setData('zone_id', value === 'none' ? '' : value)}
+                                            error={errors.zone_id}
+                                            options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
+                                            placeholder="Select zone..."
+                                            hideLabel
+                                        />
+                                    </div>
+                                </div>
                             </CardHeader>
                             <CardContent>
                                 <BaseForm onSubmit={handleSubmit} className="space-y-4">
@@ -279,26 +297,6 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                         error={errors.description}
                                         placeholder="Enter route description..."
                                         rows={3}
-                                    />
-
-                                    <FormTextarea
-                                        label="Remarks"
-                                        name="remarks"
-                                        value={data.remarks as string}
-                                        onChange={(value) => setData('remarks', value)}
-                                        error={errors.remarks}
-                                        placeholder="Enter any additional remarks..."
-                                        rows={2}
-                                    />
-
-                                    <FormSelect
-                                        label="Zone"
-                                        name="zone_id"
-                                        value={data.zone_id as string}
-                                        onChange={(value) => setData('zone_id', value)}
-                                        error={errors.zone_id}
-                                        options={zones.map((zone) => ({ label: zone.name, value: zone.id.toString() }))}
-                                        placeholder="Select zone..."
                                     />
                                 </BaseForm>
                             </CardContent>
