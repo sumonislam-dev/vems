@@ -240,16 +240,18 @@ export function UserFormBody({
 
                     <CardContent className="space-y-4 px-4 sm:px-6">
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
-                            <FormSelect
-                                label="Vendor"
-                                name="vendor_id"
-                                value={data.vendor_id}
-                                onChange={(value) => handleFieldChange('vendor_id', value)}
-                                error={getFieldError('vendor_id')}
-                                options={vendorOptions}
-                                placeholder="Select vendor..."
-                                required={showDriverFields}
-                            />
+                            <div className="sm:col-span-2">
+                                <FormSelect
+                                    label="Vendor"
+                                    name="vendor_id"
+                                    value={data.vendor_id}
+                                    onChange={(value) => handleFieldChange('vendor_id', value)}
+                                    error={getFieldError('vendor_id')}
+                                    options={vendorOptions}
+                                    placeholder="Select vendor..."
+                                    required={showDriverFields}
+                                />
+                            </div>
 
                             <FormSelect
                                 label="Driver Status"
@@ -258,16 +260,6 @@ export function UserFormBody({
                                 onChange={(value) => handleFieldChange('driver_status', value)}
                                 error={getFieldError('driver_status')}
                                 options={driverStatusOptions}
-                            />
-
-                            <FormField
-                                label="Driving License Number"
-                                name="driving_license_no"
-                                value={data.driving_license_no}
-                                onChange={(value) => handleFieldChange('driving_license_no', value)}
-                                error={getFieldError('driving_license_no')}
-                                placeholder="Enter license number"
-                                required={showDriverFields}
                             />
 
                             <FormSelect
@@ -283,6 +275,16 @@ export function UserFormBody({
                         </div>
 
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-5">
+                            <FormField
+                                label="Driving License Number"
+                                name="driving_license_no"
+                                value={data.driving_license_no}
+                                onChange={(value) => handleFieldChange('driving_license_no', value)}
+                                error={getFieldError('driving_license_no')}
+                                placeholder="Enter license number"
+                                required={showDriverFields}
+                            />
+
                             <FormDatePicker
                                 label="License Issue Date"
                                 name="license_issue_date"
@@ -300,17 +302,15 @@ export function UserFormBody({
                                 required={showDriverFields}
                             />
 
-                            <div className="sm:col-span-2">
-                                <FormFileUpload
-                                    label="License Scan"
-                                    name="driving_license_file"
-                                    value={data.driving_license_file}
-                                    onChange={(file) => handleFieldChange('driving_license_file', file)}
-                                    error={getFieldError('driving_license_file')}
-                                    accept="image/*,.pdf"
-                                    maxSize={2 * 1024 * 1024}
-                                />
-                            </div>
+                            <FormFileUpload
+                                label="License Scan"
+                                name="driving_license_file"
+                                value={data.driving_license_file}
+                                onChange={(file) => handleFieldChange('driving_license_file', file)}
+                                error={getFieldError('driving_license_file')}
+                                accept="image/*,.pdf"
+                                maxSize={2 * 1024 * 1024}
+                            />
                         </div>
                     </CardContent>
                 </Card>
