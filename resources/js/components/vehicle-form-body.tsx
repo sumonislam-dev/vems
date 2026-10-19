@@ -76,14 +76,6 @@ const STATUS_OPTIONS = [
     { label: 'Inactive', value: 'false' },
 ];
 
-const OPERATIONAL_STATUS_OPTIONS = [
-    { label: 'Available', value: 'available' },
-    { label: 'Assigned', value: 'assigned' },
-    { label: 'In Transit', value: 'in_transit' },
-    { label: 'Maintenance', value: 'maintenance' },
-    { label: 'Out of Service', value: 'out_of_service' },
-];
-
 const INSURANCE_TYPE_OPTIONS = [
     { label: 'Select Insurance Type', value: 'none' },
     { label: '1st Party', value: '1st_party' },
@@ -127,17 +119,14 @@ const ALERT_TOGGLES: { field: AlertField; label: string }[] = [
     { field: 'route_permit_alert_enabled', label: 'Route Permit Alerts' },
 ];
 
-const withNone = (
-    noneLabel: string,
-    items: { id: number; name: string }[],
-    label: (item: { id: number; name: string }) => string = (i) => i.name,
-) => [{ label: noneLabel, value: 'none' }, ...items.map((item) => ({ label: label(item), value: item.id.toString() }))];
+const toOptions = (items: { id: number; name: string }[], label: (item: { id: number; name: string }) => string = (i) => i.name) =>
+    items.map((item) => ({ label: label(item), value: item.id.toString() }));
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({ title, columns = 4, children }: { title: string; columns?: 3 | 4; children: ReactNode }) {
     return (
         <div>
             <h3 className="mb-3 text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h3>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+            <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${columns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>{children}</div>
         </div>
     );
 }
@@ -151,7 +140,6 @@ interface VehicleFormBodyProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
-    routes: { id: number; name: string }[];
     /** The vehicle being edited (adds "View current file" links) */
     vehicle?: Vehicle;
     submitLabel: string;
@@ -167,7 +155,6 @@ export function VehicleFormBody({
     vendors,
     drivers,
     zones,
-    routes,
     vehicle,
     submitLabel,
     submitIcon,
@@ -209,6 +196,7 @@ export function VehicleFormBody({
                 error={errors[field]}
                 accept="image/*,.pdf"
                 maxSize={2 * 1024 * 1024}
+                compact
             />
             {vehicle?.[field] && (
                 <a
@@ -264,38 +252,30 @@ export function VehicleFormBody({
                         name="vendor_id"
                         value={data.vendor_id}
                         onChange={(value) => setData('vendor_id', value)}
-                        options={withNone('Select Vendor', vendors)}
+                        options={toOptions(vendors)}
                         error={errors.vendor_id || undefined}
                         required={!isAdhoc}
-                        placeholder="Select vendor..."
+                        placeholder="Search vendor..."
                     />
                     <SearchableSelect
                         label="Driver"
                         name="driver_id"
                         value={data.driver_id}
                         onChange={(value) => setData('driver_id', value)}
-                        options={withNone('Select Driver', drivers, (d) => `${d.name} • ${(d as User).email}`)}
+                        options={toOptions(drivers, (d) => `${d.name} • ${(d as User).email}`)}
                         error={errors.driver_id || undefined}
                         required={!isAdhoc}
-                        placeholder="Select driver..."
+                        placeholder="Search driver..."
                     />
                     <SearchableSelect
                         label="Zone"
                         name="zone_id"
                         value={data.zone_id}
                         onChange={(value) => setData('zone_id', value)}
-                        options={withNone('No Zone', zones)}
+                        options={toOptions(zones)}
                         error={errors.zone_id || undefined}
-                        placeholder="Select zone..."
-                    />
-                    <SearchableSelect
-                        label="Regular Pick & Drop Route"
-                        name="default_route_id"
-                        value={data.default_route_id}
-                        onChange={(value) => setData('default_route_id', value)}
-                        options={withNone('No Regular Route', routes)}
-                        error={errors.default_route_id || undefined}
-                        placeholder="Select route..."
+                        required
+                        placeholder="Search zone..."
                     />
 
                     <FormSelect
@@ -306,14 +286,6 @@ export function VehicleFormBody({
                         options={STATUS_OPTIONS}
                         error={errors.is_active || undefined}
                         required
-                    />
-                    <FormSelect
-                        label="Operational Status"
-                        name="status"
-                        value={data.status}
-                        onChange={(value) => setData('status', value)}
-                        options={OPERATIONAL_STATUS_OPTIONS}
-                        error={errors.status || undefined}
                     />
                 </Section>
 
@@ -337,7 +309,7 @@ export function VehicleFormBody({
                     {text('chassis_number', 'Chassis Number', 'Chassis number')}
                 </Section>
 
-                <Section title="Documentation">
+                <Section title="Documentation" columns={3}>
                     {text('tax_token_number', 'Tax Token Number', 'Tax token number')}
                     {date('tax_token_last_date', 'Tax Token Expiry')}
                     {file('tax_token_file', 'Tax Token File')}
@@ -346,7 +318,7 @@ export function VehicleFormBody({
                     {file('fitness_certificate_file', 'Fitness Certificate File')}
                 </Section>
 
-                <Section title="Insurance">
+                <Section title="Insurance" columns={3}>
                     <FormSelect
                         label="Insurance Type (Optional)"
                         name="insurance_type"
@@ -355,13 +327,13 @@ export function VehicleFormBody({
                         options={INSURANCE_TYPE_OPTIONS}
                         error={errors.insurance_type || undefined}
                     />
-                    {date('insurance_last_date', 'Insurance Expiry')}
                     {text('insurance_policy_number', 'Policy Number', 'Policy number')}
                     {text('insurance_company', 'Insurance Company', 'Company name')}
+                    {date('insurance_last_date', 'Insurance Expiry')}
                     {file('insurance_policy_file', 'Insurance Policy File')}
                 </Section>
 
-                <Section title="Route Permit">
+                <Section title="Route Permit" columns={3}>
                     {text('route_permit_number', 'Route Permit Number', 'Route permit number')}
                     {date('route_permit_last_date', 'Route Permit Expiry')}
                     {file('route_permit_file', 'Route Permit File')}
@@ -374,26 +346,30 @@ export function VehicleFormBody({
                     {text('owner_phone', 'Owner Phone', 'Phone number')}
                     {text('owner_email', 'Owner Email', 'Email address', { type: 'email' })}
                     {text('owner_nid', 'Owner NID', 'National ID')}
-                    <div className="lg:col-span-3">{text('owner_address', 'Owner Address', 'Complete address', { multiline: true, rows: 2 })}</div>
+                    <div className="sm:col-span-2">{text('owner_address', 'Owner Address', 'Complete address')}</div>
                 </Section>
 
-                <Section title="Alert Settings">
-                    {text('alert_days_before', 'Alert Days Before Expiry', '30 days', { type: 'number' })}
-                    {ALERT_TOGGLES.map(({ field, label }) => (
-                        <div key={field} className="flex items-center space-x-2">
-                            <input
-                                type="checkbox"
-                                id={field}
-                                checked={data[field]}
-                                onChange={(e) => setData(field, e.target.checked)}
-                                className="focus:ring-opacity-50 rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-indigo-500"
-                            />
-                            <label htmlFor={field} className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {label}
-                            </label>
-                        </div>
-                    ))}
-                </Section>
+                {/* One row: the days box, then the four switches lined up with it */}
+                <div>
+                    <h3 className="mb-3 text-lg font-medium text-gray-900 dark:text-gray-100">Alert Settings</h3>
+                    <div className="flex flex-wrap items-end gap-x-8 gap-y-3">
+                        <div className="w-full sm:w-48">{text('alert_days_before', 'Alert Days Before Expiry', '30 days', { type: 'number' })}</div>
+                        {ALERT_TOGGLES.map(({ field, label }) => (
+                            <div key={field} className="flex h-9 items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id={field}
+                                    checked={data[field]}
+                                    onChange={(e) => setData(field, e.target.checked)}
+                                    className="focus:ring-opacity-50 rounded border-gray-300 text-indigo-600 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 dark:border-gray-600 dark:bg-gray-800 dark:focus:ring-indigo-500"
+                                />
+                                <label htmlFor={field} className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    {label}
+                                </label>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             <div className="flex gap-3 border-t pt-6">

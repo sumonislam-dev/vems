@@ -48,7 +48,7 @@ function downtimeVehicle(array $overrides = []): Vehicle
 
 function vehicleUpdatePayload(Vehicle $vehicle, array $overrides = []): array
 {
-    return array_merge($vehicle->only(['brand', 'model', 'registration_number', 'vehicle_type', 'rental_type', 'vendor_id', 'status']), $overrides);
+    return array_merge($vehicle->only(['brand', 'model', 'registration_number', 'vehicle_type', 'rental_type', 'vendor_id', 'status']), ['zone_id' => testZoneId()], $overrides);
 }
 
 // --- automatic start / end from status --------------------------------------

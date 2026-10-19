@@ -56,6 +56,7 @@ function defaultRouteVehiclePayload(array $overrides = []): array
         'rental_type' => 'pool',
         'vendor_id' => $vendor->id,
         'driver_id' => $driver->id,
+        'zone_id' => testZoneId(),
     ], $overrides);
 }
 
@@ -121,14 +122,11 @@ it('clears the vehicle route when the route is deleted', function () {
     expect($vehicle->fresh()->default_route_id)->toBeNull();
 });
 
-it('offers routes on the vehicle forms and shows the route on the list', function () {
+it('shows the route on the vehicle list and page', function () {
     seedDefaultRoutePermissions();
     $actor = makeDefaultRouteActor();
     $route = VehicleRoute::create(['name' => '17.1']);
     $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'RT-LIST', 'default_route_id' => $route->id]);
-
-    $this->actingAs($actor)->get('/vehicles/create')->assertOk()
-        ->assertInertia(fn ($page) => $page->where('routes.0.name', '17.1'));
 
     $this->actingAs($actor)->get('/vehicles')->assertOk()
         ->assertInertia(fn ($page) => $page->where('vehicles.data.0.default_route.name', '17.1'));

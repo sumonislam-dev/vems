@@ -179,6 +179,7 @@ it('shows a generic message and logs the real error when creating a vehicle fail
 
     try {
         $response = $this->actingAs($actor)->post('/vehicles', [
+            'zone_id' => testZoneId(),
             'brand' => 'Toyota',
             'model' => 'Camry',
             'registration_number' => 'ERR-'.uniqid(),

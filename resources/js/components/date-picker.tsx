@@ -1,3 +1,4 @@
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Calendar, X } from 'lucide-react';
 
@@ -28,112 +29,52 @@ export function DatePicker({
     max,
     className,
 }: DatePickerProps) {
-    const handleClear = () => {
-        onChange('');
-    };
-
-    const formatDisplayDate = (dateString: string) => {
-        if (!dateString) return '';
-        try {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-            });
-        } catch {
-            return dateString;
-        }
-    };
-
     return (
         <div className={cn('space-y-2', className)}>
-            <label htmlFor={name} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <Label htmlFor={name} className={cn(error && 'text-destructive')}>
                 {label}
-                {required && <span className="ml-1 text-red-500">*</span>}
-            </label>
+                {required && <span className="ml-1 text-destructive">*</span>}
+            </Label>
 
+            {/* Same look as Input; the native calendar button is stretched
+                invisibly over the icon so clicking it opens the picker */}
             <div className="relative">
-                <div className="relative">
-                    <input
-                        id={name}
-                        name={name}
-                        type="date"
-                        value={value}
-                        onChange={(e) => onChange(e.target.value)}
-                        placeholder={placeholder}
-                        required={required}
-                        disabled={disabled}
-                        min={min}
-                        max={max}
-                        className={cn(
-                            // Base styles
-                            'w-full rounded-md border px-3 py-2 text-sm shadow-sm transition-all duration-200',
-                            'bg-background text-foreground',
-                            'placeholder:text-gray-500 dark:placeholder:text-gray-400',
-
-                            // Border styles
-                            error
-                                ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20 dark:border-red-600'
-                                : 'border-gray-300 focus:border-indigo-500 focus:ring-indigo-500/20 dark:border-gray-600',
-
-                            // Focus styles
-                            'focus:ring-2 focus:outline-none',
-
-                            // Disabled styles
-                            disabled && 'cursor-not-allowed bg-gray-50 opacity-50 dark:bg-gray-700',
-
-                            // Hover styles
-                            !disabled && 'hover:border-gray-400 hover:shadow-md dark:hover:border-gray-500',
-
-                            // Date input specific styles
-                            'relative pr-10',
-                            '[&::-webkit-calendar-picker-indicator]:opacity-0',
-                            '[&::-webkit-calendar-picker-indicator]:absolute',
-                            '[&::-webkit-calendar-picker-indicator]:right-0',
-                            '[&::-webkit-calendar-picker-indicator]:w-10',
-                            '[&::-webkit-calendar-picker-indicator]:h-full',
-                            '[&::-webkit-calendar-picker-indicator]:cursor-pointer',
-
-                            // Dark mode date input styles
-                            'dark:[color-scheme:dark]',
-
-                            // Mobile improvements
-                            'text-base sm:text-sm', // Prevent zoom on iOS
-                            'min-h-[2.5rem]', // Better touch target
-                        )}
-                    />
-
-                    {/* Custom calendar icon */}
-                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-3">
-                        <Calendar className="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                    </div>
-
-                    {/* Clear button */}
-                    {value && !disabled && (
-                        <button
-                            type="button"
-                            onClick={handleClear}
-                            className="absolute inset-y-0 right-9 flex items-center rounded p-1 text-gray-400 transition-colors duration-150 hover:bg-gray-100 hover:text-gray-600 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-                            title="Clear date"
-                        >
-                            <X className="h-3 w-3" />
-                        </button>
+                <input
+                    id={name}
+                    name={name}
+                    type="date"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    required={required}
+                    disabled={disabled}
+                    min={min}
+                    max={max}
+                    aria-invalid={!!error}
+                    className={cn(
+                        'flex h-9 w-full min-w-0 rounded-md border border-input bg-transparent px-3 py-1 pr-16 text-base shadow-xs transition-[color,box-shadow] outline-none md:text-sm',
+                        'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                        'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
+                        'disabled:cursor-not-allowed disabled:opacity-50 dark:[color-scheme:dark]',
+                        '[&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:h-full',
+                        '[&::-webkit-calendar-picker-indicator]:w-9 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0',
+                        !value && 'text-muted-foreground',
                     )}
-                </div>
-
-                {/* Display formatted date below input for better UX */}
-                {value && (
-                    <div className="mt-1 flex items-center text-xs text-gray-500 dark:text-gray-400">
-                        <Calendar className="mr-1 h-3 w-3" />
-                        <span>
-                            Selected: <span className="font-medium text-gray-700 dark:text-gray-300">{formatDisplayDate(value)}</span>
-                        </span>
-                    </div>
+                />
+                <Calendar className="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-muted-foreground opacity-50" />
+                {value && !disabled && (
+                    <button
+                        type="button"
+                        onClick={() => onChange('')}
+                        aria-label={`Clear ${label}`}
+                        className="absolute top-1/2 right-9 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:text-foreground"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
                 )}
             </div>
 
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
     );
 }
@@ -173,7 +114,7 @@ export function FormDateField({
     const defaultMax = max || new Date(new Date().getFullYear() + 10, 11, 31).toISOString().split('T')[0];
 
     return (
-        <div className={cn('space-y-2', className)}>
+        <div className={cn('space-y-1', className)}>
             <DatePicker
                 label={label}
                 name={name}

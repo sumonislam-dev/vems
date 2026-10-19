@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -54,7 +55,8 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+/** A zone for vehicle form posts (vehicles must have one) */
+function testZoneId(): int
 {
-    // ..
+    return Zone::firstOrCreate(['code' => 'TST'], ['name' => 'Test Zone'])->id;
 }

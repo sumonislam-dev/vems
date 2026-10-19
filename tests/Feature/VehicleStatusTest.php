@@ -5,6 +5,7 @@ use App\Models\Vehicle;
 use App\Models\Vendor;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Vehicle::$status (available/assigned/in_transit/maintenance/out_of_service)
@@ -15,11 +16,11 @@ use Spatie\Permission\Models\Permission;
  */
 function seedVehicleStatusPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-vehicles', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'create-vehicles', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-vehicles', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeVehicleStatusUser(): User
@@ -54,6 +55,7 @@ it('sets the operational status when creating a vehicle', function () {
     ]);
 
     $response = $this->actingAs($user)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => 'STA-'.uniqid(),
@@ -91,6 +93,7 @@ it('updates the operational status when editing a vehicle', function () {
     ]);
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => $vehicle->registration_number,
@@ -121,6 +124,7 @@ it('can still edit a vehicle that currently has no vendor or driver assigned (th
     ]);
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => $vehicle->registration_number,

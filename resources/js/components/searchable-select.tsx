@@ -92,18 +92,18 @@ export function SearchableSelect({
         <div className="space-y-2">
             {/* The trigger is a div, not a form control, so this is a plain
                 span it points to with aria-labelledby (a <label> would need one) */}
-            <span id={`${name}-label`} className={hideLabel ? 'sr-only' : 'block text-sm font-medium text-gray-700 dark:text-gray-300'}>
+            <span id={`${name}-label`} className={hideLabel ? 'sr-only' : 'block text-sm leading-none font-medium'}>
                 {label}
                 {required && <span className="ml-1 text-red-500">*</span>}
             </span>
 
             <div className={hideLabel ? 'relative !mt-0' : 'relative'} ref={dropdownRef}>
                 <div
-                    className={`relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm ${
+                    className={`relative flex h-9 w-full cursor-pointer items-center rounded-md border bg-transparent px-3 text-left text-sm shadow-xs transition-[color,box-shadow] focus-within:ring-[3px] ${
                         error
-                            ? 'border-red-300 focus-within:border-red-500 focus-within:ring-red-500'
-                            : 'border-input focus-within:border-indigo-500 focus-within:ring-indigo-500'
-                    } ${disabled ? 'cursor-not-allowed bg-muted/70' : 'hover:border-border'} transition-colors focus-within:ring-1`}
+                            ? 'border-destructive focus-within:ring-destructive/20'
+                            : 'border-input focus-within:border-ring focus-within:ring-ring/50'
+                    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                     onClick={handleToggle}
                     role="combobox"
                     aria-labelledby={`${name}-label`}
@@ -112,12 +112,12 @@ export function SearchableSelect({
                     aria-disabled={disabled}
                 >
                     {isOpen ? (
-                        <div className="flex items-center">
-                            <Search className="mr-2 h-4 w-4 text-gray-400 dark:text-gray-500" />
+                        <div className="flex w-full items-center">
+                            <Search className="mr-2 h-4 w-4 text-muted-foreground" />
                             <input
                                 ref={inputRef}
                                 type="text"
-                                className="flex-1 border-none bg-transparent p-0 text-gray-900 placeholder-gray-500 focus:ring-0 focus:outline-none dark:text-gray-100 dark:placeholder-gray-400"
+                                className="min-w-0 flex-1 border-none bg-transparent p-0 text-sm placeholder:text-muted-foreground focus:ring-0 focus:outline-none"
                                 id={`${name}-search`}
                                 name={`${name}-search`}
                                 placeholder="Type to search..."
@@ -128,24 +128,16 @@ export function SearchableSelect({
                             />
                         </div>
                     ) : (
-                        <div className="flex items-center justify-between">
-                            <span
-                                className={`block truncate ${displayValue ? 'text-gray-900 dark:text-gray-100' : 'text-gray-500 dark:text-gray-400'}`}
-                            >
-                                {displayValue || placeholder}
-                            </span>
-                            <div className="flex items-center space-x-1">
+                        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                            <span className={`block truncate ${displayValue ? '' : 'text-muted-foreground'}`}>{displayValue || placeholder}</span>
+                            <div className="flex shrink-0 items-center space-x-1">
                                 {value && value !== 'none' && (
-                                    <button
-                                        type="button"
-                                        onClick={handleClear}
-                                        className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
-                                    >
+                                    <button type="button" onClick={handleClear} className="text-muted-foreground hover:text-foreground">
                                         <X className="h-4 w-4" />
                                     </button>
                                 )}
                                 <ChevronDown
-                                    className={`h-4 w-4 text-gray-400 transition-transform dark:text-gray-500 ${isOpen ? 'rotate-180' : ''}`}
+                                    className={`h-4 w-4 text-muted-foreground opacity-50 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                                 />
                             </div>
                         </div>
@@ -177,7 +169,7 @@ export function SearchableSelect({
                 )}
             </div>
 
-            {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+            {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
     );
 }

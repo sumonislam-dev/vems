@@ -10,7 +10,6 @@ use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleDowntime;
-use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
 use App\Support\PrivateDocument;
@@ -460,7 +459,6 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
-            'routes' => $this->routeOptions(),
             'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
@@ -566,7 +564,6 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
-            'routes' => $this->routeOptions(),
         ]);
     }
 
@@ -611,14 +608,6 @@ class VehicleController extends Controller implements HasMiddleware
         return redirect()
             ->route('vehicles.index')
             ->with('success', 'Vehicle updated successfully!');
-    }
-
-    /**
-     * Routes offered in the vehicle form's "Regular Pick & Drop Route" picker.
-     */
-    private function routeOptions()
-    {
-        return VehicleRoute::select('id', 'name')->orderBy('name')->get();
     }
 
     /**

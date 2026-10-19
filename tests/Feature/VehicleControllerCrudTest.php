@@ -110,6 +110,7 @@ it('creates a vehicle with valid data when authorized', function () {
     $driver = makeVehicleCrudDriver();
 
     $response = $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => 'CRUD-'.uniqid(),
@@ -125,11 +126,23 @@ it('creates a vehicle with valid data when authorized', function () {
     expect(Vehicle::where('registration_number', 'like', 'CRUD-%')->exists())->toBeTrue();
 });
 
+it('requires a zone to create or edit a vehicle, even an ad-hoc one', function () {
+    seedVehicleCrudPermissions();
+    $actor = makeVehicleCrudActor(['create-vehicles', 'edit-vehicles']);
+    $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'CRUD-'.uniqid(), 'vehicle_type' => 'van', 'rental_type' => 'pool']);
+
+    $this->actingAs($actor)->post('/vehicles', ['vehicle_type' => 'van', 'rental_type' => 'adhoc', 'zone_id' => 'none'])
+        ->assertSessionHasErrors('zone_id');
+    $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [...$vehicle->only(['brand', 'model', 'registration_number', 'vehicle_type', 'rental_type']), 'zone_id' => 'none'])
+        ->assertSessionHasErrors('zone_id');
+});
+
 it('requires a vendor and driver to create a vehicle', function () {
     seedVehicleCrudPermissions();
     $actor = makeVehicleCrudActor(['create-vehicles']);
 
     $response = $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => 'CRUD-'.uniqid(),
@@ -152,6 +165,7 @@ it('rejects a duplicate registration number when creating a vehicle', function (
     ]);
 
     $response = $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => $existing->registration_number,
@@ -169,6 +183,7 @@ it('denies creating a vehicle to someone without create-vehicles permission', fu
     $actor = makeVehicleCrudActor();
 
     $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Camry',
         'registration_number' => 'CRUD-'.uniqid(),
@@ -187,6 +202,7 @@ it('updates a vehicle\'s fields when authorized', function () {
     ]);
 
     $response = $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Corolla Altis',
         'registration_number' => $vehicle->registration_number,
@@ -218,6 +234,7 @@ it('rejects an update that reuses another vehicle\'s registration number', funct
     ]);
 
     $response = $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Corolla',
         'registration_number' => $other->registration_number,
@@ -238,6 +255,7 @@ it('denies updating a vehicle to someone without edit-vehicles permission', func
     ]);
 
     $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Should Not Apply',
     ])->assertForbidden();
 });

@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, FileText, Upload, X } from 'lucide-react';
 import * as React from 'react';
 
 /**
@@ -656,6 +656,24 @@ interface FormFileUploadProps {
     compact?: boolean;
 }
 
+function formatFileSize(bytes: number) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/** "image/*,.pdf" -> "Image or PDF" */
+function describeAccept(accept: string) {
+    const names = accept.split(',').map((part) => {
+        const type = part.trim();
+        if (type.endsWith('/*')) return type.slice(0, -2).replace(/^./, (c) => c.toUpperCase());
+        return type.replace(/^\./, '').toUpperCase();
+    });
+    return names.length > 1 ? `${names.slice(0, -1).join(', ')} or ${names[names.length - 1]}` : names[0];
+}
+
 export function FormFileUpload({
     label,
     name,
@@ -672,15 +690,19 @@ export function FormFileUpload({
 }: FormFileUploadProps) {
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [dragActive, setDragActive] = React.useState(false);
+    const [sizeError, setSizeError] = React.useState<string>();
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0] || null;
+    const pick = (file: File | null) => {
         if (file && maxSize && file.size > maxSize) {
-            // You might want to handle this differently based on your error handling strategy
+            setSizeError(`${file.name} is larger than ${formatFileSize(maxSize)}.`);
+            if (fileInputRef.current) fileInputRef.current.value = '';
             return;
         }
+        setSizeError(undefined);
         onChange(file);
     };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => pick(e.target.files?.[0] || null);
 
     const handleDrag = (e: React.DragEvent) => {
         e.preventDefault();
@@ -699,12 +721,7 @@ export function FormFileUpload({
 
         if (disabled) return;
 
-        const files = Array.from(e.dataTransfer.files);
-        const file = files[0] || null;
-        if (file && maxSize && file.size > maxSize) {
-            return;
-        }
-        onChange(file);
+        pick(e.dataTransfer.files[0] || null);
     };
 
     const removeFile = () => {
@@ -714,13 +731,72 @@ export function FormFileUpload({
         }
     };
 
-    const formatFileSize = (bytes: number) => {
-        if (bytes === 0) return '0 Bytes';
-        const k = 1024;
-        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-    };
+    const hint = [accept && describeAccept(accept), maxSize && `max ${formatFileSize(maxSize)}`].filter(Boolean).join(' · ');
+
+    if (compact) {
+        return (
+            <div className={cn('space-y-2', className)}>
+                <Label htmlFor={name} className={cn(error && 'text-destructive')}>
+                    {label}
+                    {required && <span className="ml-1 text-destructive">*</span>}
+                </Label>
+                <div
+                    className={cn(
+                        'relative flex h-9 w-full items-center gap-2 rounded-md border px-3 text-sm shadow-xs transition-[color,box-shadow]',
+                        'focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50',
+                        dragActive ? 'border-primary bg-primary/5' : 'border-input',
+                        disabled ? 'cursor-not-allowed opacity-50' : 'hover:bg-accent/50',
+                        (error || sizeError) && 'border-destructive',
+                    )}
+                    onDragEnter={handleDrag}
+                    onDragLeave={handleDrag}
+                    onDragOver={handleDrag}
+                    onDrop={handleDrop}
+                >
+                    <input
+                        ref={fileInputRef}
+                        id={name}
+                        name={name}
+                        type="file"
+                        accept={accept}
+                        onChange={handleFileChange}
+                        required={required}
+                        disabled={disabled}
+                        className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+                        aria-describedby={description ? `${name}-description` : undefined}
+                    />
+                    {value ? (
+                        <>
+                            <FileText className="h-4 w-4 shrink-0 text-primary" />
+                            <span className="min-w-0 flex-1 truncate font-medium">{value.name}</span>
+                            <span className="shrink-0 text-xs text-muted-foreground">{formatFileSize(value.size)}</span>
+                            <button
+                                type="button"
+                                onClick={removeFile}
+                                disabled={disabled}
+                                aria-label={`Remove ${value.name}`}
+                                className="relative z-10 shrink-0 rounded p-0.5 text-muted-foreground hover:text-destructive"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </>
+                    ) : (
+                        <>
+                            <Upload className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            <span className="min-w-0 flex-1 truncate text-muted-foreground">Choose file or drop here</span>
+                            {hint && <span className="shrink-0 text-xs text-muted-foreground">{hint}</span>}
+                        </>
+                    )}
+                </div>
+                {description && (
+                    <p id={`${name}-description`} className="text-sm text-muted-foreground">
+                        {description}
+                    </p>
+                )}
+                <InputError message={sizeError ?? error} />
+            </div>
+        );
+    }
 
     return (
         <div className={cn('space-y-2', className)}>
@@ -732,7 +808,7 @@ export function FormFileUpload({
             <div
                 className={cn(
                     'relative rounded-lg border-2 border-dashed transition-colors',
-                    compact ? 'p-3' : 'p-6',
+                    'p-6',
                     dragActive ? 'border-primary bg-primary/5' : 'border-border',
                     disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:border-primary/50',
                     error && 'border-destructive',
@@ -777,22 +853,12 @@ export function FormFileUpload({
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
-                ) : compact ? (
-                    <div className="flex items-center gap-2">
-                        <Upload className="h-5 w-5 shrink-0 text-muted-foreground" />
-                        <div className="min-w-0">
-                            <p className="truncate text-sm font-medium">Click to upload or drag and drop</p>
-                            <p className="truncate text-xs text-muted-foreground">
-                                {[accept, maxSize ? `max ${formatFileSize(maxSize)}` : undefined].filter(Boolean).join(' · ')}
-                            </p>
-                        </div>
-                    </div>
                 ) : (
                     <div className="text-center">
                         <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
                         <div className="mt-2">
                             <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                            {accept && <p className="mt-1 text-xs text-muted-foreground">Accepted formats: {accept}</p>}
+                            {accept && <p className="mt-1 text-xs text-muted-foreground">{describeAccept(accept)}</p>}
                             {maxSize && <p className="mt-1 text-xs text-muted-foreground">Max size: {formatFileSize(maxSize)}</p>}
                         </div>
                     </div>
@@ -805,7 +871,7 @@ export function FormFileUpload({
                 </p>
             )}
 
-            <InputError message={error} />
+            <InputError message={sizeError ?? error} />
         </div>
     );
 }

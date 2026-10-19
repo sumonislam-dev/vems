@@ -44,6 +44,7 @@ it('creates an ad-hoc vehicle with blank identity, vendor and driver, filling pl
     $actor = makeAdhocVehicleActor();
 
     $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'vehicle_type' => 'van',
         'rental_type' => 'adhoc',
         'vendor_id' => 'none',
@@ -80,6 +81,7 @@ it('still requires brand, model, registration, vendor and driver for non ad-hoc 
     $actor = makeAdhocVehicleActor();
 
     $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'vehicle_type' => 'van',
         'rental_type' => 'pool',
         'vendor_id' => 'none',
@@ -92,6 +94,7 @@ it('keeps typed identity values for an ad-hoc vehicle instead of placeholders', 
     $actor = makeAdhocVehicleActor();
 
     $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Hiace',
         'registration_number' => 'DM-CHA-11-2233',
@@ -113,6 +116,7 @@ it('turns a placeholder into the real vehicle on edit, keeping the record', func
     $vehicle = Vehicle::create(['brand' => 'Ad-hoc', 'model' => 'TBD', 'registration_number' => 'ADHOC-001', 'rental_type' => 'adhoc', 'vehicle_type' => 'van']);
 
     $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Noah',
         'registration_number' => 'DM-CHA-20-4812',
@@ -134,6 +138,7 @@ it('keeps the current registration when an ad-hoc edit leaves it blank', functio
     $vehicle = Vehicle::create(['brand' => 'Ad-hoc', 'model' => 'TBD', 'registration_number' => 'ADHOC-003', 'rental_type' => 'adhoc', 'vehicle_type' => 'van']);
 
     $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'registration_number' => '',
         'vehicle_type' => 'van',
         'rental_type' => 'adhoc',
@@ -178,6 +183,7 @@ it('accepts the support rental type the form offers', function () {
     ]);
 
     $this->actingAs($actor)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota',
         'model' => 'Hilux',
         'registration_number' => 'SUP-'.uniqid(),

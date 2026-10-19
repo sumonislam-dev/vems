@@ -55,7 +55,8 @@ abstract class VehicleFormRequest extends FormRequest
             'parking_latitude' => 'nullable|numeric|between:-90,90',
             'parking_longitude' => 'nullable|numeric|between:-180,180',
             'vendor' => 'nullable|string|max:255', // Keep for backward compatibility
-            'zone_id' => Zone::validationRule(),
+            // Every vehicle belongs to a zone (the shared rule starts with 'nullable')
+            'zone_id' => array_replace(Zone::validationRule(), [0 => 'required']),
             'is_active' => 'boolean',
             'status' => 'nullable|in:available,assigned,in_transit,maintenance,out_of_service',
             // Tax Token

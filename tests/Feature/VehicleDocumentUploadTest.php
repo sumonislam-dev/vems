@@ -7,14 +7,15 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedVehicleDocumentPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'create-vehicles', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-vehicles', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'delete-vehicles', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeVehicleDocumentUser(): User
@@ -46,6 +47,7 @@ it('stores an uploaded tax token file when creating a vehicle', function () {
     ]);
 
     $response = $this->actingAs($user)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota', 'model' => 'Camry',
         'registration_number' => 'DOC-'.uniqid(),
         'vehicle_type' => 'sedan', 'rental_type' => 'own',
@@ -76,6 +78,7 @@ it('replaces the old file and deletes it when uploading a new one on update', fu
     Storage::disk('local')->put('vehicle_documents/old-file.pdf', 'old content');
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota', 'model' => 'Camry',
         'registration_number' => $vehicle->registration_number,
         'vehicle_type' => 'sedan', 'rental_type' => 'own',
@@ -106,6 +109,7 @@ it('keeps the existing file when no new file is uploaded on update', function ()
     Storage::disk('local')->put('vehicle_documents/keep-me.pdf', 'content');
 
     $response = $this->actingAs($user)->put("/vehicles/{$vehicle->id}", [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota', 'model' => 'Camry',
         'registration_number' => $vehicle->registration_number,
         'vehicle_type' => 'sedan', 'rental_type' => 'own',
@@ -153,6 +157,7 @@ it('rejects a document file that is too large or the wrong type', function () {
     ]);
 
     $response = $this->actingAs($user)->post('/vehicles', [
+        'zone_id' => testZoneId(),
         'brand' => 'Toyota', 'model' => 'Camry',
         'registration_number' => 'DOC-'.uniqid(),
         'vehicle_type' => 'sedan', 'rental_type' => 'own',
