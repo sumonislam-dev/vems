@@ -18,9 +18,9 @@ Open http://localhost:8000. Every demo password is `password`.
 |---|---|---|
 | Super admin | `admin` | Dhaka |
 | Transport manager (Logistics) | `sarah.manager` | All offices |
-| Department head (Administration) | `khadiza.rahman` | Dhaka |
+| Department head (Engagement and Logistics) | `khadiza.rahman` | Dhaka |
 | Management (read-only) | `hasan.sarker` | Dhaka |
-| Employee (Administration) | `maria.admin` | Dhaka |
+| Employee (Engagement and Logistics) | `maria.admin` | Dhaka |
 | Employee (HR) | `john.hr` | Dhaka |
 | Driver | `ahmed.driver` | per seed |
 
@@ -28,7 +28,7 @@ Use a private browser window for each account, so you can stay logged in as seve
 
 ## 2. Employee requests a trip (`maria.admin`)
 
-- [ ] **2.1** Trips → Create. Fill in a date, times and destination. Choose department **Administration**.
+- [ ] **2.1** Trips → Create. Fill in a date, times and destination. Choose department **Engagement and Logistics**.
   **Expect:** no vehicle field, just a note that Logistics will assign one.
 - [ ] **2.2** Save.
   **Expect:** the trip shows **Pending**, and the trips list shows **Awaiting vehicle**.
@@ -38,11 +38,11 @@ Use a private browser window for each account, so you can stay logged in as seve
 ## 3. Department head approves (`khadiza.rahman`)
 
 - [ ] **3.1** The bell shows **New trip request … from Maria**.
-- [ ] **3.2** Trips: she sees only Administration's trips. Open Maria's trip and click **Approve**.
+- [ ] **3.2** Trips: she sees only Engagement and Logistics trips. Open Maria's trip and click **Approve**.
   **Expect:** a confirmation dialog, then **Approved**.
 - [ ] **3.3** Try rejecting a trip from another department (if there is one).
   **Expect:** no Reject button.
-- [ ] **3.4** Reject a second Administration request.
+- [ ] **3.4** Reject a second Engagement and Logistics request.
   **Expect:** a dialog asking for a reason; the reason can't be left empty.
 
 ## 4. Logistics assigns a vehicle (`sarah.manager`)
@@ -81,6 +81,18 @@ Use a private browser window for each account, so you can stay logged in as seve
 - [ ] **8.2** Log in as that user.
   **Expect:** only Chattogram vehicles. Opening a Dhaka vehicle's URL says not found.
 - [ ] **8.3** A user with several offices sees the office switcher in the top bar.
+- [ ] **8.4** As `admin`, try to save a vehicle with no Zone, and a user with no Zone Access.
+  **Expect:** both are refused with a message under the field.
+- [ ] **8.5** As `hasan.sarker` (Dhaka only), open Routes, Factories and Logistics.
+  **Expect:** only Dhaka records.
+
+## 8a. Forms
+
+- [ ] **8a.1** Create a vehicle, a driver, a vendor, a factory, a route and a logistics team. Check the layout reads well and the search boxes (Zone, Department, Vendor, Driver) find what you type.
+- [ ] **8a.2** Upload a file over 2 MB on the vehicle form.
+  **Expect:** "...is larger than 2 MB" under the field.
+- [ ] **8a.3** Delete a factory, switch the factory list to **Deleted**, and click **Restore**.
+  **Expect:** it is back in the normal list, and old trips still show its name.
 
 ## 9. Private documents
 

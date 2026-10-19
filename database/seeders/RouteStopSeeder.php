@@ -2,9 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\RouteStop;
 use App\Models\Stop;
 use App\Models\VehicleRoute;
-use App\Models\RouteStop;
+use App\Models\Zone;
 use Illuminate\Database\Seeder;
 
 class RouteStopSeeder extends Seeder
@@ -37,9 +38,15 @@ class RouteStopSeeder extends Seeder
         $this->command->info('Creating stops...');
         $stops = Stop::factory()->count(30)->create();
 
-        // Create 10 routes
+        // Create 10 routes, split between the offices (every third in
+        // Chattogram) so zone-limited users see routes; stops stay unzoned,
+        // which every zone can pick
         $this->command->info('Creating routes...');
-        $routes = VehicleRoute::factory()->count(10)->create();
+        $dhaka = Zone::idForCity('Dhaka');
+        $chattogram = Zone::idForCity('Chittagong');
+        $routes = VehicleRoute::factory()->count(10)->create()->each(
+            fn (VehicleRoute $route, int $i) => $route->update(['zone_id' => $i % 3 === 2 ? $chattogram : $dhaka])
+        );
 
         $this->command->info('Creating route-stop relationships...');
 
@@ -92,10 +99,10 @@ class RouteStopSeeder extends Seeder
         $stopCount = Stop::count();
         $routeStopCount = RouteStop::count();
 
-        $this->command->info("Successfully created:");
+        $this->command->info('Successfully created:');
         $this->command->info("- {$routeCount} routes");
         $this->command->info("- {$stopCount} stops");
         $this->command->info("- {$routeStopCount} route-stop relationships");
-        $this->command->info("- Each route has exactly 5 unique stops");
+        $this->command->info('- Each route has exactly 5 unique stops');
     }
 }

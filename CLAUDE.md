@@ -42,7 +42,7 @@ npm run types                   # tsc --noEmit
 ```bash
 php artisan setup:permissions
 ```
-**Fresh install / production:** `php artisan db:seed` creates only roles, permissions and zones in production (demo data is local-only); create the first admin with `php artisan vems:create-admin`. See `docs/DEPLOYMENT.md` (env, cron, queue worker, backups).
+**Fresh install / production:** `php artisan db:seed` creates only roles, permissions, zones and the real departments (`DepartmentSeeder`) in production (demo data is local-only); create the first admin with `php artisan vems:create-admin`. See `docs/DEPLOYMENT.md` (env, cron, queue worker, backups).
 
 **Scheduled jobs** (`routes/console.php`, times Asia/Dhaka; needs a `schedule:run` cron): `vems:expiry-reminders` (07:00, vehicle documents incl. route permit and driving licences, on milestone days only), `vems:trips-needing-attention` (07:30, overdue/long-running trips, notify only), and spatie/laravel-backup (`backup:clean`/`run`/`monitor`, nightly, to the `backups` disk).
 
