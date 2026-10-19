@@ -155,6 +155,8 @@ export function AttendanceHistoryCard({
                                     {(['check_in', 'check_out', 'no_show', 'manual_override', 'correction'] as const).map((type) => (
                                         <label key={type} className="flex cursor-pointer items-center gap-2">
                                             <Checkbox
+                                                id={`filter_event_${type}`}
+                                                name="event_types[]"
                                                 checked={filterEventTypes.includes(type)}
                                                 onCheckedChange={() => toggleCheckbox(filterEventTypes, setFilterEventTypes, type)}
                                             />
@@ -191,6 +193,8 @@ export function AttendanceHistoryCard({
                                             {uniqueSources.map((src) => (
                                                 <label key={src} className="flex cursor-pointer items-center gap-2">
                                                     <Checkbox
+                                                        id={`filter_source_${src}`}
+                                                        name="sources[]"
                                                         checked={filterSources.includes(src)}
                                                         onCheckedChange={() => toggleCheckbox(filterSources, setFilterSources, src)}
                                                     />
@@ -205,6 +209,9 @@ export function AttendanceHistoryCard({
                             <div>
                                 <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Passenger</p>
                                 <select
+                                    id="filter_passenger_id"
+                                    name="passenger_id"
+                                    aria-label="Passenger"
                                     value={filterPassengerId}
                                     onChange={(e) => setFilterPassengerId(e.target.value)}
                                     className="w-full rounded-md border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
@@ -222,8 +229,10 @@ export function AttendanceHistoryCard({
                                 <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Date Range</p>
                                 <div className="space-y-2">
                                     <div>
-                                        <Label className="mb-1 text-xs text-muted-foreground">From</Label>
+                                        <Label htmlFor="filter_date_from" className="mb-1 text-xs text-muted-foreground">From</Label>
                                         <Input
+                                            id="filter_date_from"
+                                            name="date_from"
                                             type="date"
                                             value={filterDateFrom}
                                             onChange={(e) => setFilterDateFrom(e.target.value)}
@@ -231,8 +240,10 @@ export function AttendanceHistoryCard({
                                         />
                                     </div>
                                     <div>
-                                        <Label className="mb-1 text-xs text-muted-foreground">To</Label>
+                                        <Label htmlFor="filter_date_to" className="mb-1 text-xs text-muted-foreground">To</Label>
                                         <Input
+                                            id="filter_date_to"
+                                            name="date_to"
                                             type="date"
                                             value={filterDateTo}
                                             onChange={(e) => setFilterDateTo(e.target.value)}
@@ -245,6 +256,9 @@ export function AttendanceHistoryCard({
                             <div>
                                 <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Area</p>
                                 <Input
+                                    id="filter_area"
+                                    name="area"
+                                    aria-label="Search area name"
                                     type="text"
                                     placeholder="Search area name…"
                                     value={filterAreaSearch}

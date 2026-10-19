@@ -204,9 +204,9 @@ export function VehicleDowntimeCard({ vehicleId, downtimes, reasons, replacement
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <Label>Reason</Label>
-                            <Select value={data.reason} onValueChange={(value) => setData('reason', value)}>
-                                <SelectTrigger aria-label="Reason">
+                            <Label htmlFor="downtime_reason">Reason</Label>
+                            <Select name="reason" value={data.reason} onValueChange={(value) => setData('reason', value)}>
+                                <SelectTrigger id="downtime_reason">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>

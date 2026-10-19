@@ -141,6 +141,18 @@ it('records route history when a trip is created with a route and the route is c
         ->and($trip->fresh()->currentRouteAssignment->vehicle_route_id)->toBe($second->id);
 });
 
+it('accepts times with seconds when editing a trip (as stored, HH:MM:SS)', function () {
+    seedTripWorkflowPermissions();
+    $trip = workflowTrip();
+
+    $this->actingAs(workflowUser(['edit-trips']))
+        ->put("/trips/{$trip->id}", tripRequestPayload(['scheduled_start_time' => '08:00:00', 'scheduled_end_time' => '17:00:00']))
+        ->assertSessionHasNoErrors();
+
+    expect($trip->fresh()->scheduled_start_time)->toStartWith('08:00')
+        ->and($trip->fresh()->scheduled_end_time)->toStartWith('17:00');
+});
+
 it('keeps the vehicle when someone without assign-vehicles edits the trip', function () {
     seedTripWorkflowPermissions();
     $vehicle = workflowVehicle();

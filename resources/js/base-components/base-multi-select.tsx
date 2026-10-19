@@ -39,6 +39,7 @@ export function MultiSelect({
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
   const [searchTerm, setSearchTerm] = React.useState("")
+  const searchId = React.useId()
 
   const filteredOptions = React.useMemo(() => {
     if (!searchTerm) return options
@@ -104,6 +105,9 @@ export function MultiSelect({
       <DropdownMenuContent className="w-full p-0" align="start">
         <div className="p-2 border-b">
           <Input
+            id={searchId}
+            name={searchId}
+            aria-label={searchPlaceholder}
             placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}

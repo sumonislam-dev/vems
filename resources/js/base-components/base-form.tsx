@@ -376,6 +376,9 @@ export function FormMultiSelect({
             {searchable && (
               <div className="p-2 border-b">
                 <Input
+                  id={`${name}-search`}
+                  name={`${name}-search`}
+                  aria-label="Search options"
                   type="text"
                   placeholder="Search options..."
                   value={searchTerm}

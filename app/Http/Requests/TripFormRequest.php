@@ -18,6 +18,17 @@ abstract class TripFormRequest extends FormRequest
         return true;
     }
 
+    /** Times are stored as HH:MM:SS; accept that back and validate as HH:MM */
+    protected function prepareForValidation(): void
+    {
+        foreach (['scheduled_start_time', 'scheduled_end_time'] as $field) {
+            $value = $this->input($field);
+            if (is_string($value) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $value)) {
+                $this->merge([$field => substr($value, 0, 5)]);
+            }
+        }
+    }
+
     protected function sharedRules(): array
     {
         return [

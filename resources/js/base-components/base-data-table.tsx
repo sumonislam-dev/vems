@@ -278,6 +278,9 @@ export function ServerSideDataTable<T>({
             <div className="relative w-full sm:w-80">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                id="table_search"
+                name="search"
+                aria-label={searchPlaceholder}
                 placeholder={searchPlaceholder}
                 value={searchInput}
                 onChange={(e) => setSearchInput(e.target.value)}
@@ -436,6 +439,8 @@ export function ServerSideDataTable<T>({
               {isSelectionEnabled && (
                 <TableHead className="w-10">
                   <Checkbox
+                    id="table_select_all"
+                    name="select_all"
                     checked={allSelectableOnPageSelected ? true : someSelectableOnPageSelected ? "indeterminate" : false}
                     onCheckedChange={(checked) => toggleSelectAllOnPage(checked === true)}
                     disabled={selectablePageRowIds.length === 0}
@@ -489,6 +494,8 @@ export function ServerSideDataTable<T>({
                     {isSelectionEnabled && (
                       <TableCell onClick={(event) => event.stopPropagation()}>
                         <Checkbox
+                          id={`table_select_${rowId}`}
+                          name="selected[]"
                           checked={rowSelectable && selectedIds.includes(rowId!)}
                           onCheckedChange={(checked) => rowId !== undefined && toggleRowSelected(rowId, checked === true)}
                           disabled={!rowSelectable}
@@ -529,10 +536,11 @@ export function ServerSideDataTable<T>({
             <div className="flex items-center gap-2">
               <span className="text-sm text-muted-foreground hidden sm:inline">Show</span>
               <Select
+                name="per_page"
                 value={String(data.per_page)}
                 onValueChange={(value) => handlePerPageChange(Number(value))}
               >
-                <SelectTrigger className="w-16 sm:w-20 h-8">
+                <SelectTrigger id="table_per_page" aria-label="Rows per page" className="w-16 sm:w-20 h-8">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

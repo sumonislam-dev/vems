@@ -93,10 +93,11 @@ export function TripPassengerSelection({
                                 <Users className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                 <div className="w-48">
                                     <Select
+                                        name="passenger_group"
                                         value={selectedGroupId || 'none'}
                                         onValueChange={(v) => onGroupSelect(v === 'none' ? '' : v)}
                                     >
-                                        <SelectTrigger className="h-10 text-sm">
+                                        <SelectTrigger id="passenger_group" aria-label="Add passengers by group" className="h-10 text-sm">
                                             <SelectValue placeholder="Add by group..." />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -133,6 +134,9 @@ export function TripPassengerSelection({
                                 <div className="absolute right-0 z-50 mt-1 w-72 rounded-md border bg-popover shadow-lg">
                                     <div className="p-2 border-b">
                                         <Input
+                                            id="passenger_search"
+                                            name="passenger_search"
+                                            aria-label="Search passengers"
                                             type="text"
                                             placeholder="Search by name or ID..."
                                             value={passengerSearch}

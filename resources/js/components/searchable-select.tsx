@@ -89,13 +89,15 @@ export function SearchableSelect({
 
     return (
         <div className="space-y-2">
-            <label
-                htmlFor={name}
+            {/* The trigger is a div, not a form control, so this is a plain
+                span it points to with aria-labelledby (a <label> would need one) */}
+            <span
+                id={`${name}-label`}
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300"
             >
                 {label}
                 {required && <span className="text-red-500 ml-1">*</span>}
-            </label>
+            </span>
 
             <div className="relative" ref={dropdownRef}>
                 <div
@@ -109,6 +111,11 @@ export function SearchableSelect({
                         focus-within:ring-1 transition-colors
                     `}
                     onClick={handleToggle}
+                    role="combobox"
+                    aria-labelledby={`${name}-label`}
+                    aria-expanded={isOpen}
+                    aria-invalid={!!error}
+                    aria-disabled={disabled}
                 >
                     {isOpen ? (
                         <div className="flex items-center">
@@ -117,7 +124,10 @@ export function SearchableSelect({
                                 ref={inputRef}
                                 type="text"
                                 className="flex-1 border-none bg-transparent p-0 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-0"
+                                id={`${name}-search`}
+                                name={`${name}-search`}
                                 placeholder="Type to search..."
+                                aria-labelledby={`${name}-label`}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 onClick={(e) => e.stopPropagation()}

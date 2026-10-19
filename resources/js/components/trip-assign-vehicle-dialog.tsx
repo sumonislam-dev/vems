@@ -84,9 +84,9 @@ export function TripAssignVehicleDialog({ tripId, hasVehicle, vehicles }: Props)
                         </div>
                         {hasVehicle && (
                             <div className="space-y-1">
-                                <Label>Reason</Label>
-                                <Select value={data.reason} onValueChange={(value) => setData('reason', value)}>
-                                    <SelectTrigger aria-label="Reason">
+                                <Label htmlFor="assign_vehicle_reason">Reason</Label>
+                                <Select name="reason" value={data.reason} onValueChange={(value) => setData('reason', value)}>
+                                    <SelectTrigger id="assign_vehicle_reason">
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>

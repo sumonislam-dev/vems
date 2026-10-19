@@ -172,9 +172,9 @@ export function AttendanceStatusCard({ status, factories }: AttendanceStatusCard
                     </DialogHeader>
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Factory visited (optional)</Label>
-                            <Select value={factoryId} onValueChange={setFactoryId}>
-                                <SelectTrigger>
+                            <Label htmlFor="attendance_factory_id">Factory visited (optional)</Label>
+                            <Select name="factory_id" value={factoryId} onValueChange={setFactoryId}>
+                                <SelectTrigger id="attendance_factory_id">
                                     <SelectValue placeholder="Select a factory" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -187,8 +187,10 @@ export function AttendanceStatusCard({ status, factories }: AttendanceStatusCard
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label>Location name (optional)</Label>
+                            <Label htmlFor="attendance_location_name">Location name (optional)</Label>
                             <Input
+                                id="attendance_location_name"
+                                name="location_name"
                                 value={locationName}
                                 onChange={(e) => setLocationName(e.target.value)}
                                 placeholder="e.g. Factory main gate"

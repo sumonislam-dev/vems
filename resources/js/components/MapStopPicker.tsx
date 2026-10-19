@@ -199,8 +199,10 @@ function CreateStopForm({
                 {newStopPosition && (
                     <div className="space-y-3">
                         <div>
-                            <label className="text-sm font-medium">Stop Name</label>
+                            <label htmlFor="new_stop_name" className="text-sm font-medium">Stop Name</label>
                             <Input
+                                id="new_stop_name"
+                                name="new_stop_name"
                                 value={newStopName}
                                 onChange={(e) => onNameChange(e.target.value)}
                                 placeholder="Enter stop name"
@@ -209,8 +211,10 @@ function CreateStopForm({
                         </div>
 
                         <div>
-                            <label className="text-sm font-medium">Address</label>
+                            <label htmlFor="new_stop_address" className="text-sm font-medium">Address</label>
                             <Input
+                                id="new_stop_address"
+                                name="new_stop_address"
                                 value={newStopAddress}
                                 onChange={(e) => onAddressChange(e.target.value)}
                                 placeholder="Enter address (optional)"
@@ -342,6 +346,9 @@ function LocationSearch({
             <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
+                    id="map_location_search"
+                    name="map_location_search"
+                    aria-label="Search for a location"
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
                     placeholder="Search for a location..."
