@@ -50,6 +50,8 @@ it('removes a user from all their groups when an admin sets their status to inac
     expect($group->hasMember($target->id))->toBeTrue();
 
     $response = $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => $target->name,
         'username' => $target->username,
         'personal_phone' => '01700000010',
@@ -84,6 +86,8 @@ it('does not touch group membership when an update leaves status untouched', fun
     $group->addMember($target->id);
 
     $response = $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Renamed But Still Active',
         'username' => $target->username,
         'personal_phone' => '01700000011',

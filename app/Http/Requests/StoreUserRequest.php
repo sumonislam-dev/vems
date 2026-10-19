@@ -49,7 +49,7 @@ class StoreUserRequest extends FormRequest
             // User Classification
             'user_type' => ['nullable', 'string', 'in:employee,driver,transport_manager,admin'],
             'department_id' => ['nullable', 'exists:departments,id'],
-            'zone_access' => ['nullable', 'in:all,specific'],
+            'zone_access' => ['required', 'in:all,specific'],
             'zone_ids' => ['nullable', 'array'],
             'zone_ids.*' => Zone::validationRule(),
             'vendor_id' => [

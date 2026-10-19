@@ -73,6 +73,8 @@ it('stores a user\'s NID scan on the private disk', function () {
     Storage::fake('public');
 
     $this->actingAs(securityUser(['create-users']))->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'With NID',
         'username' => 'with_nid',
         'personal_phone' => '01700000001',

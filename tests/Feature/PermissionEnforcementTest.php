@@ -51,6 +51,8 @@ it('ignores submitted roles from an editor without manage-user-roles', function 
     $target->assignRole('employee');
 
     $this->actingAs($editor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Renamed',
         'username' => $target->username,
         'email' => $target->email,
@@ -72,6 +74,8 @@ it('does not hand out the admin role through user_type without manage-user-roles
     $creator = enforcementUser(['create-users']);
 
     $this->actingAs($creator)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'New Admin?',
         'username' => 'new_admin_'.uniqid(),
         'email' => 'new_admin_'.uniqid().'@example.com',

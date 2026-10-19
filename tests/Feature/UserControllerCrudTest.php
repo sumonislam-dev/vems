@@ -111,6 +111,8 @@ it('creates a user with the submitted role when authorized', function () {
     $employeeRole = Role::where('name', 'employee')->first();
 
     $response = $this->actingAs($actor)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'New Employee',
         'username' => 'new_employee_'.uniqid(),
         'personal_phone' => '01700000001',
@@ -135,6 +137,8 @@ it('requires personal_phone and whatsapp_id to create a user', function () {
     $actor = makeUserCrudActor(['create-users']);
 
     $response = $this->actingAs($actor)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Missing Contact Fields',
         'username' => 'missing_contact_'.uniqid(),
         'status' => 'active',
@@ -151,6 +155,8 @@ it('requires license details when creating a driver', function () {
     $actor = makeUserCrudActor(['create-users']);
 
     $response = $this->actingAs($actor)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'New Driver',
         'username' => 'new_driver_'.uniqid(),
         'personal_phone' => '01700000002',
@@ -170,6 +176,8 @@ it('denies creating a user to someone without create-users permission', function
     $actor = makeUserCrudActor();
 
     $this->actingAs($actor)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Blocked User',
         'username' => 'blocked_user_'.uniqid(),
     ])->assertForbidden();
@@ -184,6 +192,8 @@ it('updates a user\'s fields and syncs roles when authorized', function () {
     $driverRole = Role::where('name', 'driver')->first();
 
     $response = $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Renamed User',
         'username' => $target->username,
         'personal_phone' => '01700000003',
@@ -210,6 +220,8 @@ it('never lets a non-super-admin editor grant the super-admin role (assignableRo
     $superAdminRole = Role::where('name', 'super-admin')->first();
 
     $response = $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => $target->name,
         'username' => $target->username,
         'personal_phone' => '01700000004',
@@ -232,6 +244,8 @@ it('never lets a non-super-admin editor strip super-admin from a user who alread
     $employeeRole = Role::where('name', 'employee')->first();
 
     $response = $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => $target->name,
         'username' => $target->username,
         'personal_phone' => '01700000005',
@@ -253,6 +267,8 @@ it('denies updating a user to someone without edit-users permission', function (
     $target = makeUserCrudTarget();
 
     $this->actingAs($actor)->put("/users/{$target->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Should Not Apply',
     ])->assertForbidden();
 });

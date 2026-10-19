@@ -6,16 +6,17 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedDriverDocumentPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'create-drivers', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-drivers', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'delete-drivers', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'create-users', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeDriverDocumentEditor(): User
@@ -42,6 +43,8 @@ it('stores an uploaded driving license file when creating a driver', function ()
     $vendor = Vendor::create(['name' => 'V1', 'status' => 'active']);
 
     $response = $this->actingAs($editor)->post('/drivers', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'New Driver',
         'username' => 'new_driver_'.uniqid(),
         'personal_phone' => '017',
@@ -88,6 +91,8 @@ it('replaces the old driving license file and deletes it when updating', functio
     Storage::disk('local')->put('driver_documents/old-license.pdf', 'old');
 
     $response = $this->actingAs($editor)->put("/drivers/{$driver->id}", [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => $driver->name,
         'username' => $driver->username,
         'personal_phone' => '017',

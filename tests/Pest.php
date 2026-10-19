@@ -2,6 +2,8 @@
 
 use App\Models\Zone;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
 /*
@@ -55,8 +57,15 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-/** A zone for vehicle form posts (vehicles must have one) */
+/**
+ * A zone for vehicle, user and driver form posts (all require one). Saving a
+ * user's zone access checks the seeded view-all-zones permission, so make sure
+ * it exists too.
+ */
 function testZoneId(): int
 {
+    Permission::firstOrCreate(['name' => 'view-all-zones', 'guard_name' => 'web']);
+    app(PermissionRegistrar::class)->forgetCachedPermissions();
+
     return Zone::firstOrCreate(['code' => 'TST'], ['name' => 'Test Zone'])->id;
 }

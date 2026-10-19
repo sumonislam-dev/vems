@@ -43,6 +43,8 @@ function createVendor(): Vendor
 function validDriverPayload(array $overrides = []): array
 {
     return array_merge([
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Driver Candidate',
         'username' => 'driver_candidate',
         'employee_id' => 'EMP-DR-001',
@@ -97,6 +99,8 @@ function createNonDriverUser(array $overrides = []): User
 function validDriverUpdatePayload(array $overrides = []): array
 {
     return array_merge([
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
         'name' => 'Updated Driver',
         'username' => 'updated_driver',
         'employee_id' => 'EMP-DR-101',

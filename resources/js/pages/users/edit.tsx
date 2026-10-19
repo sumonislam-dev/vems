@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ZoneAccessSelect } from '@/components/zone-access-select';
 import AppLayout from '@/layouts/app-layout';
 import { Head, useForm } from '@inertiajs/react';
-import { ArrowLeft, Car, CheckCircle, Save, Shield, User, Users } from 'lucide-react';
+import { ArrowLeft, Car, CheckCircle, Save, Users } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 /**
@@ -81,34 +81,6 @@ const toDateInputValue = (value: unknown): string => {
     const raw = String(value);
     return raw.includes('T') ? raw.split('T')[0] : raw;
 };
-
-// Enhanced user type options with icons and descriptions
-const enhancedUserTypeOptions = [
-    {
-        label: 'Employee',
-        value: 'employee',
-        icon: <User className="h-4 w-4 text-blue-600" />,
-        description: 'Regular organization staff who can request vehicles',
-    },
-    {
-        label: 'Driver',
-        value: 'driver',
-        icon: <Car className="h-4 w-4 text-green-600" />,
-        description: 'Can drive vehicles and handle trip operations',
-    },
-    {
-        label: 'Transport Manager',
-        value: 'transport_manager',
-        icon: <Shield className="h-4 w-4 text-purple-600" />,
-        description: 'Manages transport operations and approves trips',
-    },
-    {
-        label: 'Administrator',
-        value: 'admin',
-        icon: <Shield className="h-4 w-4 text-red-600" />,
-        description: 'Full system access and user management',
-    },
-];
 
 export default function EditUser({
     user,
@@ -540,22 +512,6 @@ export default function EditUser({
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* User Type Preview - Compact */}
-                                {data.user_type && (
-                                    <div className="rounded-md border-l-2 border-primary bg-muted/30 p-3">
-                                        <div className="flex items-center gap-2 text-sm">
-                                            {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.icon}
-                                            <span className="font-medium">
-                                                {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.label}
-                                            </span>
-                                            <span className="text-muted-foreground">-</span>
-                                            <span className="text-xs text-muted-foreground">
-                                                {enhancedUserTypeOptions.find((opt) => opt.value === data.user_type)?.description}
-                                            </span>
-                                        </div>
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
 

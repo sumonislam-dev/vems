@@ -4,8 +4,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { Check, ChevronDown, FileText, Upload, X } from 'lucide-react';
+import { Check, ChevronDown, FileText, Info, Upload, X } from 'lucide-react';
 import * as React from 'react';
 
 /**
@@ -262,6 +263,8 @@ interface FormMultiSelectProps {
     description?: string;
     className?: string;
     searchable?: boolean;
+    /** Extra help shown from an (i) icon beside the label */
+    info?: string;
 }
 
 export function FormMultiSelect({
@@ -277,6 +280,7 @@ export function FormMultiSelect({
     description,
     className,
     searchable = true,
+    info,
 }: FormMultiSelectProps) {
     const [isOpen, setIsOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState('');
@@ -318,15 +322,27 @@ export function FormMultiSelect({
                 .filter(Boolean);
             return selectedLabels.join(', ');
         }
-        return `${value.length} roles selected`;
+        return `${value.length} selected`;
     };
 
     return (
         <div className={cn('space-y-2', className)} ref={dropdownRef}>
-            <Label htmlFor={name} className={cn(error && 'text-destructive')}>
-                {label}
-                {required && <span className="ml-1 text-destructive">*</span>}
-            </Label>
+            <div className="flex items-center gap-1.5">
+                <Label htmlFor={name} className={cn(error && 'text-destructive')}>
+                    {label}
+                    {required && <span className="ml-1 text-destructive">*</span>}
+                </Label>
+                {info && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button type="button" aria-label={info} className="text-muted-foreground hover:text-foreground">
+                                <Info className="h-3.5 w-3.5" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">{info}</TooltipContent>
+                    </Tooltip>
+                )}
+            </div>
 
             <div className="relative">
                 <button

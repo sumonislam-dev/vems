@@ -46,7 +46,8 @@ export function ZoneAccessSelect({ zoneAccess, zoneIds, onChange, zoneOptions, e
             options={options}
             placeholder="Select zone access..."
             searchable={false}
-            description="Admins/Super Admins always have full zone access regardless of this setting."
+            required
+            info="Admins and Super Admins always have access to every zone, whatever is chosen here."
         />
     );
 }
