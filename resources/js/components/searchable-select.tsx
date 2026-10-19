@@ -16,6 +16,8 @@ interface SearchableSelectProps {
     placeholder?: string;
     required?: boolean;
     disabled?: boolean;
+    /** Keep the label for screen readers only, e.g. when a heading beside it already names the field */
+    hideLabel?: boolean;
 }
 
 export function SearchableSelect({
@@ -28,6 +30,7 @@ export function SearchableSelect({
     placeholder = 'Search and select...',
     required = false,
     disabled = false,
+    hideLabel = false,
 }: SearchableSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -89,12 +92,12 @@ export function SearchableSelect({
         <div className="space-y-2">
             {/* The trigger is a div, not a form control, so this is a plain
                 span it points to with aria-labelledby (a <label> would need one) */}
-            <span id={`${name}-label`} className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <span id={`${name}-label`} className={hideLabel ? 'sr-only' : 'block text-sm font-medium text-gray-700 dark:text-gray-300'}>
                 {label}
                 {required && <span className="ml-1 text-red-500">*</span>}
             </span>
 
-            <div className="relative" ref={dropdownRef}>
+            <div className={hideLabel ? 'relative !mt-0' : 'relative'} ref={dropdownRef}>
                 <div
                     className={`relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm ${
                         error

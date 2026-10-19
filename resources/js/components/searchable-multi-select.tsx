@@ -18,6 +18,8 @@ interface SearchableMultiSelectProps {
     disabled?: boolean;
     /** Keep the label for screen readers only, e.g. when a card title already names the field */
     hideLabel?: boolean;
+    /** Text for the closed box instead of the chosen names, e.g. "12 passengers selected" */
+    selectedText?: (count: number) => string;
 }
 
 /**
@@ -35,6 +37,7 @@ export function SearchableMultiSelect({
     required = false,
     disabled = false,
     hideLabel = false,
+    selectedText,
 }: SearchableMultiSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -49,10 +52,13 @@ export function SearchableMultiSelect({
         [searchTerm, options],
     );
 
-    const displayValue = options
-        .filter(isSelected)
-        .map((option) => option.label)
-        .join(', ');
+    const displayValue =
+        selectedText && selected.length > 0
+            ? selectedText(selected.length)
+            : options
+                  .filter(isSelected)
+                  .map((option) => option.label)
+                  .join(', ');
 
     // Close dropdown when clicking outside
     useEffect(() => {
@@ -96,7 +102,7 @@ export function SearchableMultiSelect({
                 {required && <span className="ml-1 text-red-500">*</span>}
             </span>
 
-            <div className="relative" ref={dropdownRef}>
+            <div className={hideLabel ? 'relative !mt-0' : 'relative'} ref={dropdownRef}>
                 <div
                     className={`relative w-full cursor-pointer rounded-md border border-input bg-background px-3 py-2 text-left shadow-sm ${
                         error
