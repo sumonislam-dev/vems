@@ -33,7 +33,7 @@ composer install --no-dev --optimize-autoloader
 npm ci && npm run build
 php artisan key:generate
 php artisan migrate --force
-php artisan db:seed --force        # production: roles, permissions and zones only, no demo data
+php artisan db:seed --force        # production: roles, permissions, zones and departments; no demo data
 php artisan vems:create-admin      # the first super-admin (asks for name, email, password)
 php artisan storage:link
 php artisan config:cache && php artisan route:cache && php artisan view:cache

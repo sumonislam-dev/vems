@@ -18,9 +18,9 @@ Open http://localhost:8000. Every demo password is `password`.
 |---|---|---|
 | Super admin | `admin` | Dhaka |
 | Transport manager (Logistics) | `sarah.manager` | All offices |
-| Department head (Administration) | `khadiza.rahman` | Dhaka |
+| Department head (Engagement and Logistics) | `khadiza.rahman` | Dhaka |
 | Management (read-only) | `hasan.sarker` | Dhaka |
-| Employee (Administration) | `maria.admin` | Dhaka |
+| Employee (Engagement and Logistics) | `maria.admin` | Dhaka |
 | Employee (HR) | `john.hr` | Dhaka |
 | Driver | `ahmed.driver` | per seed |
 
@@ -28,7 +28,7 @@ Use a private browser window for each account, so you can stay logged in as seve
 
 ## 2. Employee requests a trip (`maria.admin`)
 
-- [ ] **2.1** Trips → Create. Fill in a date, times and destination. Choose department **Administration**.
+- [ ] **2.1** Trips → Create. Fill in a date, times and destination. Choose department **Engagement and Logistics**.
   **Expect:** no vehicle field, just a note that Logistics will assign one.
 - [ ] **2.2** Save.
   **Expect:** the trip shows **Pending**, and the trips list shows **Awaiting vehicle**.
@@ -38,11 +38,11 @@ Use a private browser window for each account, so you can stay logged in as seve
 ## 3. Department head approves (`khadiza.rahman`)
 
 - [ ] **3.1** The bell shows **New trip request … from Maria**.
-- [ ] **3.2** Trips: she sees only Administration's trips. Open Maria's trip and click **Approve**.
+- [ ] **3.2** Trips: she sees only Engagement and Logistics trips. Open Maria's trip and click **Approve**.
   **Expect:** a confirmation dialog, then **Approved**.
 - [ ] **3.3** Try rejecting a trip from another department (if there is one).
   **Expect:** no Reject button.
-- [ ] **3.4** Reject a second Administration request.
+- [ ] **3.4** Reject a second Engagement and Logistics request.
   **Expect:** a dialog asking for a reason; the reason can't be left empty.
 
 ## 4. Logistics assigns a vehicle (`sarah.manager`)

@@ -9,14 +9,15 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      *
-     * Production gets only roles/permissions and zones; everything else is
-     * demo data (well-known passwords, fake vehicles and trips).
+     * Production gets only roles/permissions, zones and the real departments;
+     * everything else is demo data (well-known passwords, fake vehicles and trips).
      */
     public function run(): void
     {
         $this->call([
             RolePermissionSeeder::class, // Must run first to create roles
             ZoneSeeder::class, // Must run before any seeder assigning zone_id
+            DepartmentSeeder::class, // Real departments, not demo data
         ]);
 
         if (app()->isProduction()) {
@@ -26,7 +27,6 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->call([
-            DepartmentSeeder::class,
             UserSeeder::class, // UserSeeder should handle VMS user fields
             VehicleSeeder::class,
             VendorSeeder::class,

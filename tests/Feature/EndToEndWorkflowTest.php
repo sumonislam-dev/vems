@@ -23,8 +23,8 @@ function messagesOf(User $user): string
 it('walks a trip request through every role on the demo data', function () {
     Artisan::call('db:seed');
 
-    $employee = demoUser('maria.admin');      // Administration department
-    $head = demoUser('khadiza.rahman');       // department-head of Administration
+    $employee = demoUser('maria.admin');      // Engagement and Logistics department
+    $head = demoUser('khadiza.rahman');       // department-head of Engagement and Logistics
     $logistics = demoUser('sarah.manager');   // transport-manager, all offices
     $management = demoUser('hasan.sarker');   // read-only
     $driver = demoUser('ahmed.driver');

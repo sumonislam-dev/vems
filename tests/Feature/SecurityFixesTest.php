@@ -207,13 +207,15 @@ it('will not delete a vehicle that still has active trips', function () {
 
 // --- production seeding ----------------------------------------------------------
 
-it('seeds only roles, permissions and zones in production', function () {
+it('seeds only roles, permissions, zones and the real departments in production', function () {
     app()->detectEnvironment(fn () => 'production');
 
     Artisan::call('db:seed', ['--force' => true]);
 
     expect(Role::where('name', 'super-admin')->exists())->toBeTrue()
         ->and(Zone::count())->toBeGreaterThan(0)
+        ->and(Department::count())->toBe(14)
+        ->and(Department::find(2)?->name)->toBe('Engagement and Logistics')
         ->and(User::count())->toBe(0)
         ->and(Vehicle::count())->toBe(0)
         ->and(Trip::count())->toBe(0);

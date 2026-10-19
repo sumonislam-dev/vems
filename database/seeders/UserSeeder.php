@@ -35,7 +35,7 @@ class UserSeeder extends Seeder
                 'username' => 'admin',
                 'employee_id' => 'ADM001',
                 'user_type' => 'admin',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801711000001',
                 'personal_phone' => '+8801855000001',
                 'emergency_phone' => '+8801999000001',
@@ -58,7 +58,7 @@ class UserSeeder extends Seeder
                 'username' => 'tawseq.siraj',
                 'employee_id' => '302',
                 'email' => 'tawseq.siraj@rsc-bd.org',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801713369165',
                 'personal_phone' => '+8801713369165',
                 'emergency_phone' => '+8801713369165',
@@ -76,7 +76,7 @@ class UserSeeder extends Seeder
                 'username' => 'lawrence.corraya',
                 'employee_id' => '003',
                 'email' => 'lawrence.corraya@rsc-bd.org',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801766695905',
                 'personal_phone' => '+8801766695905',
                 'emergency_phone' => '+8801766695905',
@@ -94,7 +94,7 @@ class UserSeeder extends Seeder
                 'username' => 'hasan.sarker',
                 'employee_id' => '281',
                 'email' => 'hasan.sarker@rsc-bd.org',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801700710172',
                 'personal_phone' => '+8801700710172',
                 'emergency_phone' => '+8801700710172',
@@ -112,7 +112,7 @@ class UserSeeder extends Seeder
                 'username' => 'khadiza.rahman',
                 'employee_id' => '053',
                 'email' => 'khadiza.rahman@rsc-bd.org',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801766695906',
                 'personal_phone' => '+8801766695906',
                 'emergency_phone' => '+8801766695906',
@@ -162,7 +162,7 @@ class UserSeeder extends Seeder
                 'username' => 'sarah.manager',
                 'employee_id' => 'TM001',
                 'user_type' => 'transport_manager',
-                'department_id' => 1, // Transport department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'official_phone' => '+8801711000002',
                 'personal_phone' => '+8801855000002',
                 'emergency_phone' => '+8801999000002',
@@ -218,7 +218,7 @@ class UserSeeder extends Seeder
                     'username' => $driverData['username'],
                     'employee_id' => $driverData['employee_id'],
                     'user_type' => 'driver',
-                    'department_id' => 1, // Transport department
+                    'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                     'official_phone' => '+880171100000'.$driverData['phone_suffix'],
                     'personal_phone' => '+880185500000'.$driverData['phone_suffix'],
                     'emergency_phone' => '+880199900000'.$driverData['phone_suffix'],
@@ -276,7 +276,7 @@ class UserSeeder extends Seeder
                     'username' => $driverData['username'],
                     'employee_id' => $driverData['employee_id'],
                     'user_type' => 'driver',
-                    'department_id' => 1, // Transport department
+                    'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                     'official_phone' => '+880171100000'.$driverData['phone_suffix'],
                     'personal_phone' => '+880185500000'.$driverData['phone_suffix'],
                     'emergency_phone' => '+880199900000'.$driverData['phone_suffix'],
@@ -309,7 +309,7 @@ class UserSeeder extends Seeder
                 'username' => 'john.hr',
                 'employee_id' => 'HR001',
                 'email' => 'john.hr@vems.com',
-                'department_id' => 2, // HR department
+                'department_id' => $this->departmentId('HRM'), // Human Resource Management
                 'phone_suffix' => '007',
                 'address' => 'HR Staff Quarters, Dhaka',
             ],
@@ -318,7 +318,7 @@ class UserSeeder extends Seeder
                 'username' => 'lisa.finance',
                 'employee_id' => 'FIN001',
                 'email' => 'lisa.finance@vems.com',
-                'department_id' => 5, // Finance department
+                'department_id' => $this->departmentId('Accounts'), // Accounts
                 'phone_suffix' => '008',
                 'address' => 'Finance Staff Area, Dhaka',
             ],
@@ -327,7 +327,7 @@ class UserSeeder extends Seeder
                 'username' => 'david.operations',
                 'employee_id' => 'OPS001',
                 'email' => 'david.operations@vems.com',
-                'department_id' => 4, // Operations department
+                'department_id' => $this->departmentId('RPD'), // Remediation Programme Department
                 'phone_suffix' => '009',
                 'address' => 'Operations Staff Area, Chittagong',
             ],
@@ -336,7 +336,7 @@ class UserSeeder extends Seeder
                 'username' => 'maria.admin',
                 'employee_id' => 'ADM002',
                 'email' => 'maria.admin@vems.com',
-                'department_id' => 3, // Administration department
+                'department_id' => $this->departmentId('ADMIN'), // Engagement and Logistics
                 'phone_suffix' => '010',
                 'address' => 'Admin Staff Area, Dhaka',
             ],
@@ -411,9 +411,15 @@ class UserSeeder extends Seeder
         echo "vems Users created successfully:\n";
         echo "- 1 Admin (admin/password)\n";
         echo "- 1 Transport Manager, all offices (sarah.manager/password)\n";
-        echo "- 1 Department Head of Administration (khadiza.rahman/password)\n";
+        echo "- 1 Department Head of Engagement and Logistics (khadiza.rahman/password)\n";
         echo "- 1 Management, read-only (hasan.sarker/password)\n";
         echo "- 4 Drivers (ahmed.driver, karim.driver, rahim.driver, hasan.driver/password)\n";
         echo "- 4 Employees from different departments (john.hr, lisa.finance, david.operations, maria.admin/password)\n";
+    }
+
+    /** Id of a seeded department by code (see DepartmentSeeder) */
+    private function departmentId(string $code): ?int
+    {
+        return Department::where('code', $code)->value('id');
     }
 }
