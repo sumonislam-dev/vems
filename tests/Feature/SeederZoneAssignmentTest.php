@@ -3,6 +3,7 @@
 use App\Models\Factory;
 use App\Models\User;
 use App\Models\Vehicle;
+use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
 use Illuminate\Support\Facades\Artisan;
@@ -40,6 +41,11 @@ it('seeds zones and assigns them across dependent seeders', function () {
     expect(Vehicle::where('zone_id', $dhaka->id)->count())->toBeGreaterThan(0);
     expect(Vehicle::where('zone_id', $ctg->id)->count())->toBeGreaterThan(0);
     expect(Vehicle::whereNull('zone_id')->count())->toBe(0);
+
+    // Route: split between the offices so zone-limited users see some.
+    expect(VehicleRoute::where('zone_id', $dhaka->id)->count())->toBeGreaterThan(0);
+    expect(VehicleRoute::where('zone_id', $ctg->id)->count())->toBeGreaterThan(0);
+    expect(VehicleRoute::whereNull('zone_id')->count())->toBe(0);
 
     // User: derived from present_address/address.
     $admin = User::where('email', 'admin@vems.com')->first();

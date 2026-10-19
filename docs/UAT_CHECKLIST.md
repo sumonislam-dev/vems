@@ -81,6 +81,18 @@ Use a private browser window for each account, so you can stay logged in as seve
 - [ ] **8.2** Log in as that user.
   **Expect:** only Chattogram vehicles. Opening a Dhaka vehicle's URL says not found.
 - [ ] **8.3** A user with several offices sees the office switcher in the top bar.
+- [ ] **8.4** As `admin`, try to save a vehicle with no Zone, and a user with no Zone Access.
+  **Expect:** both are refused with a message under the field.
+- [ ] **8.5** As `hasan.sarker` (Dhaka only), open Routes, Factories and Logistics.
+  **Expect:** only Dhaka records.
+
+## 8a. Forms
+
+- [ ] **8a.1** Create a vehicle, a driver, a vendor, a factory, a route and a logistics team. Check the layout reads well and the search boxes (Zone, Department, Vendor, Driver) find what you type.
+- [ ] **8a.2** Upload a file over 2 MB on the vehicle form.
+  **Expect:** "...is larger than 2 MB" under the field.
+- [ ] **8a.3** Delete a factory, switch the factory list to **Deleted**, and click **Restore**.
+  **Expect:** it is back in the normal list, and old trips still show its name.
 
 ## 9. Private documents
 

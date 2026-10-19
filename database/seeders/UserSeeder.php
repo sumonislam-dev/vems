@@ -338,7 +338,7 @@ class UserSeeder extends Seeder
                 'email' => 'maria.admin@vems.com',
                 'department_id' => 3, // Administration department
                 'phone_suffix' => '010',
-                'address' => 'Admin Staff Area, Sylhet',
+                'address' => 'Admin Staff Area, Dhaka',
             ],
         ];
 
