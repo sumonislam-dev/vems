@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\TripStatus;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class TripIndexRequest extends FormRequest
 {
@@ -18,7 +20,7 @@ class TripIndexRequest extends FormRequest
             'direction' => 'nullable|in:asc,desc',
             'filters' => 'nullable|array',
             'filters.status' => 'nullable|array',
-            'filters.status.*' => 'string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
+            'filters.status.*' => ['string', Rule::in(TripStatus::values())],
             'filters.priority' => 'nullable|array',
             'filters.priority.*' => 'string|in:low,medium,high,urgent',
             'filters.schedule_type' => 'nullable|array',

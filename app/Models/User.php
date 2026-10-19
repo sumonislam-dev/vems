@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TripStatus;
 use App\Models\Concerns\BelongsToZone;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
@@ -328,14 +329,14 @@ class User extends Authenticatable implements MustVerifyEmail
     public function calculateCompletionRate(): float
     {
         $totalTrips = $this->driverTrips()->count();
-        $completedTrips = $this->driverTrips()->where('status', 'completed')->count();
+        $completedTrips = $this->driverTrips()->where('status', TripStatus::Completed->value)->count();
 
         return $totalTrips > 0 ? ($completedTrips / $totalTrips) * 100 : 0;
     }
 
     public function updateDriverStats($trip): void
     {
-        if ($this->isDriver() && $trip->status === 'completed') {
+        if ($this->isDriver() && $trip->status === TripStatus::Completed->value) {
             $this->increment('total_trips_completed');
             $this->total_distance_covered += $trip->actual_distance ?? 0;
 

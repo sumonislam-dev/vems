@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Exports\TripsReportExport;
 use App\Models\Trip;
 use App\Models\TripPassenger;
@@ -164,7 +165,7 @@ class ReportController extends Controller implements HasMiddleware
             'top_routes' => $topRoutes,
             'trip_histories' => $tripHistories,
             'filter_options' => [
-                'statuses' => ['pending', 'approved', 'rejected', 'assigned', 'in_progress', 'completed', 'cancelled'],
+                'statuses' => TripStatus::values(),
                 'drivers' => User::query()
                     ->where('status', 'active')
                     ->where('user_type', 'driver')
@@ -285,7 +286,7 @@ class ReportController extends Controller implements HasMiddleware
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
             'schedule_type' => 'nullable|string|in:pick-and-drop,pick-up,drop-off,engineer,training,adhoc,reposition,inspection,complaints,CVV,Incident Inspection,officials,Assigned',
-            'status' => 'nullable|string|in:pending,approved,rejected,assigned,in_progress,completed,cancelled',
+            'status' => 'nullable|string|in:'.implode(',', TripStatus::values()),
             'driver_id' => 'nullable|integer|exists:users,id',
             'vehicle_id' => 'nullable|integer|exists:vehicles,id',
             'route_id' => 'nullable|integer|exists:vehicle_routes,id',

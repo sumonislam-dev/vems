@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Http\Requests\StoreRecurringTripRequest;
 use App\Http\Requests\StoreTripRequest;
 use App\Http\Requests\TripIndexRequest;
@@ -53,7 +54,7 @@ class TripController extends Controller implements HasMiddleware
     {
         $conflict = Trip::where('vehicle_id', $vehicleId)
             ->where('scheduled_date', $date)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotIn('status', TripStatus::valuesOf(TripStatus::Cancelled, TripStatus::Rejected))
             ->when($excludeTripId, fn ($q) => $q->where('id', '!=', $excludeTripId))
             ->where('scheduled_start_time', '<', $endTime)
             ->where('scheduled_end_time', '>', $startTime)
@@ -341,7 +342,7 @@ class TripController extends Controller implements HasMiddleware
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as in_progress, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, '.
             'SUM(CASE WHEN DATE(scheduled_date) = ? THEN 1 ELSE 0 END) as today',
-            ['pending', 'approved', 'in_progress', 'completed', today()->toDateString()]
+            [...TripStatus::valuesOf(TripStatus::Pending, TripStatus::Approved, TripStatus::InProgress, TripStatus::Completed), today()->toDateString()]
         )->first();
 
         $stats = [
@@ -470,7 +471,7 @@ class TripController extends Controller implements HasMiddleware
             // Create trip
             $tripData = collect($validated)
                 ->except(['passengers', 'factory_ids', 'department_slots', 'logistics_ids'])
-                ->merge(['requested_by' => auth()->id(), 'status' => 'pending'])
+                ->merge(['requested_by' => auth()->id(), 'status' => TripStatus::Pending->value])
                 ->toArray();
 
             $trip = Trip::create($tripData);
@@ -562,7 +563,7 @@ class TripController extends Controller implements HasMiddleware
                 'recurring_start_date', 'recurring_end_date', 'group_name',
             ])->merge([
                 'requested_by' => auth()->id(),
-                'status' => 'pending',
+                'status' => TripStatus::Pending->value,
                 'is_recurring' => true,
                 'recurring_group_id' => $group->id,
                 'recurring_start_date' => $validated['recurring_start_date'],
@@ -686,7 +687,7 @@ class TripController extends Controller implements HasMiddleware
     public function edit(Trip $trip)
     {
         // Can only edit pending or approved trips
-        if (! in_array($trip->status, ['pending', 'approved'])) {
+        if (! in_array($trip->status, UpdateTripRequest::EDITABLE_STATUSES)) {
             return back()->with('error', 'Cannot edit trip in current status.');
         }
 
@@ -850,7 +851,7 @@ class TripController extends Controller implements HasMiddleware
     public function destroy(Trip $trip)
     {
         // Can only delete pending trips
-        if ($trip->status !== 'pending') {
+        if ($trip->status !== TripStatus::Pending->value) {
             return back()->with('error', 'Only pending trips can be deleted.');
         }
 
@@ -874,7 +875,7 @@ class TripController extends Controller implements HasMiddleware
     public function reassignVehicle(Request $request, Trip $trip, TripNotifier $notifier)
     {
         // Can reassign vehicle during any active status
-        if (! in_array($trip->status, ['pending', 'approved', 'assigned', 'in_progress'])) {
+        if (! in_array($trip->status, TripStatus::open())) {
             return back()->with('error', 'Cannot reassign vehicle for completed or cancelled trips.');
         }
 

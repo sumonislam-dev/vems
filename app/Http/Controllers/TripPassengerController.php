@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\TripPassenger;
 use App\Models\TripPassengerEvent;
@@ -29,7 +30,7 @@ class TripPassengerController extends Controller implements HasMiddleware
         $this->ensurePassengerBelongsToTrip($trip, $tripPassenger);
         $this->ensureTripAcceptsAttendance($trip);
 
-        if (!in_array($tripPassenger->status, ['pending', 'no_show'])) {
+        if (! in_array($tripPassenger->status, ['pending', 'no_show'])) {
             return back()->with('error', 'Passenger has already checked in.');
         }
 
@@ -196,7 +197,7 @@ class TripPassengerController extends Controller implements HasMiddleware
      */
     protected function ensureTripAcceptsAttendance(Trip $trip): void
     {
-        if (in_array($trip->status, ['rejected', 'cancelled'], true)) {
+        if (in_array($trip->status, TripStatus::dropped(), true)) {
             abort(422, 'Attendance cannot be captured for rejected or cancelled trips.');
         }
     }

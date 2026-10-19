@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\TripStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -295,27 +296,27 @@ class Trip extends Model
 
     public function scopePending($query)
     {
-        return $query->where('status', 'pending');
+        return $query->where('status', TripStatus::Pending->value);
     }
 
     public function scopeApproved($query)
     {
-        return $query->where('status', 'approved');
+        return $query->where('status', TripStatus::Approved->value);
     }
 
     public function scopeInProgress($query)
     {
-        return $query->where('status', 'in_progress');
+        return $query->where('status', TripStatus::InProgress->value);
     }
 
     public function scopeCompleted($query)
     {
-        return $query->where('status', 'completed');
+        return $query->where('status', TripStatus::Completed->value);
     }
 
     public function scopeUpcoming($query)
     {
-        return $query->whereIn('status', ['approved', 'assigned'])
+        return $query->whereIn('status', TripStatus::upcoming())
             ->where('scheduled_start', '>', now());
     }
 
@@ -341,23 +342,21 @@ class Trip extends Model
      * 'assigned' is a legacy intermediate status nothing currently sets, so
      * 'approved' transitions straight to 'in_progress' in practice.
      */
-    public function canTransitionTo(string $newStatus): bool
+    public function canTransitionTo(TripStatus|string $newStatus): bool
     {
-        return match ($this->status) {
-            'pending' => in_array($newStatus, ['approved', 'rejected', 'cancelled']),
-            'approved' => in_array($newStatus, ['assigned', 'in_progress', 'rejected', 'cancelled']),
-            'assigned' => in_array($newStatus, ['in_progress', 'cancelled']),
-            'in_progress' => in_array($newStatus, ['completed', 'cancelled']),
-            'completed', 'rejected', 'cancelled' => false,
-            default => false,
-        };
+        $current = TripStatus::tryFrom((string) $this->status);
+        $next = $newStatus instanceof TripStatus ? $newStatus : TripStatus::tryFrom($newStatus);
+
+        return $current !== null && $next !== null && $current->canTransitionTo($next);
     }
 
-    public function transitionTo(string $newStatus, array $attributes = [], ?string $reason = null): bool
+    public function transitionTo(TripStatus|string $newStatus, array $attributes = [], ?string $reason = null): bool
     {
         if (! $this->canTransitionTo($newStatus)) {
             return false;
         }
+
+        $newStatus = $newStatus instanceof TripStatus ? $newStatus->value : $newStatus;
 
         $oldStatus = $this->status;
         $this->update(array_merge($attributes, ['status' => $newStatus]));
@@ -377,12 +376,12 @@ class Trip extends Model
 
     public function cancel(string $reason, ?string $notes = null): bool
     {
-        if (! $this->canTransitionTo('cancelled')) {
+        if (! $this->canTransitionTo(TripStatus::Cancelled)) {
             return false;
         }
 
         $this->update([
-            'status' => 'cancelled',
+            'status' => TripStatus::Cancelled->value,
             'cancellation_reason' => $reason,
             'cancellation_notes' => $notes,
             'cancelled_by' => auth()->id(),
@@ -396,7 +395,7 @@ class Trip extends Model
             'action' => 'cancelled',
             'old_values' => ['status' => $this->status],
             'new_values' => [
-                'status' => 'cancelled',
+                'status' => TripStatus::Cancelled->value,
                 'cancellation_reason' => $reason,
                 'cancellation_notes' => $notes,
             ],
@@ -546,12 +545,12 @@ class Trip extends Model
      */
     public function startTrip(?float $odometerStart = null, ?string $startLocation = null): bool
     {
-        if (! $this->canTransitionTo('in_progress')) {
+        if (! $this->canTransitionTo(TripStatus::InProgress)) {
             return false;
         }
 
         $this->update([
-            'status' => 'in_progress',
+            'status' => TripStatus::InProgress->value,
             'actual_start_time' => now(),
             'odometer_start' => $odometerStart ?? $this->odometer_start,
             'start_location' => $startLocation ?? $this->start_location,
@@ -580,14 +579,14 @@ class Trip extends Model
      */
     public function completeTrip(array $data = []): bool
     {
-        if (! $this->canTransitionTo('completed')) {
+        if (! $this->canTransitionTo(TripStatus::Completed)) {
             return false;
         }
 
         $totalCost = ($data['fuel_cost'] ?? 0) + ($data['other_costs'] ?? 0);
 
         $this->update([
-            'status' => 'completed',
+            'status' => TripStatus::Completed->value,
             'actual_end_time' => now(),
             'is_completed' => true,
             'odometer_end' => $data['odometer_end'] ?? $this->odometer_end,
@@ -700,12 +699,12 @@ class Trip extends Model
 
     public function isActive(): bool
     {
-        return $this->status === 'in_progress';
+        return $this->status === TripStatus::InProgress->value;
     }
 
     public function isCompleted(): bool
     {
-        return $this->status === 'completed';
+        return $this->status === TripStatus::Completed->value;
     }
 
     public function getDurationInHours(): ?float
@@ -719,16 +718,7 @@ class Trip extends Model
 
     public function getStatusColorAttribute(): string
     {
-        return match ($this->status) {
-            'pending' => 'yellow',
-            'approved' => 'blue',
-            'assigned' => 'cyan',
-            'in_progress' => 'purple',
-            'completed' => 'green',
-            'rejected' => 'red',
-            'cancelled' => 'gray',
-            default => 'gray',
-        };
+        return TripStatus::tryFrom((string) $this->status)?->color() ?? 'gray';
     }
 
     public function getPriorityColorAttribute(): string

@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
@@ -47,10 +48,6 @@ class MonthlyVehicleReport
     ];
 
     public const STAFF_TRANSPORT = ['pick-up', 'drop-off'];
-
-    private const USAGE_EXCLUDED_STATUSES = ['cancelled', 'rejected'];
-
-    private const OPEN_STATUSES = ['pending', 'approved', 'assigned', 'in_progress'];
 
     /**
      * @param  array{zone_id?: ?int, vendor_id?: ?int, vehicle_id?: ?int, rental_type?: ?string}  $filters
@@ -156,7 +153,7 @@ class MonthlyVehicleReport
     private function usageTrips(Collection $trips): Collection
     {
         return $trips
-            ->filter(fn (Trip $t) => $t->vehicle_id && ! in_array($t->status, self::USAGE_EXCLUDED_STATUSES, true))
+            ->filter(fn (Trip $t) => $t->vehicle_id && ! in_array($t->status, TripStatus::dropped(), true))
             ->values();
     }
 
@@ -387,9 +384,9 @@ class MonthlyVehicleReport
     private function serviceQuality(Collection $trips, Collection $prevTrips, Collection $complaints, Collection $prevComplaints): array
     {
         $measure = function (Collection $trips, Collection $complaints) {
-            $completed = $trips->where('status', 'completed')->count();
-            $cancelled = $trips->where('status', 'cancelled')->count();
-            $rejected = $trips->where('status', 'rejected')->count();
+            $completed = $trips->where('status', TripStatus::Completed->value)->count();
+            $cancelled = $trips->where('status', TripStatus::Cancelled->value)->count();
+            $rejected = $trips->where('status', TripStatus::Rejected->value)->count();
             $closed = $completed + $cancelled + $rejected;
 
             return [
@@ -397,7 +394,7 @@ class MonthlyVehicleReport
                 'completed' => $completed,
                 'cancelled' => $cancelled,
                 'rejected' => $rejected,
-                'still_open' => $trips->whereIn('status', self::OPEN_STATUSES)->count(),
+                'still_open' => $trips->whereIn('status', TripStatus::open())->count(),
                 'fulfilment_rate' => $closed ? round($completed / $closed * 100, 1) : null,
                 'complaints' => $complaints->count(),
                 'complaints_open' => $complaints->where('open_at_end', true)->count(),

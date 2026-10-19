@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\TripFeedback;
 use App\Models\User;
@@ -68,10 +69,10 @@ class DriverPerformanceReport extends AnalyticsReport
             return [
                 'driver' => $drivers->for($driverTrips->first())?->name ?? 'Unknown',
                 'trips' => $driverTrips->count(),
-                'completed' => $driverTrips->where('status', 'completed')->count(),
-                'cancelled' => $driverTrips->where('status', 'cancelled')->count(),
+                'completed' => $driverTrips->where('status', TripStatus::Completed->value)->count(),
+                'cancelled' => $driverTrips->where('status', TripStatus::Cancelled->value)->count(),
                 'driver_unavailable' => $driverTrips->where('cancellation_reason', 'driver_unavailable')->count(),
-                'completion' => self::percent($driverTrips->where('status', 'completed')->count(), $driverTrips->whereNotIn('status', ['pending', 'rejected'])->count()),
+                'completion' => self::percent($driverTrips->where('status', TripStatus::Completed->value)->count(), $driverTrips->whereNotIn('status', TripStatus::valuesOf(TripStatus::Pending, TripStatus::Rejected))->count()),
                 'on_time' => self::percent($started->filter(fn (Trip $t) => $this->startedOnTime($t))->count(), $started->count()),
                 'rating' => self::average($tripFeedback->pluck('driver_rating')),
                 'complaints' => $complaints->count(),
@@ -87,7 +88,7 @@ class DriverPerformanceReport extends AnalyticsReport
             'summary' => [
                 ['label' => 'Drivers', 'value' => $rows->count()],
                 ['label' => 'Trips', 'value' => $trips->count()],
-                ['label' => 'Completion', 'value' => self::percent($trips->where('status', 'completed')->count(), $trips->whereNotIn('status', ['pending', 'rejected'])->count()), 'hint' => '% of approved trips completed'],
+                ['label' => 'Completion', 'value' => self::percent($trips->where('status', TripStatus::Completed->value)->count(), $trips->whereNotIn('status', TripStatus::valuesOf(TripStatus::Pending, TripStatus::Rejected))->count()), 'hint' => '% of approved trips completed'],
                 ['label' => 'On-time starts', 'value' => self::percent($started->filter(fn (Trip $t) => $this->startedOnTime($t))->count(), $started->count()), 'hint' => '% started within '.self::ON_TIME_MINUTES.' minutes'],
                 ['label' => 'Avg driver rating', 'value' => self::average($allFeedback->pluck('driver_rating')), 'hint' => 'out of 5'],
                 ['label' => 'Complaints', 'value' => $allFeedback->where('type', 'complaint')->count()],

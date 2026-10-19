@@ -2,10 +2,12 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\TripStatus;
+
 class UpdateTripRequest extends TripFormRequest
 {
     /** Statuses in which a trip can still be edited */
-    public const EDITABLE_STATUSES = ['pending', 'approved'];
+    public const EDITABLE_STATUSES = [TripStatus::Pending->value, TripStatus::Approved->value];
 
     /**
      * A trip past the editable statuses is refused by TripController::update()

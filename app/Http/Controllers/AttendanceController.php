@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Exports\AttendanceReportExport;
 use App\Jobs\ResolveAttendanceEventLocation;
 use App\Models\AttendanceEvent;
@@ -456,7 +457,7 @@ class AttendanceController extends Controller implements HasMiddleware
 
         $tripPassenger = TripPassenger::where('user_id', $user->id)
             ->whereIn('status', $statuses)
-            ->whereHas('trip', fn ($q) => $q->where('status', 'in_progress'))
+            ->whereHas('trip', fn ($q) => $q->where('status', TripStatus::InProgress->value))
             ->latest('id')
             ->first();
 

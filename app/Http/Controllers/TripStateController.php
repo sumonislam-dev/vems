@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\TripRecurringGroup;
 use App\Notifications\TripStatusUpdated;
@@ -52,12 +53,12 @@ class TripStateController extends Controller implements HasMiddleware
         abort_unless($request->user()->canApproveTrip($trip), 403);
 
         try {
-            if (! $trip->canTransitionTo('approved')) {
+            if (! $trip->canTransitionTo(TripStatus::Approved)) {
                 return back()->with('error', 'Trip cannot be approved in current status.');
             }
 
-            $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()]);
-            $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
+            $trip->transitionTo(TripStatus::Approved, ['approved_by' => auth()->id(), 'approved_at' => now()]);
+            $trip->requester?->notify(new TripStatusUpdated($trip, TripStatus::Approved->value));
             $notifier->needVehicles(collect([$trip]));
 
             return back()->with('success', 'Trip approved successfully!');
@@ -85,9 +86,9 @@ class TripStateController extends Controller implements HasMiddleware
 
             foreach ($trips as $trip) {
                 // A department head only approves their own departments' trips
-                if ($request->user()->canApproveTrip($trip) && $trip->transitionTo('approved', ['approved_by' => auth()->id(), 'approved_at' => now()])) {
+                if ($request->user()->canApproveTrip($trip) && $trip->transitionTo(TripStatus::Approved, ['approved_by' => auth()->id(), 'approved_at' => now()])) {
                     $approved->push($trip);
-                    $trip->requester?->notify(new TripStatusUpdated($trip, 'approved'));
+                    $trip->requester?->notify(new TripStatusUpdated($trip, TripStatus::Approved->value));
                 }
             }
         });
@@ -110,7 +111,7 @@ class TripStateController extends Controller implements HasMiddleware
         abort_unless($request->user()->canRejectTrip($trip), 403);
 
         try {
-            if (! $trip->canTransitionTo('rejected')) {
+            if (! $trip->canTransitionTo(TripStatus::Rejected)) {
                 return back()->with('error', 'Trip cannot be rejected in current status.');
             }
 
@@ -118,8 +119,8 @@ class TripStateController extends Controller implements HasMiddleware
                 'rejection_reason' => 'required|string',
             ]);
 
-            $trip->transitionTo('rejected', ['rejection_reason' => $validated['rejection_reason']]);
-            $trip->requester?->notify(new TripStatusUpdated($trip, 'rejected'));
+            $trip->transitionTo(TripStatus::Rejected, ['rejection_reason' => $validated['rejection_reason']]);
+            $trip->requester?->notify(new TripStatusUpdated($trip, TripStatus::Rejected->value));
 
             return back()->with('success', 'Trip rejected.');
         } catch (ValidationException $e) {
@@ -137,7 +138,7 @@ class TripStateController extends Controller implements HasMiddleware
         $this->authorizeStartOrComplete($request, $trip);
 
         try {
-            if (! $trip->canTransitionTo('in_progress')) {
+            if (! $trip->canTransitionTo(TripStatus::InProgress)) {
                 return back()->with('error', 'Trip cannot be started in current status.');
             }
 
@@ -174,7 +175,7 @@ class TripStateController extends Controller implements HasMiddleware
         $this->authorizeStartOrComplete($request, $trip);
 
         try {
-            if (! $trip->canTransitionTo('completed')) {
+            if (! $trip->canTransitionTo(TripStatus::Completed)) {
                 return back()->with('error', 'Trip cannot be completed in current status.');
             }
 
@@ -211,7 +212,7 @@ class TripStateController extends Controller implements HasMiddleware
     public function cancel(Request $request, Trip $trip, TripNotifier $notifier)
     {
         try {
-            if (! $trip->canTransitionTo('cancelled')) {
+            if (! $trip->canTransitionTo(TripStatus::Cancelled)) {
                 return back()->with('error', 'Trip cannot be cancelled in current status.');
             }
 

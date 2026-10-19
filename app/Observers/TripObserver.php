@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\TripRouteAssignment;
 use App\Models\TripVehicleAssignment;
@@ -54,11 +55,11 @@ class TripObserver
         // Auto-update end_time when trip is marked as completed
         if ($trip->isDirty('is_completed') && $trip->is_completed && ! $trip->end_time) {
             $trip->end_time = now();
-            $trip->status = 'completed'; // Update status as well
+            $trip->status = TripStatus::Completed->value; // Update status as well
         }
 
         // Auto-update start_time when trip starts (status = in_progress)
-        if ($trip->isDirty('status') && $trip->status === 'in_progress' && ! $trip->start_time) {
+        if ($trip->isDirty('status') && $trip->status === TripStatus::InProgress->value && ! $trip->start_time) {
             $trip->start_time = now();
         }
 

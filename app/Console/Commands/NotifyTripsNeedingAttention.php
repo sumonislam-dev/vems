@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use App\Models\User;
 use App\Notifications\AlertNotification;
@@ -41,7 +42,7 @@ class NotifyTripsNeedingAttention extends Command
     {
         $past = Trip::query()->whereDate('scheduled_date', '<', today());
 
-        (clone $past)->where('status', 'pending')->with('department.head')->get()
+        (clone $past)->where('status', TripStatus::Pending->value)->with('department.head')->get()
             ->each(function (Trip $trip) {
                 $approvers = $this->recipientsFor('approve-trips', $trip->zone_id);
                 $head = $trip->department?->head;
@@ -51,14 +52,14 @@ class NotifyTripsNeedingAttention extends Command
                 $this->count($approvers, 'still pending approval');
             });
 
-        (clone $past)->whereIn('status', ['approved', 'assigned'])->get()
+        (clone $past)->whereIn('status', TripStatus::upcoming())->get()
             ->each(fn (Trip $trip) => $this->count(
                 $this->recipientsFor('assign-vehicles', $trip->zone_id),
                 'approved but never started'
             ));
 
         Trip::query()
-            ->where('status', 'in_progress')
+            ->where('status', TripStatus::InProgress->value)
             ->where('actual_start_time', '<=', now()->subDay())
             ->get()
             ->each(fn (Trip $trip) => $this->count(

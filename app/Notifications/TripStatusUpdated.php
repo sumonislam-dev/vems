@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Enums\TripStatus;
 use App\Models\Trip;
 use Illuminate\Notifications\Notification;
 
@@ -24,7 +25,7 @@ class TripStatusUpdated extends Notification
             'trip_id' => $this->trip->id,
             'trip_number' => $this->trip->trip_number,
             'status' => $this->status,
-            'message' => $this->status === 'approved'
+            'message' => $this->status === TripStatus::Approved->value
                 ? "Your trip {$this->trip->trip_number} was approved."
                 : "Your trip {$this->trip->trip_number} was rejected.",
             'url' => route('trips.show', $this->trip->id),

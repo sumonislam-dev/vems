@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Models\AttendanceRecord;
 use App\Models\Factory;
 use App\Models\Stop;
@@ -153,7 +154,7 @@ class DashboardController extends Controller
         $pendingTrip = TripPassenger::with(['trip:id,trip_number', 'pickupStop:id,name', 'dropoffStop:id,name'])
             ->where('user_id', $user->id)
             ->whereIn('status', ['pending', 'no_show', 'boarded'])
-            ->whereHas('trip', fn ($q) => $q->where('status', 'in_progress'))
+            ->whereHas('trip', fn ($q) => $q->where('status', TripStatus::InProgress->value))
             ->orderByRaw("CASE WHEN status IN ('pending','no_show') THEN 0 ELSE 1 END")
             ->first();
 
@@ -188,7 +189,7 @@ class DashboardController extends Controller
         $base = Trip::visibleTo($user);
 
         $upcoming = (clone $base)
-            ->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+            ->whereIn('status', TripStatus::open())
             ->orderBy('scheduled_date')
             ->take(5)
             ->get(['id', 'trip_number', 'scheduled_date', 'schedule_type', 'status']);
@@ -223,13 +224,13 @@ class DashboardController extends Controller
 
         $today = (clone $base)
             ->whereDate('scheduled_date', today())
-            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotIn('status', TripStatus::dropped())
             ->orderBy('scheduled_start_time')
             ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
 
         $upcoming = (clone $base)
             ->whereDate('scheduled_date', '>', today())
-            ->whereIn('status', ['approved', 'assigned'])
+            ->whereIn('status', TripStatus::upcoming())
             ->orderBy('scheduled_date')
             ->take(5)
             ->get(['id', 'trip_number', 'scheduled_date', 'scheduled_start_time', 'schedule_type', 'status']);
@@ -237,8 +238,8 @@ class DashboardController extends Controller
         return [
             'counts' => [
                 'today' => $today->count(),
-                'in_progress' => (clone $base)->where('status', 'in_progress')->count(),
-                'completed_today' => (clone $base)->whereDate('scheduled_date', today())->where('status', 'completed')->count(),
+                'in_progress' => (clone $base)->where('status', TripStatus::InProgress->value)->count(),
+                'completed_today' => (clone $base)->whereDate('scheduled_date', today())->where('status', TripStatus::Completed->value)->count(),
             ],
             'today_trips' => $today,
             'upcoming' => $upcoming,
@@ -311,7 +312,7 @@ class DashboardController extends Controller
             ->count('vehicle_route_id');
 
         $scheduledTodayRoutes = Trip::whereDate('scheduled_date', $today)
-            ->whereNotIn('status', ['cancelled', 'rejected'])
+            ->whereNotIn('status', TripStatus::dropped())
             ->whereNotNull('vehicle_route_id')
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->distinct('vehicle_route_id')
@@ -326,7 +327,7 @@ class DashboardController extends Controller
             )->first();
 
         $completedToday = Trip::whereDate('scheduled_date', $today)
-            ->where('status', 'completed')
+            ->where('status', TripStatus::Completed->value)
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->get(['distance_traveled', 'start_time', 'end_time']);
         $durationsToday = $completedToday
@@ -426,7 +427,7 @@ class DashboardController extends Controller
      */
     protected function buildRecentActivities(?array $zoneIds): array
     {
-        $completedTrips = Trip::where('status', 'completed')
+        $completedTrips = Trip::where('status', TripStatus::Completed->value)
             ->whereNotNull('end_time')
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->with('vehicle.driver:id,name')
@@ -490,7 +491,7 @@ class DashboardController extends Controller
 
     protected function buildUpcomingSchedules(?array $zoneIds): array
     {
-        return Trip::whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])
+        return Trip::whereIn('status', TripStatus::open())
             ->whereDate('scheduled_date', '>=', today())
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->with(['vehicle.driver:id,name', 'vehicleRoute:id,name'])
@@ -552,7 +553,7 @@ class DashboardController extends Controller
         // trip's own ratio — averaging per-trip ratios lets a single trip with
         // a near-zero fuel_consumed value dominate and blow up the result.
         $fuelStats = Trip::where('scheduled_date', '>=', $monthStart->toDateString())
-            ->where('status', 'completed')
+            ->where('status', TripStatus::Completed->value)
             ->whereNotNull('fuel_consumed')
             ->where('fuel_consumed', '>', 0)
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
@@ -666,8 +667,8 @@ class DashboardController extends Controller
             $monthRatings = $ratings->get($month->format('Y-m'), collect())
                 ->flatMap(fn ($f) => array_filter([$f->driver_rating, $f->vehicle_rating]));
 
-            $completed = $monthTrips->where('status', 'completed')->count();
-            $finished = $completed + $monthTrips->where('status', 'cancelled')->count();
+            $completed = $monthTrips->where('status', TripStatus::Completed->value)->count();
+            $finished = $completed + $monthTrips->where('status', TripStatus::Cancelled->value)->count();
             $vehiclesUsed = $monthTrips->pluck('vehicle_id')->filter()->unique()->count();
 
             $months[] = [

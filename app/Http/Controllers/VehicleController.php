@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Exports\VehiclesExport;
 use App\Http\Requests\StoreVehicleRequest;
 use App\Http\Requests\UpdateVehicleRequest;
@@ -645,7 +646,7 @@ class VehicleController extends Controller implements HasMiddleware
      */
     public function destroy(Vehicle $vehicle)
     {
-        if ($vehicle->trips()->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])->exists()) {
+        if ($vehicle->trips()->whereIn('status', TripStatus::open())->exists()) {
             return back()->with('error', 'Cannot delete a vehicle with active trips. Reassign or finish them first.');
         }
 

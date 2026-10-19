@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
@@ -478,7 +479,7 @@ class UserController extends Controller implements HasMiddleware
     public function destroy(User $user): RedirectResponse
     {
         // Check if user has any active trips
-        if ($user->isDriver() && $user->driverTrips()->whereIn('status', ['pending', 'approved', 'in_progress'])->exists()) {
+        if ($user->isDriver() && $user->driverTrips()->whereIn('status', TripStatus::valuesOf(TripStatus::Pending, TripStatus::Approved, TripStatus::InProgress))->exists()) {
             return redirect()->back()
                 ->with('error', 'Cannot delete user with active trips. Please complete or reassign trips first.');
         }

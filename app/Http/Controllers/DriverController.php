@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\TripStatus;
 use App\Exports\DriversExport;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -479,8 +480,8 @@ class DriverController extends Controller implements HasMiddleware
 
         $driverStats = [
             'total_trips' => $driver->driverTrips()->count(),
-            'completed_trips' => $driver->driverTrips()->where('status', 'completed')->count(),
-            'in_progress_trips' => $driver->driverTrips()->where('status', 'in_progress')->count(),
+            'completed_trips' => $driver->driverTrips()->where('status', TripStatus::Completed->value)->count(),
+            'in_progress_trips' => $driver->driverTrips()->where('status', TripStatus::InProgress->value)->count(),
             'total_distance' => $driver->total_distance_covered,
             'average_rating' => $driver->average_rating,
         ];
@@ -629,7 +630,7 @@ class DriverController extends Controller implements HasMiddleware
         }
 
         // Check if driver has active trips
-        if ($driver->driverTrips()->whereIn('status', ['pending', 'approved', 'assigned', 'in_progress'])->exists()) {
+        if ($driver->driverTrips()->whereIn('status', TripStatus::open())->exists()) {
             return redirect()->back()->withErrors(['error' => 'Cannot delete driver with active trips.']);
         }
 

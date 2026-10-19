@@ -2,6 +2,7 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\TripStatus;
 use App\Models\Department;
 use App\Models\Trip;
 use App\Models\TripPassenger;
@@ -34,7 +35,7 @@ class DepartmentUsageReport extends AnalyticsReport
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->get(['id', 'department_id', 'status', 'distance_traveled']);
         $tripIds = $trips->pluck('id');
-        $used = $trips->whereNotIn('status', ['cancelled', 'rejected']);
+        $used = $trips->whereNotIn('status', TripStatus::dropped());
 
         $names = Department::withoutGlobalScopes()->pluck('name', 'id');
         $name = fn ($id) => $id ? ($names[$id] ?? 'Department #'.$id) : self::NONE;
@@ -70,14 +71,14 @@ class DepartmentUsageReport extends AnalyticsReport
             return [
                 'department' => $name($id === '' ? null : (int) $id),
                 'requested' => $own->count(),
-                'completed' => $own->where('status', 'completed')->count(),
-                'cancelled' => $own->whereIn('status', ['cancelled', 'rejected'])->count(),
+                'completed' => $own->where('status', TripStatus::Completed->value)->count(),
+                'cancelled' => $own->whereIn('status', TripStatus::dropped())->count(),
                 'share' => self::percent($own->count(), $trips->count()),
                 'shared_trips' => (int) ($split->trips ?? 0),
                 'seats' => (int) ($split->seats ?? 0),
                 'passengers' => (int) ($people->carried ?? 0),
                 'no_shows' => (int) ($people->no_shows ?? 0),
-                'km' => round((float) $own->where('status', 'completed')->sum('distance_traveled'), 1),
+                'km' => round((float) $own->where('status', TripStatus::Completed->value)->sum('distance_traveled'), 1),
             ];
         })->sortByDesc('requested')->values();
 
