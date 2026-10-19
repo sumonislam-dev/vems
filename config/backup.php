@@ -237,7 +237,9 @@ return [
         'notifiable' => Notifiable::class,
 
         'mail' => [
-            'to' => env('BACKUP_NOTIFY_EMAIL', 'your@example.com'),
+            // An empty BACKUP_NOTIFY_EMAIL= (as in .env.example) reads as '',
+            // which the package rejects at boot, breaking every artisan command
+            'to' => env('BACKUP_NOTIFY_EMAIL') ?: (env('MAIL_FROM_ADDRESS') ?: 'hello@example.com'),
 
             'from' => [
                 'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
