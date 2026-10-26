@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /**
  * Custom hook for form validation that works with Inertia.js forms
@@ -240,14 +240,15 @@ export function useRealtimeValidation<T extends Record<string, unknown>>(rules: 
     const { validateField } = useFormValidation(rules);
 
     // Debounce validation to avoid excessive re-renders
-    const debouncedValidate = useCallback(
-        debounce((field: keyof T, value: T[keyof T]) => {
-            const error = validateField(field, value);
-            setErrors((prev) => ({
-                ...prev,
-                [field]: error,
-            }));
-        }, debounceMs),
+    const debouncedValidate = useMemo(
+        () =>
+            debounce((field: keyof T, value: T[keyof T]) => {
+                const error = validateField(field, value);
+                setErrors((prev) => ({
+                    ...prev,
+                    [field]: error,
+                }));
+            }, debounceMs),
         [validateField, debounceMs],
     );
 
