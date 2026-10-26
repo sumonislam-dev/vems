@@ -50,8 +50,12 @@ jobs:
         id: changed-php
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.base_ref }}" --depth=1
-            BASE_SHA=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+            # Full history is already checked out (fetch-depth: 0); a --depth=1
+            # fetch here would cut the base branch to one commit and break
+            # merge-base. If the base was rewritten (force-pushed) and shares no
+            # ancestor with this branch, diff against the base tip instead.
+            git fetch origin "${{ github.base_ref }}"
+            BASE_SHA=$(git merge-base "origin/${{ github.base_ref }}" HEAD || git rev-parse "origin/${{ github.base_ref }}")
           else
             BASE_SHA="${{ github.event.before }}"
           fi
