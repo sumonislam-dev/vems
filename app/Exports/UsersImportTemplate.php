@@ -20,7 +20,7 @@ use Spatie\Permission\Models\Role;
 class UsersImportTemplate implements WithMultipleSheets
 {
     public const HEADINGS = [
-        'name', 'username', 'email', 'employee_id', 'department_code',
+        'name', 'username', 'email', 'employee_id', 'designation', 'department_code',
         'zone_code', 'personal_phone', 'whatsapp_id', 'role', 'status',
     ];
 
@@ -36,7 +36,7 @@ class UsersImportTemplate implements WithMultipleSheets
             : collect(['employee']);
 
         $example = [
-            'Example Name', 'example.name', 'example.name@example.com', 'EMP-001',
+            'Example Name', 'example.name', 'example.name@example.com', 'EMP-001', 'Officer',
             $departments->first()?->code, $zones->first()?->code,
             '01700000000', '01700000000', 'employee', 'active',
         ];

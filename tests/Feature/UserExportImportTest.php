@@ -120,7 +120,7 @@ it('downloads the import template with the users sheet and code lists', function
     $sheets = Excel::toArray(new class {}, $path, null, Maatwebsite\Excel\Excel::XLSX);
 
     expect($sheets)->toHaveCount(4)
-        ->and($sheets[0][0])->toBe(['name', 'username', 'email', 'employee_id', 'department_code', 'zone_code', 'personal_phone', 'whatsapp_id', 'role', 'status'])
+        ->and($sheets[0][0])->toBe(['name', 'username', 'email', 'employee_id', 'designation', 'department_code', 'zone_code', 'personal_phone', 'whatsapp_id', 'role', 'status'])
         ->and(collect($sheets[1])->pluck(0))->toContain('ACC')
         ->and(collect($sheets[2])->pluck(0))->toContain('TST');
 });
@@ -163,9 +163,9 @@ it('creates users from an uploaded csv file', function () {
     $department = Department::create(['name' => 'Accounts', 'code' => 'ACC']);
     $actor = makeUserExportImportActor(['create-users', 'import-users']);
 
-    $csv = "name,username,email,employee_id,department_code,zone_code,personal_phone,role,status\n".
-        'Imported One,imported_one_'.uniqid().',imported_one_'.uniqid()."@example.com,EMP-1,acc,tst,01711111111,employee,active\n".
-        'Imported Two,imported_two_'.uniqid().',,,,TST,01722222222,,';
+    $csv = "name,username,email,employee_id,designation,department_code,zone_code,personal_phone,role,status\n".
+        'Imported One,imported_one_'.uniqid().',imported_one_'.uniqid()."@example.com,EMP-1,Accounts Officer,acc,tst,01711111111,employee,active\n".
+        'Imported Two,imported_two_'.uniqid().',,,,,TST,01722222222,,';
 
     $response = $this->actingAs($actor)->post(route('users.import'), [
         'file' => makeUsersImportCsv($csv),
@@ -182,6 +182,7 @@ it('creates users from an uploaded csv file', function () {
         ->and($one->user_type)->toBe('employee')
         ->and($one->hasRole('employee'))->toBeTrue()
         ->and($one->employee_id)->toBe('EMP-1')
+        ->and($one->designation)->toBe('Accounts Officer')
         ->and($one->department_id)->toBe($department->id)
         ->and($one->personal_phone)->toBe('01711111111')
         ->and($one->accessZones()->pluck('zones.id')->all())->toBe([testZoneId()])

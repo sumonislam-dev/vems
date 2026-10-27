@@ -9,6 +9,7 @@ export type UserForm = {
     name: string;
     username: string;
     employee_id: string;
+    designation: string;
     email: string;
     user_type: string;
     department_id: string;
@@ -171,6 +172,15 @@ export function UserFormBody({
                             onChange={(value) => handleFieldChange('email', value)}
                             error={getFieldError('email')}
                             placeholder="Enter email address"
+                        />
+
+                        <FormField
+                            label="Designation"
+                            name="designation"
+                            value={data.designation}
+                            onChange={(value) => handleFieldChange('designation', value)}
+                            error={getFieldError('designation')}
+                            placeholder="e.g. Senior Engineer"
                         />
 
                         {!hideUserTypeAndRoles && !hideUserType && (

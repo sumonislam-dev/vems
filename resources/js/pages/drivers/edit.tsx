@@ -25,6 +25,7 @@ type UserForm = {
     name: string;
     username: string;
     employee_id: string;
+    designation: string;
     email: string;
     user_type: string;
     department_id: string;
@@ -87,6 +88,7 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
         name: (user.name as string) || '',
         username: (user.username as string) || '',
         employee_id: (user.employee_id as string) || '',
+        designation: (user.designation as string) || '',
         email: (user.email as string) || '',
         user_type: 'driver',
         department_id: (user.department_id as number)?.toString() || '',
@@ -259,6 +261,15 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
                                         onChange={(value) => handleFieldChange('email', value)}
                                         error={errors.email}
                                         placeholder="Enter email address"
+                                    />
+
+                                    <FormField
+                                        label="Designation"
+                                        name="designation"
+                                        value={data.designation}
+                                        onChange={(value) => handleFieldChange('designation', value)}
+                                        error={errors.designation}
+                                        placeholder="e.g. Senior Driver"
                                     />
 
                                     {/* User Type, Department, and Roles are fixed for drivers - Hidden */}

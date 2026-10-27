@@ -9,6 +9,7 @@ import { BreadcrumbItem, User } from '@/types';
 import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Briefcase,
     Building,
     CalendarDays,
     Car,
@@ -162,6 +163,16 @@ export default function ShowUser({ user }: ShowUserProps) {
                                                 <label className="text-sm font-medium text-muted-foreground">Employee ID</label>
                                             </div>
                                             <p className="font-mono text-sm">{user.employee_id}</p>
+                                        </div>
+                                    )}
+
+                                    {user.designation && (
+                                        <div className="space-y-1">
+                                            <div className="flex items-center space-x-2">
+                                                <Briefcase className="h-4 w-4 text-muted-foreground" />
+                                                <label className="text-sm font-medium text-muted-foreground">Designation</label>
+                                            </div>
+                                            <p className="text-sm">{user.designation}</p>
                                         </div>
                                     )}
 

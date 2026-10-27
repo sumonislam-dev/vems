@@ -22,12 +22,13 @@ use Spatie\Permission\Models\Role;
  * comes from UsersImportTemplate).
  *
  * Columns (headers are matched case-insensitively): name, username, email,
- * employee_id, department_code, zone_code, personal_phone, whatsapp_id, role,
- * status. name, username and zone_code are required. zone_code is one zone
- * code, several separated by commas, or ALL. A blank role means "employee";
- * other roles need manage-user-roles, and super-admin and driver can't be
- * imported (drivers need licence details, so use the Drivers form). Imported
- * accounts get a random password: users set one via "Forgot Password".
+ * employee_id, designation, department_code, zone_code, personal_phone,
+ * whatsapp_id, role, status. name, username and zone_code are required.
+ * zone_code is one zone code, several separated by commas, or ALL. A blank
+ * role means "employee"; other roles need manage-user-roles, and super-admin
+ * and driver can't be imported (drivers need licence details, so use the
+ * Drivers form). Imported accounts get a random password: users set one via
+ * "Forgot Password".
  */
 class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadingRow, WithMultipleSheets, WithValidation
 {
@@ -88,6 +89,7 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
             'username' => $row['username'],
             'email' => $row['email'] ?: null,
             'employee_id' => $row['employee_id'] ?: null,
+            'designation' => $row['designation'] ?? null,
             'department_id' => $row['department_code'] ? $this->departments[strtolower($row['department_code'])] : null,
             'personal_phone' => $row['personal_phone'] ?: null,
             'whatsapp_id' => $row['whatsapp_id'] ?: ($row['personal_phone'] ?: null),
@@ -118,7 +120,7 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
      */
     public function prepareForValidation(array $data, int $index): array
     {
-        foreach (['name', 'username', 'email', 'employee_id', 'department_code', 'zone_code', 'personal_phone', 'whatsapp_id', 'role', 'status'] as $column) {
+        foreach (['name', 'username', 'email', 'employee_id', 'designation', 'department_code', 'zone_code', 'personal_phone', 'whatsapp_id', 'role', 'status'] as $column) {
             $value = isset($data[$column]) ? trim((string) $data[$column]) : '';
             $data[$column] = $value === '' ? null : $value;
         }
@@ -139,6 +141,7 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
             'username' => ['required', 'string', 'max:255', 'unique:users,username'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users,email'],
             'employee_id' => ['nullable', 'string', 'max:255', 'unique:users,employee_id'],
+            'designation' => ['nullable', 'string', 'max:255'],
             'department_code' => ['nullable', function (string $attribute, mixed $value, Closure $fail) {
                 if (! isset($this->departments[strtolower($value)])) {
                     $fail("Unknown department code \"{$value}\".");

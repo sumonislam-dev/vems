@@ -614,7 +614,7 @@ class UserController extends Controller implements HasMiddleware
         $timestamp = now()->format('Y-m-d_H-i-s');
 
         $output = fopen('php://temp', 'r+');
-        fputcsv($output, ['ID', 'Name', 'Username', 'Employee ID', 'Email', 'User Type', 'Status', 'Department', 'Phone', 'Created At']);
+        fputcsv($output, ['ID', 'Name', 'Username', 'Employee ID', 'Designation', 'Email', 'User Type', 'Status', 'Department', 'Phone', 'Created At']);
 
         foreach ($users as $user) {
             fputcsv($output, [
@@ -622,6 +622,7 @@ class UserController extends Controller implements HasMiddleware
                 $user->name,
                 $user->username,
                 $user->employee_id,
+                $user->designation,
                 $user->email,
                 $user->user_type,
                 $user->status,

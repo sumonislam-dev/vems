@@ -35,6 +35,7 @@ export default function CreateDriver({ departments, zones, vendors, roles, userT
         name: '',
         username: '',
         employee_id: '',
+        designation: '',
         email: '',
         user_type: defaults.user_type || 'driver',
         department_id: defaults.department_id?.toString() || '',
