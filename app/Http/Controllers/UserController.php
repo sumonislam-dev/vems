@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\UsersImportTemplate;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
@@ -32,7 +33,7 @@ class UserController extends Controller implements HasMiddleware
             new Middleware('permission:view-users', only: ['index', 'show']),
             new Middleware('permission:export-users', only: ['export']),
             new Middleware('permission:create-users', only: ['create', 'store']),
-            new Middleware('permission:import-users', only: ['import']),
+            new Middleware('permission:import-users', only: ['import', 'importTemplate']),
             new Middleware('permission:edit-users', only: ['edit', 'update', 'deactivate', 'activate']),
             new Middleware('permission:delete-users', only: ['destroy']),
         ];
@@ -640,7 +641,15 @@ class UserController extends Controller implements HasMiddleware
     }
 
     /**
-     * Bulk-create employee accounts from an uploaded CSV/Excel file (see
+     * The Excel template for import(), listing the codes this user may use.
+     */
+    public function importTemplate(Request $request)
+    {
+        return Excel::download(new UsersImportTemplate($request->user()), 'users_import_template.xlsx');
+    }
+
+    /**
+     * Bulk-create user accounts from an uploaded CSV/Excel file (see
      * UsersImport for the expected columns).
      */
     public function import(Request $request): RedirectResponse
@@ -649,7 +658,7 @@ class UserController extends Controller implements HasMiddleware
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
         ]);
 
-        $import = new UsersImport;
+        $import = new UsersImport($request->user());
         Excel::import($import, $request->file('file'));
 
         if ($import->failures()->isNotEmpty()) {

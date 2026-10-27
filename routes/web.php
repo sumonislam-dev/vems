@@ -97,6 +97,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // drivers-export routes for the same pattern).
     Route::get('/users-export', [UserController::class, 'export'])->name('users.export');
     Route::post('/users-import', [UserController::class, 'import'])->name('users.import');
+    Route::get('/users-import-template', [UserController::class, 'importTemplate'])->name('users.import-template');
 
     // Driver management routes (filtered view of users)
     Route::resource('drivers', DriverController::class);
