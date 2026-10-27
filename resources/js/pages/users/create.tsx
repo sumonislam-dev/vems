@@ -73,7 +73,6 @@ export default function CreateUser({ departments, zones, defaultZoneId, vendors,
             commonValidationRules.maxLength(255, 'Name must be less than 255 characters'),
         ],
         username: [
-            commonValidationRules.required('Username is required'),
             commonValidationRules.minLength(3, 'Username must be at least 3 characters'),
             commonValidationRules.maxLength(50, 'Username must be less than 50 characters'),
         ],
@@ -149,7 +148,7 @@ export default function CreateUser({ departments, zones, defaultZoneId, vendors,
     };
 
     const getFormCompletion = () => {
-        const requiredFields = ['name', 'username', 'roles', 'password', 'password_confirmation'];
+        const requiredFields = ['name', 'roles', 'password', 'password_confirmation'];
         if (showDriverFields) {
             requiredFields.push('driving_license_no', 'license_class', 'license_expiry_date');
         }

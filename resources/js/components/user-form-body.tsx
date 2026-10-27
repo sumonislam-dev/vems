@@ -149,8 +149,8 @@ export function UserFormBody({
                             value={data.username}
                             onChange={(value) => handleFieldChange('username', value)}
                             error={getFieldError('username')}
-                            placeholder="Enter username"
-                            required
+                            placeholder="Leave blank to generate"
+                            description="If blank, made from the email (or the name if there's no email)."
                         />
 
                         <FormField

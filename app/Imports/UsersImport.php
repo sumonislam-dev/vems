@@ -5,6 +5,7 @@ namespace App\Imports;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Zone;
+use App\Support\UsernameGenerator;
 use Closure;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -23,12 +24,13 @@ use Spatie\Permission\Models\Role;
  *
  * Columns (headers are matched case-insensitively): name, username, email,
  * employee_id, designation, department_code, zone_code, personal_phone,
- * whatsapp_id, role, status. name, username and zone_code are required.
- * zone_code is one zone code, several separated by commas, or ALL. A blank
- * role means "employee"; other roles need manage-user-roles, and super-admin
- * and driver can't be imported (drivers need licence details, so use the
- * Drivers form). Imported accounts get a random password: users set one via
- * "Forgot Password".
+ * whatsapp_id, role, status. name and zone_code are required; a blank username
+ * is generated from the email or name (see UsernameGenerator). zone_code is
+ * one zone code, several separated by commas, or ALL. A blank role means
+ * "employee"; other roles need manage-user-roles, and super-admin and driver
+ * can't be imported (drivers need licence details, so use the Drivers form).
+ * Imported accounts get a random password: users set one via "Forgot
+ * Password".
  */
 class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadingRow, WithMultipleSheets, WithValidation
 {
@@ -53,6 +55,9 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
 
     /** @var array<int, string> */
     private array $roles;
+
+    /** @var array<int, string> usernames used by earlier rows of this file */
+    private array $usernames = [];
 
     public function __construct(private User $importer)
     {
@@ -127,6 +132,11 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
 
         $data['role'] = $data['role'] ? strtolower($data['role']) : null;
         $data['status'] = $data['status'] ? strtolower($data['status']) : null;
+
+        $data['username'] ??= UsernameGenerator::generate($data['email'], $data['name'], $this->usernames);
+        if ($data['username']) {
+            $this->usernames[] = $data['username'];
+        }
 
         return $data;
     }

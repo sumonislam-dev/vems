@@ -157,6 +157,24 @@ function makeUsersImportCsv(string $contents): UploadedFile
     return new UploadedFile($path, 'users.csv', 'text/csv', null, true);
 }
 
+it('generates blank usernames on import, unique within the file', function () {
+    seedUserExportImportPermissions();
+    testZoneId();
+    $actor = makeUserExportImportActor(['create-users', 'import-users']);
+
+    $csv = "name,username,email,zone_code\n".
+        "Rowshan Runa,,rowshan.runa@rsc-bd.org,TST\n".
+        "Md. Shajahan Mia,,,TST\n".
+        'Md. Shajahan Mia,,,TST';
+
+    $this->actingAs($actor)->post(route('users.import'), ['file' => makeUsersImportCsv($csv)])
+        ->assertSessionDoesntHaveErrors()
+        ->assertSessionHas('success');
+
+    expect(User::where('email', 'rowshan.runa@rsc-bd.org')->value('username'))->toBe('rowshan.runa')
+        ->and(User::where('name', 'Md. Shajahan Mia')->orderBy('id')->pluck('username')->all())->toBe(['shajahan.mia', 'mdshajahan.mia']);
+});
+
 it('creates users from an uploaded csv file', function () {
     seedUserExportImportPermissions();
     testZoneId();

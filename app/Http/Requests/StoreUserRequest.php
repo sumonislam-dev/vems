@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Zone;
+use App\Support\UsernameGenerator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -14,6 +15,16 @@ class StoreUserRequest extends FormRequest
     public function authorize(): bool
     {
         return auth()->user()->can('create-users');
+    }
+
+    /**
+     * A blank username is generated from the email or name.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (blank($this->input('username'))) {
+            $this->merge(['username' => UsernameGenerator::generate($this->input('email'), $this->input('name'))]);
+        }
     }
 
     /**
