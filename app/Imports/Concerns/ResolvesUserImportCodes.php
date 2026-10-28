@@ -8,6 +8,8 @@ use App\Models\Zone;
 use App\Support\UsernameGenerator;
 use Closure;
 use DateTimeImmutable;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 /**
@@ -29,6 +31,18 @@ trait ResolvesUserImportCodes
 
     /** @var array<int, string> usernames used by earlier rows of this file */
     private array $usernames = [];
+
+    private ?string $passwordHash = null;
+
+    /**
+     * Imported accounts get a password nobody knows (users reset it). One
+     * hash serves the whole file: hashing takes ~0.25 s, and doing it per
+     * row ran large imports past the server's time limit.
+     */
+    private function unknownPasswordHash(): string
+    {
+        return $this->passwordHash ??= Hash::make(Str::random(40));
+    }
 
     private function loadCodes(User $importer): void
     {

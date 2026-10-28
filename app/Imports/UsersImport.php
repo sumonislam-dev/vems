@@ -6,8 +6,6 @@ use App\Imports\Concerns\ResolvesUserImportCodes;
 use App\Models\User;
 use Closure;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
@@ -80,7 +78,7 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
                 'user_type' => self::USER_TYPES[$role] ?? 'employee',
                 'status' => $row['status'] ?: 'active',
                 'email_verified_at' => now(),
-                'password' => Hash::make(Str::random(32)),
+                'password' => $this->unknownPasswordHash(),
             ]);
 
             $user->assignRole($role);

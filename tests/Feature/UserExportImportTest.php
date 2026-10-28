@@ -314,3 +314,31 @@ it('denies importing users to someone without create-users permission', function
         'file' => makeUsersImportCsv("name,username\nBlocked,blocked_".uniqid()),
     ])->assertForbidden();
 });
+
+it('hashes one unknown password per import rather than one per row', function () {
+    seedUserExportImportPermissions();
+    testZoneId();
+    $actor = makeUserExportImportActor(['create-users', 'import-users']);
+
+    $this->actingAs($actor)->post(route('users.import'), [
+        'file' => makeUsersImportCsv("name,zone_code\nFirst Imported,TST\nSecond Imported,TST"),
+    ])->assertSessionHas('success');
+
+    $hashes = User::whereIn('name', ['First Imported', 'Second Imported'])->pluck('password')->unique();
+
+    expect($hashes)->toHaveCount(1)
+        ->and(Hash::check('password', $hashes->first()))->toBeFalse();
+});
+
+it('reports an unexpected failure mid-import instead of a server error', function () {
+    seedUserExportImportPermissions();
+    testZoneId();
+    $actor = makeUserExportImportActor(['create-users', 'import-users']);
+    Excel::shouldReceive('import')->andThrow(new RuntimeException('Unknown column designation'));
+
+    $this->actingAs($actor)->post(route('users.import'), [
+        'file' => makeUsersImportCsv("name,zone_code\nAnyone,TST"),
+    ])->assertRedirect()
+        ->assertSessionHas('error', fn ($message) => str_contains($message, 'Import stopped by an unexpected error after 0 user(s)')
+            && ! str_contains($message, 'Unknown column'));
+});
