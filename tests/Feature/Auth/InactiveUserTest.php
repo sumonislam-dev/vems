@@ -50,6 +50,7 @@ it('shows the too-many-attempts message on the login field', function () {
         $this->post('/login', ['login' => 'someone', 'password' => 'wrong-password']);
     }
 
-    $this->post('/login', ['login' => 'someone', 'password' => 'wrong-password'])
-        ->assertSessionHasErrors(['login' => fn ($message) => str_contains($message, 'Too many login attempts')]);
+    $this->post('/login', ['login' => 'someone', 'password' => 'wrong-password'])->assertSessionHasErrors('login');
+
+    expect(session('errors')->first('login'))->toContain('Too many login attempts');
 });
