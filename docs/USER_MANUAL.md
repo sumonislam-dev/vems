@@ -438,7 +438,14 @@ without a vehicle.
 
 The requester and the driver are notified.
 
-> Recurring trips are separate trips: cancel each day's trip on its own.
+**Cancel a whole recurring series:** open any trip of the series and click
+**"Cancel Whole Series"**, then choose the reason as above and click
+**"Cancel Series"**. Every trip in the series that hasn't started is
+cancelled; trips in progress or finished are left alone.
+
+**Delete a trip** (admins, only while **Pending**): open the trip, click
+**"Delete Trip"** and confirm. Cancel it instead if it has already been
+approved.
 
 **Edit a trip** (only while **Pending** or **Approved**):
 1. Open the trip and click **"Edit Trip"** (or the pencil icon in the list).
@@ -869,8 +876,6 @@ Entries are kept for a year.
 
 These are current gaps in VEMS. Work around them as described until they are fixed.
 
-- **A whole recurring trip series can't be cancelled in one go**; cancel each day.
-- **Trips can't be deleted**; cancel them instead.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone
   can use Check In / Check Out.
 

@@ -326,12 +326,21 @@ class Trip extends Model
     }
 
     // Helper Methods
+    /**
+     * The next TRP-YYYYMMDD-NNNN number: one past today's highest, deleted
+     * trips included (they keep their numbers, and trip_number is unique).
+     */
     public function generateTripNumber(): string
     {
-        $date = now()->format('Ymd');
-        $count = static::whereDate('created_at', today())->count() + 1;
+        $prefix = 'TRP-'.now()->format('Ymd').'-';
+        $last = static::withTrashed()
+            ->where('trip_number', 'like', $prefix.'%')
+            ->orderByRaw('LENGTH(trip_number) DESC')
+            ->orderByDesc('trip_number')
+            ->value('trip_number');
+        $next = $last ? (int) substr($last, strlen($prefix)) + 1 : 1;
 
-        return "TRP-{$date}-".str_pad($count, 4, '0', STR_PAD_LEFT);
+        return $prefix.str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 
     /**
