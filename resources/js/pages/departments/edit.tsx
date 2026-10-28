@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { Head, Link, useForm } from '@inertiajs/react';
 import { AlertCircle, ArrowLeft, Building2, Save } from 'lucide-react';
@@ -37,6 +38,7 @@ interface Department {
     email?: string;
     head_id?: number;
     is_active: boolean;
+    attendance_mode?: 'biometric' | 'self_service';
     created_at?: string;
     updated_at?: string;
 }
@@ -56,6 +58,7 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
         email: department.email || '',
         head_id: department.head_id?.toString() || '',
         is_active: department.is_active ? '1' : '0',
+        attendance_mode: (department.attendance_mode ?? 'biometric') as string,
     });
 
     // Convert users to options for select
@@ -272,6 +275,21 @@ export default function EditDepartment({ department, users }: EditDepartmentProp
                                             : 'Department is inactive and hidden from users'}
                                     </p>
                                     {errors.is_active && <p className="mt-1 text-sm text-red-600">{errors.is_active}</p>}
+
+                                    <div className="mt-4 space-y-2">
+                                        <Label htmlFor="attendance_mode">Attendance Mode</Label>
+                                        <Select value={data.attendance_mode} onValueChange={(value) => setData('attendance_mode', value)}>
+                                            <SelectTrigger id="attendance_mode" className="w-full">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="biometric">Biometric device</SelectItem>
+                                                <SelectItem value="self_service">Self-service (Check In in VEMS)</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <p className="text-sm text-gray-500">How this department's staff record their attendance.</p>
+                                        {errors.attendance_mode && <p className="mt-1 text-sm text-red-600">{errors.attendance_mode}</p>}
+                                    </div>
                                 </CardContent>
                             </Card>
 

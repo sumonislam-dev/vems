@@ -4,6 +4,8 @@ export interface Permission {
     id: number;
     name: string;
     guard_name: string;
+    /** Roles-screen group (RolePermissionSeeder::permissionGroups()); sent by the role forms */
+    group?: string;
     created_at: string;
     updated_at: string;
     roles?: Role[];

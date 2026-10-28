@@ -766,7 +766,10 @@ Administration → **Departments**.
 2. **"Department Head"**: choose the person who approves this department's
    trips. **Set a head for every department**, otherwise department trip
    requests can only be approved by transport managers.
-3. Leave **"Active Department"** on and click **"Create Department"**.
+3. Choose the **"Attendance Mode"**: **Biometric device** (office staff) or
+   **Self-service** (field staff who check in in VEMS). See the note in
+   [8.4](#84-known-limitations).
+4. Leave **"Active Department"** on and click **"Create Department"**.
 
 **"Export Departments"** and **"Import Departments"** work with CSV/Excel
 (import columns: name, code, description, location, phone, email, is_active,
@@ -804,7 +807,8 @@ or more roles.
 | **driver** | Run trips on their vehicle, check passengers in/out, own attendance. |
 
 - **Create a role:** click **"Create Role"**, enter the **"Role Name"**, leave
-  **"Guard Name"** on **Web**, tick permissions (use **"Search permissions..."**,
+  **"Guard Name"** on **Web**, tick permissions (they are grouped by area,
+  such as Trips, Vehicles and Users; use **"Search permissions..."**,
   **"Select All"** / **"Deselect All"**), and save.
 - **Edit a role:** open it, change the ticked permissions, click **"Update Role"**.
 - The 7 built-in roles can't be renamed or deleted, and a role that still has users can't be deleted.

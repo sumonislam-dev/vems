@@ -50,6 +50,8 @@ class UpdateDepartmentRequest extends FormRequest
 
             // Status
             'is_active' => ['required', 'boolean'],
+            // How the department's staff record attendance (left out = unchanged / the column default)
+            'attendance_mode' => ['sometimes', 'in:biometric,self_service'],
 
             // Budget (optional JSON field)
             'budget_allocation' => ['nullable', 'array'],

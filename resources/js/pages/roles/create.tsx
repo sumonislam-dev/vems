@@ -65,7 +65,7 @@ export default function CreateRole({ permissions }: CreateRoleProps) {
     const filteredPermissions = permissions.filter((permission) => permission.name.toLowerCase().includes(permissionSearch.toLowerCase()));
     const groupedPermissions = filteredPermissions.reduce(
         (groups, permission) => {
-            const category = permission.name.split(' ').slice(1).join(' ') || 'general';
+            const category = permission.group ?? 'Other';
             if (!groups[category]) {
                 groups[category] = [];
             }
@@ -171,7 +171,7 @@ export default function CreateRole({ permissions }: CreateRoleProps) {
                                         )}
                                         {Object.entries(groupedPermissions).map(([category, categoryPermissions]) => (
                                             <div key={category}>
-                                                <h4 className="mb-3 font-medium text-gray-900 capitalize">{category} Permissions</h4>
+                                                <h4 className="mb-3 font-medium text-gray-900">{category}</h4>
                                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 2xl:grid-cols-4">
                                                     {categoryPermissions.map((permission) => (
                                                         <div key={permission.id} className="flex items-center space-x-2">

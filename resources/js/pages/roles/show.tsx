@@ -48,7 +48,7 @@ export default function RoleShow({ role }: Props) {
     // Group permissions by category
     const groupedPermissions = role.permissions.reduce(
         (groups, permission) => {
-            const category = permission.name.split(' ').slice(1).join(' ') || 'general';
+            const category = permission.group ?? 'Other';
             if (!groups[category]) {
                 groups[category] = [];
             }
@@ -173,7 +173,7 @@ export default function RoleShow({ role }: Props) {
                                 <div className="space-y-4">
                                     {Object.entries(groupedPermissions).map(([category, categoryPermissions]) => (
                                         <div key={category}>
-                                            <h4 className="mb-2 font-medium text-gray-900 capitalize">{category}</h4>
+                                            <h4 className="mb-2 font-medium text-gray-900">{category}</h4>
                                             <div className="flex flex-wrap gap-2">
                                                 {categoryPermissions.map((permission) => (
                                                     <Badge key={permission.id} variant="secondary">

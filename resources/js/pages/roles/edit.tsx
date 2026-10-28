@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
+import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, Permission } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Save, Shield, Trash2 } from 'lucide-react';
@@ -37,6 +38,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function EditRole({ role, permissions }: EditRoleProps) {
+    const can = useCan();
     const { data, setData, put, processing, errors } = useForm<RoleForm>({
         name: role.name,
         guard_name: role.guard_name,
@@ -79,7 +81,7 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
     // Group permissions by category
     const groupedPermissions = permissions.reduce(
         (groups, permission) => {
-            const category = permission.name.split(' ').slice(1).join(' ') || 'general';
+            const category = permission.group ?? 'Other';
             if (!groups[category]) {
                 groups[category] = [];
             }
@@ -179,7 +181,7 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                                     <div className="space-y-6">
                                         {Object.entries(groupedPermissions).map(([category, categoryPermissions]) => (
                                             <div key={category}>
-                                                <h4 className="mb-3 font-medium text-gray-900 capitalize">{category} Permissions</h4>
+                                                <h4 className="mb-3 font-medium text-gray-900">{category}</h4>
                                                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                                     {categoryPermissions.map((permission) => (
                                                         <div key={permission.id} className="flex items-center space-x-2">
@@ -219,10 +221,12 @@ export default function EditRole({ role, permissions }: EditRoleProps) {
                             </div>
 
                             {/* Danger Zone */}
-                            <Button type="button" variant="destructive" onClick={handleDelete} disabled={processing}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete Role
-                            </Button>
+                            {can('delete-roles') && (
+                                <Button type="button" variant="destructive" onClick={handleDelete} disabled={processing}>
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Delete Role
+                                </Button>
+                            )}
                         </div>
                     </BaseForm>
                 </div>

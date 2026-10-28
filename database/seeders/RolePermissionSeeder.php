@@ -16,144 +16,174 @@ class RolePermissionSeeder extends Seeder
      */
     public static function permissions(): array
     {
+        return array_merge(...array_values(self::permissionGroups()));
+    }
+
+    /**
+     * Every permission, grouped as the Roles screen shows them.
+     *
+     * @return array<string, list<string>>
+     */
+    public static function permissionGroups(): array
+    {
         return [
-            // Stop Management
-            'view-stops',
-            'create-stops',
+            'Stops' => [
+                'view-stops',
+                'create-stops',
+            ],
 
-            // Vendor Management
-            'view-vendors',
-            'create-vendors',
-            'edit-vendors',
-            'delete-vendors',
+            'Vendors' => [
+                'view-vendors',
+                'create-vendors',
+                'edit-vendors',
+                'delete-vendors',
+            ],
 
-            // Vehicle Management
-            'view-vehicles',
-            'create-vehicles',
-            'edit-vehicles',
-            'delete-vehicles',
-            'assign-vehicles',
-            'export-vehicles',
-            'manage-vehicle-downtime',
+            'Vehicles' => [
+                'view-vehicles',
+                'create-vehicles',
+                'edit-vehicles',
+                'delete-vehicles',
+                'assign-vehicles',
+                'export-vehicles',
+                'manage-vehicle-downtime',
+            ],
 
-            // Trip Management
-            'view-trips',
-            'view-own-trips',
-            'create-trips',
-            'edit-trips',
-            'delete-trips',
-            'approve-trips',
-            // Approve/reject trips of the departments the user heads (departments.head_id)
-            'approve-department-trips',
-            'reject-trips',
-            'check-in-trips',
-            'check-out-trips',
+            'Trips' => [
+                'view-trips',
+                'view-own-trips',
+                'create-trips',
+                'edit-trips',
+                'delete-trips',
+                'approve-trips',
+                // Approve/reject trips of the departments the user heads (departments.head_id)
+                'approve-department-trips',
+                'reject-trips',
+                'check-in-trips',
+                'check-out-trips',
+            ],
 
-            // Trip Passenger Attendance
-            'capture-passenger-attendance',
-            'correct-passenger-attendance',
+            'Passenger Attendance' => [
+                'capture-passenger-attendance',
+                'correct-passenger-attendance',
+            ],
 
-            // Trip Feedback & Complaints
-            'view-own-complaints',
-            'view-complaints',
-            'create-complaints',
-            'assign-complaints',
-            'resolve-complaints',
-            'delete-complaints',
+            'Feedback & Complaints' => [
+                'view-own-complaints',
+                'view-complaints',
+                'create-complaints',
+                'assign-complaints',
+                'resolve-complaints',
+                'delete-complaints',
+            ],
 
-            // Driver Management
-            'view-drivers',
-            'create-drivers',
-            'edit-drivers',
-            'delete-drivers',
-            'export-drivers',
-            'import-drivers',
+            'Drivers' => [
+                'view-drivers',
+                'create-drivers',
+                'edit-drivers',
+                'delete-drivers',
+                'export-drivers',
+                'import-drivers',
+            ],
 
-            // Maintenance (planned feature)
-            'view-maintenance',
-            'create-maintenance',
-            'edit-maintenance',
-            'delete-maintenance',
-            'schedule-maintenance',
-            'approve-maintenance',
+            'Maintenance (planned)' => [
+                'view-maintenance',
+                'create-maintenance',
+                'edit-maintenance',
+                'delete-maintenance',
+                'schedule-maintenance',
+                'approve-maintenance',
+            ],
 
-            // Fuel Management (planned feature)
-            'view-fuel-logs',
-            'create-fuel-logs',
-            'edit-fuel-logs',
-            'delete-fuel-logs',
-            'manage-fuel-budget',
+            'Fuel (planned)' => [
+                'view-fuel-logs',
+                'create-fuel-logs',
+                'edit-fuel-logs',
+                'delete-fuel-logs',
+                'manage-fuel-budget',
+            ],
 
-            // Reports & Analytics
-            'view-reports',
-            'export-reports',
+            'Reports & Analytics' => [
+                'view-reports',
+                'export-reports',
+            ],
 
-            // Department Management
-            'view-departments',
-            'create-departments',
-            'edit-departments',
-            'delete-departments',
-            'export-departments',
-            'import-departments',
+            'Departments' => [
+                'view-departments',
+                'create-departments',
+                'edit-departments',
+                'delete-departments',
+                'export-departments',
+                'import-departments',
+            ],
 
-            // Zone Management
-            'view-zones',
-            'create-zones',
-            'edit-zones',
-            'delete-zones',
-            // Lets a zone-assigned user (e.g. a future scoped manager role) see
-            // and manage every zone's data instead of just their own — see
-            // BelongsToZone. super-admin/admin get it automatically below.
-            'view-all-zones',
+            'Zones' => [
+                'view-zones',
+                'create-zones',
+                'edit-zones',
+                'delete-zones',
+                // Lets a zone-assigned user (e.g. a future scoped manager role) see
+                // and manage every zone's data instead of just their own — see
+                // BelongsToZone. super-admin/admin get it automatically below.
+                'view-all-zones',
+            ],
 
-            // User Management
-            'view-users',
-            'create-users',
-            'edit-users',
-            'delete-users',
-            'export-users',
-            'import-users',
-            'manage-user-roles',
-            'view-user-activity',
+            'Users' => [
+                'view-users',
+                'create-users',
+                'edit-users',
+                'delete-users',
+                'export-users',
+                'import-users',
+                'manage-user-roles',
+                'view-user-activity',
+            ],
 
-            // Role & Permission Management
-            'view-roles',
-            'create-roles',
-            'edit-roles',
-            'delete-roles',
+            'Roles & Permissions' => [
+                'view-roles',
+                'create-roles',
+                'edit-roles',
+                'delete-roles',
+            ],
 
-            // Notifications
-            'view-notifications',
+            'Notifications' => [
+                'view-notifications',
+            ],
 
-            // Factory Management
-            'view-factories',
-            'create-factories',
-            'edit-factories',
-            'delete-factories',
+            'Factories' => [
+                'view-factories',
+                'create-factories',
+                'edit-factories',
+                'delete-factories',
+            ],
 
-            // Logistics Management
-            'view-logistics',
-            'create-logistics',
-            'edit-logistics',
-            'delete-logistics',
+            'Logistics' => [
+                'view-logistics',
+                'create-logistics',
+                'edit-logistics',
+                'delete-logistics',
+            ],
 
-            // User Group Management
-            'view-user-groups',
-            'create-user-groups',
-            'edit-user-groups',
-            'delete-user-groups',
+            'User Groups' => [
+                'view-user-groups',
+                'create-user-groups',
+                'edit-user-groups',
+                'delete-user-groups',
+            ],
 
-            // Route Management
-            'view-routes',
-            'create-routes',
-            'edit-routes',
-            'delete-routes',
+            'Routes' => [
+                'view-routes',
+                'create-routes',
+                'edit-routes',
+                'delete-routes',
+            ],
 
-            // Employee Attendance
-            'capture-own-attendance',
-            'manage-attendance',
-            'view-attendance-reports',
-            'export-attendance-reports',
+            'Employee Attendance' => [
+                'capture-own-attendance',
+                'manage-attendance',
+                'view-attendance-reports',
+                'export-attendance-reports',
+            ],
         ];
     }
 
