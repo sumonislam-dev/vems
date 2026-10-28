@@ -234,8 +234,9 @@ you actually need.
 
 1. Go to **Trips**. You see trips you requested, trips you ride on as a
    passenger, and (for department heads) your department's trips.
-2. Use the search box (trip number, vehicle registration or requester name)
-   and **"Filters"** (Status, Priority, Trip Type, Zone).
+2. Use the search box (trip number, details, start or end location, vehicle
+   registration or requester name) and **"Filters"** (Status, Priority,
+   Schedule Type, Trip Type, Zone).
 3. Click the eye icon on a row to open the trip page. It shows the schedule,
    passengers, the vehicle and driver (once assigned: **"Awaiting vehicle"**
    until then), and the trip's history.
@@ -375,7 +376,8 @@ events).
    - **"Fuel consumed"**, **"Fuel cost"**, **"Other costs"**, **"Notes"**.
 3. Click **"Complete Trip"**. The trip is now **Completed**.
 
-The distance is worked out from the two odometer readings.
+The distance is worked out from the two odometer readings. The trip page
+shows these figures in its **"Trip Figures"** card.
 
 ## 4.5 Your attendance
 
@@ -859,11 +861,6 @@ These are current gaps in VEMS. Work around them as described until they are fix
 - **Routes can't be deleted** from the Routes list.
 - **A whole recurring trip series can't be cancelled in one go**; cancel each day.
 - **Trips can't be deleted**; cancel them instead.
-- **The trip page doesn't yet show** the odometer, fuel, costs or distance
-  entered on completion, or the feedback given on that trip (see it under
-  **Feedback & Complaints** instead).
-- **The "Driver" column on the Trips list** may show "Not assigned"; the trip
-  page shows the vehicle and its driver.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone
   can use Check In / Check Out.
 - On the **Edit Driver** page, choose only **Available, On Leave, Inactive or

@@ -266,6 +266,9 @@ class TripController extends Controller implements HasMiddleware
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('trip_number', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('start_location', 'like', "%{$search}%")
+                    ->orWhere('end_location', 'like', "%{$search}%")
                     ->orWhereHas('vehicle', function ($vq) use ($search) {
                         $vq->where('registration_number', 'like', "%{$search}%");
                     })

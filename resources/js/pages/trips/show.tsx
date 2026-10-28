@@ -39,6 +39,7 @@ import {
     Clock,
     FileText,
     Flag,
+    Gauge,
     MapPin,
     MessageSquare,
     MessageSquareWarning,
@@ -87,7 +88,7 @@ type TripDepartmentWithHeadcount = {
 type TripDetails = Trip & {
     factories?: TripFactory[];
     departments?: TripDepartmentWithHeadcount[];
-    feedbackEntries?: TripFeedback[];
+    feedback_entries?: TripFeedback[];
     cancelled_by_user?: UserType;
 };
 
@@ -200,6 +201,8 @@ const formatDateTime = (value?: string | null) => {
     return new Date(value).toLocaleString();
 };
 
+const formatNumber = (value: number | string, unit = '') => `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit}`;
+
 const toLocalDateTimeValue = (value?: string | null) => {
     const date = value ? new Date(value) : new Date();
     const normalizedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -272,6 +275,8 @@ export default function ShowTrip({
     const canCorrectAttendance = can('correct-passenger-attendance');
     const canCreateComplaint = can('create-complaints');
     const canEditTrips = can('edit-trips');
+    // The trip's driver is its vehicle's driver (as TripStateController checks)
+    const driver = trip.vehicle?.driver;
     const isAssignedDriver = !!currentUserId && trip.vehicle?.driver_id === currentUserId;
     const showApprove = trip.status === 'pending' && canApprove;
     const showReject = trip.status === 'pending' && canReject;
@@ -280,6 +285,22 @@ export default function ShowTrip({
     const canAssignVehicle = can('assign-vehicles') && ['pending', 'approved', 'assigned', 'in_progress'].includes(trip.status);
     const showComplete = canCompleteTrip(trip.status) && (canEditTrips || (isAssignedDriver && can('check-out-trips')));
     const showCancel = canCancelTrip(trip.status) && canEditTrips;
+    // Odometer, fuel and costs entered on start/complete (decimals arrive as strings)
+    const tripFigures = (
+        [
+            ['Actual Start', trip.actual_start_time && formatDateTime(trip.actual_start_time)],
+            ['Actual End', trip.actual_end_time && formatDateTime(trip.actual_end_time)],
+            ['Odometer Start', trip.odometer_start != null && formatNumber(trip.odometer_start, ' km')],
+            ['Odometer End', trip.odometer_end != null && formatNumber(trip.odometer_end, ' km')],
+            ['Distance', trip.distance_traveled != null && formatNumber(trip.distance_traveled, ' km')],
+            ['Fuel Consumed', trip.fuel_consumed != null && formatNumber(trip.fuel_consumed, ' L')],
+            ['Fuel Cost', trip.fuel_cost != null && formatNumber(trip.fuel_cost)],
+            ['Other Costs', trip.other_costs != null && formatNumber(trip.other_costs)],
+            ['Total Cost', trip.total_cost != null && formatNumber(trip.total_cost)],
+        ] as [string, string | false | undefined][]
+    )
+        .filter((figure): figure is [string, string] => !!figure[1])
+        .map(([label, value]) => ({ label, value }));
     const [dialogState, setDialogState] = useState<{
         mode: AttendanceMode;
         passenger: AttendanceTripPassenger;
@@ -472,7 +493,7 @@ export default function ShowTrip({
                         </div>
                         {trip.team_number && <p className="text-sm text-gray-600">Team: {trip.team_number}</p>}
                     </div>
-                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} canEdit={canEditTrips} canStart={showStart} />
+                    <TripActionButtons trip={trip} canEdit={canEditTrips} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -579,6 +600,28 @@ export default function ShowTrip({
                             </CardContent>
                         </Card>
 
+                        {tripFigures.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Gauge className="h-5 w-5" />
+                                        Trip Figures
+                                    </CardTitle>
+                                    <CardDescription>Recorded when the trip was started and completed</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                                        {tripFigures.map(({ label, value }) => (
+                                            <div key={label}>
+                                                <label className="text-sm font-medium text-gray-600">{label}</label>
+                                                <p className="mt-1 text-sm font-medium">{value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -642,7 +685,7 @@ export default function ShowTrip({
                                                 </p>
                                             </div>
                                         </div>
-                                        {trip.driver && (
+                                        {driver && (
                                             <>
                                                 <Separator />
                                                 <div className="flex items-center gap-4">
@@ -651,10 +694,8 @@ export default function ShowTrip({
                                                     </div>
                                                     <div className="flex-1">
                                                         <p className="text-sm font-medium text-gray-600">Driver</p>
-                                                        <p className="text-lg font-semibold">{trip.driver.name}</p>
-                                                        {trip.driver.official_phone && (
-                                                            <p className="text-sm text-gray-500">{trip.driver.official_phone}</p>
-                                                        )}
+                                                        <p className="text-lg font-semibold">{driver.name}</p>
+                                                        {driver.official_phone && <p className="text-sm text-gray-500">{driver.official_phone}</p>}
                                                     </div>
                                                 </div>
                                             </>
@@ -892,10 +933,10 @@ export default function ShowTrip({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {(trip.feedbackEntries ?? []).length === 0 && (
+                                {(trip.feedback_entries ?? []).length === 0 && (
                                     <p className="text-sm text-gray-500">Nothing submitted for this trip yet.</p>
                                 )}
-                                {(trip.feedbackEntries ?? []).map((entry) => (
+                                {(trip.feedback_entries ?? []).map((entry) => (
                                     <div key={entry.id} className="rounded-md border p-2">
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="line-clamp-1 text-sm font-medium">{entry.subject}</span>

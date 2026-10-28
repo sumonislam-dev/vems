@@ -1,6 +1,16 @@
 import { Trip } from '@/types';
 
 /**
+ * Statuses in which a trip can be edited (see UpdateTripRequest::EDITABLE_STATUSES
+ * on the backend — this must stay in sync with it).
+ */
+export const EDITABLE_TRIP_STATUSES: Trip['status'][] = ['pending', 'approved'];
+
+export function canEditTrip(status: Trip['status']): boolean {
+    return EDITABLE_TRIP_STATUSES.includes(status);
+}
+
+/**
  * Statuses from which a trip can be started (see TripStateController::start()
  * and Trip::canTransitionTo() on the backend — this must stay in sync with those).
  */

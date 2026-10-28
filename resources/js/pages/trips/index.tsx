@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
-import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canStartTrip } from '@/lib/trip-status';
+import { CANCELLATION_REASONS, canCancelTrip, canCompleteTrip, canEditTrip, canStartTrip } from '@/lib/trip-status';
 import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, DataTableColumn, Trip } from '@/types';
 import { Head, router, useForm, usePage } from '@inertiajs/react';
@@ -259,7 +259,8 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
         });
     };
 
-    const isAssignedDriver = useCallback((row: Trip) => !!currentUserId && row.driver?.id === currentUserId, [currentUserId]);
+    // The trip's driver is its vehicle's driver (as TripStateController checks)
+    const isAssignedDriver = useCallback((row: Trip) => !!currentUserId && row.vehicle?.driver_id === currentUserId, [currentUserId]);
 
     const [selectedIds, setSelectedIds] = useState<(string | number)[]>([]);
     const [bulkApproveOpen, setBulkApproveOpen] = useState(false);
@@ -328,12 +329,11 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                 ),
             },
             {
-                key: 'purpose',
-                label: 'Purpose & Details',
-                sortable: true,
+                key: 'description',
+                label: 'Details',
                 render: (value, row) => (
                     <div className="max-w-xs">
-                        <p className="line-clamp-1 text-sm font-medium">{value}</p>
+                        {value && <p className="line-clamp-1 text-sm font-medium">{value}</p>}
                         {row.start_location && row.end_location && (
                             <div className="mt-1 flex items-center text-xs text-gray-500">
                                 <MapPin className="mr-1 h-3 w-3" />
@@ -379,10 +379,10 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                 key: 'driver_id',
                 label: 'Driver',
                 render: (_, row) =>
-                    row.driver ? (
+                    row.vehicle?.driver ? (
                         <div className="flex items-center space-x-2">
                             <User className="h-3.5 w-3.5 text-gray-400" />
-                            <span className="text-sm">{row.driver.name}</span>
+                            <span className="text-sm">{row.vehicle.driver.name}</span>
                         </div>
                     ) : (
                         <span className="text-sm text-gray-400 italic">Not assigned</span>
@@ -439,7 +439,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                             >
                                 <Eye className="h-4 w-4" />
                             </Button>
-                            {canEditTrips && (
+                            {canEditTrips && canEditTrip(row.status) && (
                                 <Button
                                     variant="ghost"
                                     size="sm"
@@ -515,8 +515,10 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                     { label: 'All', value: '' },
                     { label: 'Pending', value: 'pending' },
                     { label: 'Approved', value: 'approved' },
+                    { label: 'Assigned', value: 'assigned' },
                     { label: 'In Progress', value: 'in_progress' },
                     { label: 'Completed', value: 'completed' },
+                    { label: 'Rejected', value: 'rejected' },
                     { label: 'Cancelled', value: 'cancelled' },
                 ],
                 type: 'select' as const,
@@ -679,7 +681,7 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
                     queryParams={queryParams}
                     filterOptions={{}}
                     filters={filters}
-                    searchPlaceholder="Search by trip number, purpose, location..."
+                    searchPlaceholder="Search by trip number, details, location, vehicle or requester..."
                     exportable={false}
                     emptyMessage="No trips found. Create your first trip to get started."
                     selectable={canApproveTrips ? isTripBulkApprovable : undefined}
