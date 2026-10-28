@@ -54,7 +54,7 @@ class UsersImportTemplate implements WithMultipleSheets
                 {
                     return [
                         'D2:D1000' => NumberFormat::FORMAT_TEXT,
-                        'G2:H1000' => NumberFormat::FORMAT_TEXT,
+                        'H2:I1000' => NumberFormat::FORMAT_TEXT,
                     ];
                 }
             },
@@ -72,7 +72,7 @@ class UsersImportTemplate implements WithMultipleSheets
                 ['role'],
                 ...$roles->map(fn ($role) => [$role]),
                 [],
-                ['Blank role = employee. Add drivers from the Drivers page (they need licence details).'],
+                ['Blank role = employee. Add drivers on the Drivers page (Add Driver or Import Drivers): they need licence details.'],
             ], [1]),
         ];
     }

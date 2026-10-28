@@ -432,8 +432,8 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     <DialogHeader>
                         <DialogTitle>Import Users</DialogTitle>
                         <DialogDescription>
-                            Fill in the template and upload it. Name, username and zone code are required; the template lists the valid department,
-                            zone and role codes. Imported users set their password via "Forgot Password".
+                            Fill in the template and upload it. Name and zone code are required (a blank username is made from the email or name); the
+                            template lists the valid department, zone and role codes. Imported users set their password via "Forgot Password".
                         </DialogDescription>
                     </DialogHeader>
 
