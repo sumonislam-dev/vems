@@ -284,3 +284,22 @@ it('protects seeded roles from being renamed or deleted, but lets their permissi
         ->and(Role::where('name', 'admin')->exists())->toBeTrue()
         ->and($admin->fresh()->permissions->pluck('name')->all())->toBe(['view-trips']);
 });
+
+it('groups the form permissions as RolePermissionSeeder lists them', function () {
+    Permission::firstOrCreate(['name' => 'legacy-permission', 'guard_name' => 'web']);
+    $role = Role::create(['name' => 'grouped', 'guard_name' => 'web']);
+    $role->givePermissionTo('view-reports');
+
+    $permissions = collect($this->actingAs(roleCtlUser())->get('/roles/create')->assertOk()
+        ->viewData('page')['props']['permissions'])->pluck('group', 'name');
+
+    expect($permissions['view-trips'])->toBe('Trips')
+        ->and($permissions['view-roles'])->toBe('Roles & Permissions')
+        ->and($permissions['legacy-permission'])->toBe('Other')
+        // Seeder order: Trips come before Roles, and anything unlisted is last
+        ->and($permissions->keys()->search('view-trips'))->toBeLessThan($permissions->keys()->search('view-roles'))
+        ->and($permissions->keys()->last())->toBe('legacy-permission');
+
+    $this->actingAs(roleCtlUser())->get("/roles/{$role->id}")->assertOk()
+        ->assertInertia(fn ($page) => $page->where('role.permissions.0.group', 'Reports & Analytics'));
+});

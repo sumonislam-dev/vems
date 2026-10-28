@@ -606,3 +606,68 @@ it('rejects switching the active zone to one outside the users real access', fun
 
     $this->actingAs($viewer)->patch('/active-zone', ['zone_id' => $ctg->id])->assertForbidden();
 });
+
+it('rejects a restricted editor granting all-zone access', function () {
+    seedZoneScopingPermissions();
+    Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $editor = makeZoneScopingUser($dhaka);
+    $editor->givePermissionTo('edit-users');
+    $target = makeZoneScopingUser($dhaka);
+
+    $this->actingAs($editor)->put("/users/{$target->id}", [
+        'name' => $target->name,
+        'username' => $target->username,
+        'personal_phone' => '01700000002',
+        'whatsapp_id' => '01700000002',
+        'status' => 'active',
+        'user_type' => 'employee',
+        'roles' => [],
+        'zone_access' => 'all',
+    ])->assertSessionHasErrors(['zone_access' => 'You are not allowed to grant access to all zones.']);
+
+    expect($target->fresh()->hasDirectPermission('view-all-zones'))->toBeFalse();
+});
+
+it('lets a restricted editor save a user who already has all-zone access unchanged', function () {
+    seedZoneScopingPermissions();
+    Permission::firstOrCreate(['name' => 'edit-users', 'guard_name' => 'web']);
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
+
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $editor = makeZoneScopingUser($dhaka);
+    $editor->givePermissionTo('edit-users');
+    $target = makeZoneScopingUser($dhaka);
+    $target->givePermissionTo('view-all-zones');
+
+    $this->actingAs($editor)->put("/users/{$target->id}", [
+        'name' => 'Renamed',
+        'username' => $target->username,
+        'personal_phone' => '01700000002',
+        'whatsapp_id' => '01700000002',
+        'status' => 'active',
+        'user_type' => 'employee',
+        'roles' => [],
+        'zone_access' => 'all',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect($target->fresh()->name)->toBe('Renamed');
+});
+
+it('only lets someone with all-zone access grant it, and tells the forms', function () {
+    seedZoneScopingPermissions();
+    $dhaka = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $restricted = makeZoneScopingUser($dhaka);
+    $everywhere = makeZoneScopingUser($dhaka);
+    $everywhere->givePermissionTo('view-all-zones');
+
+    expect(Zone::canGrantAllZones($restricted))->toBeFalse()
+        ->and(Zone::canGrantAllZones($everywhere))->toBeTrue();
+
+    $this->actingAs($restricted)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('auth.canGrantAllZones', false));
+    $this->actingAs($everywhere)->get('/dashboard')
+        ->assertInertia(fn ($page) => $page->where('auth.canGrantAllZones', true));
+});

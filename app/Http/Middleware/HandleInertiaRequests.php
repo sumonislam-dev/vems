@@ -50,6 +50,7 @@ class HandleInertiaRequests extends Middleware
                 'roles' => $request->user() ? $request->user()->getRoleNames()->toArray() : [],
                 'availableZones' => $request->user() ? Zone::switcherOptions($request->user())->values() : [],
                 'activeZoneId' => $request->user() ? $request->session()->get('active_zone_id') : null,
+                'canGrantAllZones' => $request->user() ? Zone::canGrantAllZones($request->user()) : false,
             ],
             'notifications' => $request->user()?->can('view-notifications') ? [
                 'unread_count' => $request->user()->unreadNotifications()->count(),

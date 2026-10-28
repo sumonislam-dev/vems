@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use App\Models\Zone;
 use App\Support\UsernameGenerator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -10,11 +11,16 @@ use Illuminate\Validation\Rule;
 class StoreUserRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Users need create-users. Drivers → Create Driver also accepts
+     * create-drivers (e.g. transport managers): DriverController::store()
+     * always makes the account a driver with the Driver role.
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('create-users');
+        $user = auth()->user();
+
+        return $user->can('create-users')
+            || ($this->routeIs('drivers.store') && $user->can('create-drivers'));
     }
 
     /**
@@ -54,14 +60,14 @@ class StoreUserRequest extends FormRequest
             'passport_number' => ['nullable', 'string', 'max:50'],
             'driving_license_no' => ['nullable', 'string', 'max:50'],
             'driving_license_file' => ['nullable', 'file', 'mimes:jpeg,png,jpg,pdf', 'max:2048'],
-            'license_class' => ['nullable', 'string', 'in:A,B,C,D'],
+            'license_class' => ['nullable', 'string', Rule::in(array_keys(User::LICENSE_CLASSES))],
             'license_issue_date' => ['nullable', 'date', 'before_or_equal:today'],
             'license_expiry_date' => ['nullable', 'date', 'after:license_issue_date'],
 
             // User Classification
-            'user_type' => ['nullable', 'string', 'in:employee,driver,transport_manager,admin'],
+            'user_type' => ['nullable', 'string', 'in:employee,driver,admin'],
             'department_id' => ['nullable', 'exists:departments,id'],
-            'zone_access' => ['required', 'in:all,specific'],
+            'zone_access' => Zone::accessRule(),
             'zone_ids' => ['nullable', 'array'],
             'zone_ids.*' => Zone::validationRule(),
             'vendor_id' => [
@@ -81,6 +87,7 @@ class StoreUserRequest extends FormRequest
             // Address Information
             'present_address' => ['nullable', 'string'],
             'permanent_address' => ['nullable', 'string'],
+            'area' => ['nullable', 'string', 'max:255'],
 
             // Driver Specific Fields
             'driver_status' => ['nullable', 'string', 'in:available,on_trip,on_leave,inactive,suspended'],
@@ -126,8 +133,8 @@ class StoreUserRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // If user is driver or transport_manager, driving license is required
-            if (in_array($this->user_type, ['driver', 'transport_manager'])) {
+            // A driver needs a driving license
+            if ($this->user_type === 'driver') {
                 if (empty($this->driving_license_no)) {
                     $validator->errors()->add('driving_license_no', 'Driving license number is required for drivers.');
                 }

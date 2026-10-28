@@ -84,7 +84,7 @@ class DriverController extends Controller implements HasMiddleware
                 'assignedVehicles:id,driver_id,registration_number,brand,model,vehicle_type',
                 'vendor:id,name,status',
             ])
-            ->whereIn('user_type', ['driver', 'transport_manager']);
+            ->where('user_type', 'driver');
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -184,14 +184,13 @@ class DriverController extends Controller implements HasMiddleware
 
         $departments = Department::active()->get(['id', 'name']);
         $zones = Zone::selectableBy();
-        $userTypes = ['driver', 'transport_manager'];
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $driverStatuses = User::distinct()->whereNotNull('driver_status')->pluck('driver_status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
         $roles = Role::pluck('name')->toArray();
         $vendors = Vendor::active()->get(['id', 'name']);
 
-        $driverStats = User::whereIn('user_type', ['driver', 'transport_manager'])
+        $driverStats = User::where('user_type', 'driver')
             ->selectRaw(
                 'COUNT(*) as total, '.
                 'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
@@ -211,7 +210,6 @@ class DriverController extends Controller implements HasMiddleware
         return Inertia::render('drivers/index', [
             'users' => $users,
             'filterOptions' => [
-                'user_types' => $userTypes,
                 'statuses' => $statuses,
                 'driver_statuses' => $driverStatuses,
                 'departments' => $departments,
@@ -279,7 +277,7 @@ class DriverController extends Controller implements HasMiddleware
         $validated = $request->validated();
 
         $query = User::with(['department:id,name', 'vendor:id,name'])
-            ->whereIn('user_type', ['driver', 'transport_manager']);
+            ->where('user_type', 'driver');
 
         if (! empty($validated['search'])) {
             $search = $validated['search'];
@@ -398,15 +396,6 @@ class DriverController extends Controller implements HasMiddleware
 
         $userTypes = [
             ['value' => 'driver', 'label' => 'Driver'],
-            ['value' => 'transport_manager', 'label' => 'Transport Manager'],
-        ];
-
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Medium Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Heavy Vehicle/Bus'],
-            ['value' => 'E', 'label' => 'Class E - Professional'],
         ];
 
         $bloodGroups = [
@@ -426,7 +415,7 @@ class DriverController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
             'defaults' => [
                 'user_type' => 'driver',
@@ -487,7 +476,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function show(User $driver): Response
     {
-        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if ($driver->user_type !== 'driver') {
             abort(404, 'Driver not found');
         }
 
@@ -523,7 +512,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function edit(User $driver): Response
     {
-        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if ($driver->user_type !== 'driver') {
             abort(404, 'Driver not found');
         }
 
@@ -539,15 +528,6 @@ class DriverController extends Controller implements HasMiddleware
 
         $userTypes = [
             ['value' => 'driver', 'label' => 'Driver'],
-            ['value' => 'transport_manager', 'label' => 'Transport Manager'],
-        ];
-
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Medium Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Heavy Vehicle/Bus'],
-            ['value' => 'E', 'label' => 'Class E - Professional'],
         ];
 
         $bloodGroups = [
@@ -571,7 +551,7 @@ class DriverController extends Controller implements HasMiddleware
             'roles' => $roles,
             'userRoles' => $userRoles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
         ]);
     }
@@ -583,7 +563,7 @@ class DriverController extends Controller implements HasMiddleware
     {
         // All-or-nothing: the record and its roles/zones/related rows
         return DB::transaction(function () use ($request, $driver, $saver) {
-            if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+            if ($driver->user_type !== 'driver') {
                 abort(404, 'Driver not found');
             }
 
@@ -609,7 +589,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function destroy(User $driver, UserSaver $saver): RedirectResponse
     {
-        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if ($driver->user_type !== 'driver') {
             abort(404, 'Driver not found');
         }
 
@@ -621,7 +601,7 @@ class DriverController extends Controller implements HasMiddleware
         };
 
         if ($blocked) {
-            return redirect()->back()->withErrors(['error' => $blocked]);
+            return redirect()->back()->with('error', $blocked);
         }
 
         $saver->delete($driver);
@@ -636,7 +616,7 @@ class DriverController extends Controller implements HasMiddleware
      */
     public function assignableVehicles(User $driver): JsonResponse
     {
-        if (! in_array($driver->user_type, ['driver', 'transport_manager'])) {
+        if ($driver->user_type !== 'driver') {
             abort(404, 'Driver not found');
         }
 
@@ -669,7 +649,7 @@ class DriverController extends Controller implements HasMiddleware
         ]);
 
         $updatedCount = User::whereIn('id', $validated['driver_ids'])
-            ->whereIn('user_type', ['driver', 'transport_manager'])
+            ->where('user_type', 'driver')
             ->update(['driver_status' => $validated['driver_status']]);
 
         return back()->with('success', "{$updatedCount} driver(s) updated to \"{$validated['driver_status']}\".");

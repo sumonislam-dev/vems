@@ -44,7 +44,7 @@ function defaultRouteVehiclePayload(array $overrides = []): array
     $vendor = Vendor::create(['name' => 'Route Vendor '.uniqid(), 'status' => 'active']);
     $driver = User::create([
         'name' => 'Route Driver', 'username' => 'route_drv_'.uniqid(),
-        'email' => 'route_drv_'.uniqid().'@example.com', 'user_type' => 'driver',
+        'email' => 'route_drv_'.uniqid().'@example.com', 'user_type' => 'driver', 'driver_status' => 'available',
         'status' => 'active', 'password' => Hash::make('password'),
     ]);
 

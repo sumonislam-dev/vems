@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
+use App\Models\Vehicle;
 use App\Models\Zone;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Validator;
 
 /**
  * Rules shared by the vehicle create and edit forms. Permissions are checked
@@ -26,6 +29,37 @@ abstract class VehicleFormRequest extends FormRequest
         $this->merge(collect(self::NONE_FIELDS)
             ->mapWithKeys(fn ($field) => [$field => $this->input($field) === 'none' ? null : $this->input($field)])
             ->all());
+    }
+
+    /**
+     * The Driver field gets the same checks as "Assign Driver"
+     * (VehicleController::assignDriver()): an eligible driver who isn't
+     * already on another vehicle. The vehicle's current driver may stay.
+     */
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $driverId = $this->input('driver_id');
+            $vehicle = $this->route('vehicle');
+
+            if (! $driverId || $validator->errors()->has('driver_id') || (int) $driverId === (int) $vehicle?->driver_id) {
+                return;
+            }
+
+            if (! User::assignableDrivers()->whereKey($driverId)->exists()) {
+                $validator->errors()->add('driver_id', 'This driver is not eligible for assignment (inactive, unavailable, or license expired).');
+
+                return;
+            }
+
+            $otherVehicle = Vehicle::where('driver_id', $driverId)
+                ->when($vehicle, fn ($query) => $query->whereKeyNot($vehicle->id))
+                ->first();
+
+            if ($otherVehicle) {
+                $validator->errors()->add('driver_id', "This driver is already assigned to {$otherVehicle->registration_number}. Use \"Assign Driver\" on the vehicles list to move them.");
+            }
+        });
     }
 
     /**

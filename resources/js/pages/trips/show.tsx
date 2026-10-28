@@ -1,4 +1,4 @@
-import { confirmAction } from '@/components/confirm-dialog';
+import { confirmAction, confirmDelete } from '@/components/confirm-dialog';
 import InputError from '@/components/input-error';
 import { TripActionButtons } from '@/components/trip-action-buttons';
 import { TripAssignVehicleDialog, type AssignableVehicleOption } from '@/components/trip-assign-vehicle-dialog';
@@ -39,11 +39,13 @@ import {
     Clock,
     FileText,
     Flag,
+    Gauge,
     MapPin,
     MessageSquare,
     MessageSquareWarning,
     Play,
     Plus,
+    Trash2,
     User,
     Users,
     XCircle,
@@ -59,7 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type AttendanceMode = 'check_in' | 'check_out' | 'no_show' | 'correct';
 
 type AttendanceFormShape = {
-    event_type: 'check_in' | 'check_out' | 'no_show' | 'manual_override';
+    event_type: 'check_in' | 'check_out' | 'no_show';
     event_time: string;
     stop_id: string;
     latitude: string;
@@ -87,7 +89,7 @@ type TripDepartmentWithHeadcount = {
 type TripDetails = Trip & {
     factories?: TripFactory[];
     departments?: TripDepartmentWithHeadcount[];
-    feedbackEntries?: TripFeedback[];
+    feedback_entries?: TripFeedback[];
     cancelled_by_user?: UserType;
 };
 
@@ -200,6 +202,8 @@ const formatDateTime = (value?: string | null) => {
     return new Date(value).toLocaleString();
 };
 
+const formatNumber = (value: number | string, unit = '') => `${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}${unit}`;
+
 const toLocalDateTimeValue = (value?: string | null) => {
     const date = value ? new Date(value) : new Date();
     const normalizedDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -272,6 +276,8 @@ export default function ShowTrip({
     const canCorrectAttendance = can('correct-passenger-attendance');
     const canCreateComplaint = can('create-complaints');
     const canEditTrips = can('edit-trips');
+    // The trip's driver is its vehicle's driver (as TripStateController checks)
+    const driver = trip.vehicle?.driver;
     const isAssignedDriver = !!currentUserId && trip.vehicle?.driver_id === currentUserId;
     const showApprove = trip.status === 'pending' && canApprove;
     const showReject = trip.status === 'pending' && canReject;
@@ -280,6 +286,25 @@ export default function ShowTrip({
     const canAssignVehicle = can('assign-vehicles') && ['pending', 'approved', 'assigned', 'in_progress'].includes(trip.status);
     const showComplete = canCompleteTrip(trip.status) && (canEditTrips || (isAssignedDriver && can('check-out-trips')));
     const showCancel = canCancelTrip(trip.status) && canEditTrips;
+    // The server cancels whatever in the series is still cancellable
+    const showCancelSeries = !!trip.recurring_group_id && canEditTrips;
+    const showDelete = trip.status === 'pending' && can('delete-trips');
+    // Odometer, fuel and costs entered on start/complete (decimals arrive as strings)
+    const tripFigures = (
+        [
+            ['Actual Start', trip.actual_start_time && formatDateTime(trip.actual_start_time)],
+            ['Actual End', trip.actual_end_time && formatDateTime(trip.actual_end_time)],
+            ['Odometer Start', trip.odometer_start != null && formatNumber(trip.odometer_start, ' km')],
+            ['Odometer End', trip.odometer_end != null && formatNumber(trip.odometer_end, ' km')],
+            ['Distance', trip.distance_traveled != null && formatNumber(trip.distance_traveled, ' km')],
+            ['Fuel Consumed', trip.fuel_consumed != null && formatNumber(trip.fuel_consumed, ' L')],
+            ['Fuel Cost', trip.fuel_cost != null && formatNumber(trip.fuel_cost)],
+            ['Other Costs', trip.other_costs != null && formatNumber(trip.other_costs)],
+            ['Total Cost', trip.total_cost != null && formatNumber(trip.total_cost)],
+        ] as [string, string | false | undefined][]
+    )
+        .filter((figure): figure is [string, string] => !!figure[1])
+        .map(([label, value]) => ({ label, value }));
     const [dialogState, setDialogState] = useState<{
         mode: AttendanceMode;
         passenger: AttendanceTripPassenger;
@@ -287,6 +312,7 @@ export default function ShowTrip({
     } | null>(null);
     const [startTripOpen, setStartTripOpen] = useState(false);
     const [cancelTripOpen, setCancelTripOpen] = useState(false);
+    const [cancelScope, setCancelScope] = useState<'trip' | 'series'>('trip');
     const [completeTripOpen, setCompleteTripOpen] = useState(false);
     const { data, setData, post, processing, errors, reset, clearErrors } = useForm<AttendanceFormShape>({
         event_type: 'check_in',
@@ -418,7 +444,8 @@ export default function ShowTrip({
         });
     };
 
-    const openCancelTripDialog = () => {
+    const openCancelTripDialog = (scope: 'trip' | 'series' = 'trip') => {
+        setCancelScope(scope);
         setCancelTripOpen(true);
         clearCancelTripErrors();
     };
@@ -432,7 +459,9 @@ export default function ShowTrip({
     const submitCancelTrip = (submitEvent: FormEvent<HTMLFormElement>) => {
         submitEvent.preventDefault();
 
-        postCancelTrip(route('trips.cancel', trip.id), {
+        const url = cancelScope === 'series' ? route('trip-recurring-groups.cancel', trip.recurring_group_id) : route('trips.cancel', trip.id);
+
+        postCancelTrip(url, {
             preserveScroll: true,
             onSuccess: () => closeCancelTripDialog(),
         });
@@ -472,7 +501,7 @@ export default function ShowTrip({
                         </div>
                         {trip.team_number && <p className="text-sm text-gray-600">Team: {trip.team_number}</p>}
                     </div>
-                    <TripActionButtons trip={trip} onOpenStartTrip={openStartTripDialog} canEdit={canEditTrips} canStart={showStart} />
+                    <TripActionButtons trip={trip} canEdit={canEditTrips} />
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -579,6 +608,28 @@ export default function ShowTrip({
                             </CardContent>
                         </Card>
 
+                        {tripFigures.length > 0 && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Gauge className="h-5 w-5" />
+                                        Trip Figures
+                                    </CardTitle>
+                                    <CardDescription>Recorded when the trip was started and completed</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                                        {tripFigures.map(({ label, value }) => (
+                                            <div key={label}>
+                                                <label className="text-sm font-medium text-gray-600">{label}</label>
+                                                <p className="mt-1 text-sm font-medium">{value}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        )}
+
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -642,7 +693,7 @@ export default function ShowTrip({
                                                 </p>
                                             </div>
                                         </div>
-                                        {trip.driver && (
+                                        {driver && (
                                             <>
                                                 <Separator />
                                                 <div className="flex items-center gap-4">
@@ -651,10 +702,8 @@ export default function ShowTrip({
                                                     </div>
                                                     <div className="flex-1">
                                                         <p className="text-sm font-medium text-gray-600">Driver</p>
-                                                        <p className="text-lg font-semibold">{trip.driver.name}</p>
-                                                        {trip.driver.official_phone && (
-                                                            <p className="text-sm text-gray-500">{trip.driver.official_phone}</p>
-                                                        )}
+                                                        <p className="text-lg font-semibold">{driver.name}</p>
+                                                        {driver.official_phone && <p className="text-sm text-gray-500">{driver.official_phone}</p>}
                                                     </div>
                                                 </div>
                                             </>
@@ -826,63 +875,88 @@ export default function ShowTrip({
                             </CardContent>
                         </Card>
 
-                        {(['pending', 'approved', 'assigned', 'in_progress'] as Trip['status'][]).includes(trip.status) &&
-                            (showApprove || showReject || showStart || showComplete || showCancel) && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-base">Actions</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="space-y-2">
-                                        {showApprove && (
-                                            <Button
-                                                onClick={async () =>
-                                                    (await confirmAction({ title: `Approve trip ${trip.trip_number}?`, confirmLabel: 'Approve' })) &&
-                                                    router.post(route('trips.approve', trip.id))
-                                                }
-                                                className="w-full bg-green-600 hover:bg-green-700"
-                                            >
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                Approve Trip
-                                            </Button>
-                                        )}
-                                        {showReject && <TripRejectDialog tripId={trip.id} />}
+                        {(showApprove || showReject || showStart || showComplete || showCancel || showCancelSeries || showDelete) && (
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base">Actions</CardTitle>
+                                </CardHeader>
+                                <CardContent className="space-y-2">
+                                    {showApprove && (
+                                        <Button
+                                            onClick={async () =>
+                                                (await confirmAction({ title: `Approve trip ${trip.trip_number}?`, confirmLabel: 'Approve' })) &&
+                                                router.post(route('trips.approve', trip.id))
+                                            }
+                                            className="w-full bg-green-600 hover:bg-green-700"
+                                        >
+                                            <CheckCircle className="mr-2 h-4 w-4" />
+                                            Approve Trip
+                                        </Button>
+                                    )}
+                                    {showReject && <TripRejectDialog tripId={trip.id} />}
 
-                                        {showStart && (
-                                            <Button
-                                                className="w-full bg-green-600 hover:bg-green-700"
-                                                onClick={openStartTripDialog}
-                                                disabled={startTripProcessing}
-                                            >
-                                                <Play className="mr-2 h-4 w-4" />
-                                                Start Trip
-                                            </Button>
-                                        )}
+                                    {showStart && (
+                                        <Button
+                                            className="w-full bg-green-600 hover:bg-green-700"
+                                            onClick={openStartTripDialog}
+                                            disabled={startTripProcessing}
+                                        >
+                                            <Play className="mr-2 h-4 w-4" />
+                                            Start Trip
+                                        </Button>
+                                    )}
 
-                                        {showComplete && (
-                                            <Button
-                                                className="w-full bg-green-600 hover:bg-green-700"
-                                                onClick={openCompleteTripDialog}
-                                                disabled={completeTripProcessing}
-                                            >
-                                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                                                Complete Trip
-                                            </Button>
-                                        )}
+                                    {showComplete && (
+                                        <Button
+                                            className="w-full bg-green-600 hover:bg-green-700"
+                                            onClick={openCompleteTripDialog}
+                                            disabled={completeTripProcessing}
+                                        >
+                                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                                            Complete Trip
+                                        </Button>
+                                    )}
 
-                                        {showCancel && (
-                                            <Button
-                                                variant="outline"
-                                                className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                onClick={openCancelTripDialog}
-                                                disabled={cancelTripProcessing}
-                                            >
-                                                <Ban className="mr-2 h-4 w-4" />
-                                                Cancel Trip
-                                            </Button>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )}
+                                    {showCancel && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                            onClick={() => openCancelTripDialog('trip')}
+                                            disabled={cancelTripProcessing}
+                                        >
+                                            <Ban className="mr-2 h-4 w-4" />
+                                            Cancel Trip
+                                        </Button>
+                                    )}
+
+                                    {showCancelSeries && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                            onClick={() => openCancelTripDialog('series')}
+                                            disabled={cancelTripProcessing}
+                                        >
+                                            <Ban className="mr-2 h-4 w-4" />
+                                            Cancel Whole Series
+                                        </Button>
+                                    )}
+
+                                    {showDelete && (
+                                        <Button
+                                            variant="outline"
+                                            className="w-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                            onClick={async () =>
+                                                (await confirmDelete(`Delete trip ${trip.trip_number}? This can't be undone.`)) &&
+                                                router.delete(route('trips.destroy', trip.id))
+                                            }
+                                        >
+                                            <Trash2 className="mr-2 h-4 w-4" />
+                                            Delete Trip
+                                        </Button>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        )}
 
                         <Card>
                             <CardHeader>
@@ -892,10 +966,10 @@ export default function ShowTrip({
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {(trip.feedbackEntries ?? []).length === 0 && (
+                                {(trip.feedback_entries ?? []).length === 0 && (
                                     <p className="text-sm text-gray-500">Nothing submitted for this trip yet.</p>
                                 )}
-                                {(trip.feedbackEntries ?? []).map((entry) => (
+                                {(trip.feedback_entries ?? []).map((entry) => (
                                     <div key={entry.id} className="rounded-md border p-2">
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="line-clamp-1 text-sm font-medium">{entry.subject}</span>
@@ -1163,8 +1237,12 @@ export default function ShowTrip({
             <Dialog open={cancelTripOpen} onOpenChange={(open) => !open && closeCancelTripDialog()}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
-                        <DialogTitle>Cancel Trip</DialogTitle>
-                        <DialogDescription>This will mark the trip as cancelled. Choose a reason.</DialogDescription>
+                        <DialogTitle>{cancelScope === 'series' ? 'Cancel Whole Series' : 'Cancel Trip'}</DialogTitle>
+                        <DialogDescription>
+                            {cancelScope === 'series'
+                                ? 'This cancels every trip in this recurring series that has not started yet. Trips already in progress or finished are left alone. Choose a reason.'
+                                : 'This will mark the trip as cancelled. Choose a reason.'}
+                        </DialogDescription>
                     </DialogHeader>
 
                     <form className="space-y-4" onSubmit={submitCancelTrip}>
@@ -1201,11 +1279,11 @@ export default function ShowTrip({
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={closeCancelTripDialog} disabled={cancelTripProcessing}>
-                                Keep Trip
+                                {cancelScope === 'series' ? 'Keep Series' : 'Keep Trip'}
                             </Button>
                             <Button type="submit" variant="destructive" disabled={cancelTripProcessing || !cancelTripData.cancellation_reason}>
                                 <Ban className="mr-2 h-4 w-4" />
-                                {cancelTripProcessing ? 'Cancelling...' : 'Cancel Trip'}
+                                {cancelTripProcessing ? 'Cancelling...' : cancelScope === 'series' ? 'Cancel Series' : 'Cancel Trip'}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -1239,7 +1317,6 @@ export default function ShowTrip({
                                     <option value="check_in">Check In</option>
                                     <option value="check_out">Check Out</option>
                                     <option value="no_show">No Show</option>
-                                    <option value="manual_override">Manual Override</option>
                                 </select>
                                 <InputError message={errors.event_type} />
                             </div>

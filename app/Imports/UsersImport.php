@@ -32,9 +32,10 @@ class UsersImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHeadin
 {
     use ResolvesUserImportCodes, SkipsFailures;
 
+    // The admin role makes an admin account; every other role (including
+    // transport-manager: office staff who run transport) is an employee
     private const USER_TYPES = [
         'admin' => 'admin',
-        'transport-manager' => 'transport_manager',
     ];
 
     public int $imported = 0;

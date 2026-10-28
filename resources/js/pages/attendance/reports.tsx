@@ -218,6 +218,7 @@ function loadVisibleColumns(): Set<ColumnKey> {
 export default function AttendanceReports({ records, stats, users, queryParams }: ReportsPageProps) {
     const { auth } = usePage<SharedData>().props;
     const canManageAttendance = hasPermission(auth.permissions ?? [], 'manage-attendance');
+    const canExport = hasPermission(auth.permissions ?? [], 'export-attendance-reports');
 
     const userOptions = users.map((u) => ({
         value: String(u.id),
@@ -356,7 +357,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
                     },
                 ];
             }),
-            { key: 'source', label: 'Source', className: 'text-xs capitalize', render: (record) => record.source ?? '—' },
+            { key: 'source', label: 'Source', className: 'text-xs capitalize', render: (record) => record.source?.replace(/_/g, ' ') ?? '—' },
             {
                 key: 'anomaly',
                 label: 'Anomaly',
@@ -438,7 +439,7 @@ export default function AttendanceReports({ records, stats, users, queryParams }
             <div className="flex flex-col gap-6 p-6">
                 <div className="flex items-start justify-between gap-4">
                     <PageHeader title="Attendance Reports" description="Cross-employee check-in/check-out history" />
-                    <ExportButton exportUrl="/attendance/reports/export" queryParams={queryParams} />
+                    {canExport && <ExportButton exportUrl="/attendance/reports/export" queryParams={queryParams} />}
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

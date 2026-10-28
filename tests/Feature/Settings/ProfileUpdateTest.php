@@ -59,3 +59,17 @@ test('users cannot delete their own account', function () {
 
     expect($user->fresh())->not->toBeNull();
 });
+
+test('a user can save their profile without an email, staying verified', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->patch('/settings/profile', ['name' => 'No Email', 'email' => ''])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect('/settings/profile');
+
+    $user->refresh();
+
+    expect($user->email)->toBeNull()
+        ->and($user->email_verified_at)->not->toBeNull();
+});

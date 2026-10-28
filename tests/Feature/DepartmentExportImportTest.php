@@ -144,3 +144,26 @@ it('denies importing departments to someone without create-departments permissio
         'file' => makeDepartmentsImportCsv('name,code'."\n".'Blocked,'.shortDeptCode('X')),
     ])->assertForbidden();
 });
+
+it('sets a department\'s attendance mode on the edit form', function () {
+    Permission::firstOrCreate(['name' => 'edit-departments', 'guard_name' => 'web']);
+    $editor = User::create([
+        'email_verified_at' => now(),
+        'name' => 'Department Editor',
+        'username' => 'department.editor',
+        'user_type' => 'employee',
+        'status' => 'active',
+        'password' => Hash::make('password'),
+    ]);
+    $editor->givePermissionTo('edit-departments');
+    $department = Department::create(['name' => 'Inspection', 'code' => 'INSP']);
+
+    $this->actingAs($editor)->patch("/departments/{$department->id}", [
+        'name' => 'Inspection', 'code' => 'INSP', 'is_active' => true, 'attendance_mode' => 'self_service',
+    ])->assertSessionHasNoErrors();
+    expect($department->fresh()->attendance_mode)->toBe('self_service');
+
+    $this->actingAs($editor)->patch("/departments/{$department->id}", [
+        'name' => 'Inspection', 'code' => 'INSP', 'is_active' => true, 'attendance_mode' => 'remote',
+    ])->assertSessionHasErrors('attendance_mode');
+});

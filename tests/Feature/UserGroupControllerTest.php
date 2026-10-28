@@ -4,14 +4,15 @@ use App\Models\User;
 use App\Models\UserGroup;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedUserGroupPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'create-user-groups', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'edit-user-groups', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'view-user-groups', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeUserGroupUser(string $username, string $userType = 'employee'): User
@@ -30,7 +31,7 @@ function makeUserGroupUser(string $username, string $userType = 'employee'): Use
 it('excludes drivers from the selectable user list on the create-group page', function () {
     seedUserGroupPermissions();
 
-    $manager = makeUserGroupUser('creator-1', 'transport_manager');
+    $manager = makeUserGroupUser('creator-1', 'employee');
     $manager->givePermissionTo('create-user-groups');
 
     $employee = makeUserGroupUser('employee-1', 'employee');
@@ -49,7 +50,7 @@ it('excludes drivers from the selectable user list on the create-group page', fu
 it('excludes drivers from the selectable user list on the edit-group page', function () {
     seedUserGroupPermissions();
 
-    $manager = makeUserGroupUser('editor-1', 'transport_manager');
+    $manager = makeUserGroupUser('editor-1', 'employee');
     $manager->givePermissionTo('edit-user-groups');
 
     $employee = makeUserGroupUser('employee-2', 'employee');
@@ -73,7 +74,7 @@ it('excludes drivers from the selectable user list on the edit-group page', func
 it('excludes drivers from the available-users endpoint used to add more members', function () {
     seedUserGroupPermissions();
 
-    $manager = makeUserGroupUser('viewer-1', 'transport_manager');
+    $manager = makeUserGroupUser('viewer-1', 'employee');
     $manager->givePermissionTo('view-user-groups');
 
     $employee = makeUserGroupUser('employee-3', 'employee');

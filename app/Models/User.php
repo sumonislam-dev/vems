@@ -31,6 +31,23 @@ class User extends Authenticatable implements MustVerifyEmail
             ->useLogName('users');
     }
 
+    /** Driving licence classes a driver may hold: code => description */
+    public const LICENSE_CLASSES = [
+        'A' => 'Motorcycle',
+        'B' => 'Car/Light Vehicle',
+        'C' => 'Medium Vehicle',
+        'D' => 'Heavy Vehicle/Bus',
+    ];
+
+    /** LICENSE_CLASSES as select options for the user and driver forms */
+    public static function licenseClassOptions(): array
+    {
+        return collect(self::LICENSE_CLASSES)
+            ->map(fn (string $label, string $code) => ['value' => $code, 'label' => "Class {$code} - {$label}"])
+            ->values()
+            ->all();
+    }
+
     /**
      * The attributes that are mass assignable.
      *
@@ -240,8 +257,13 @@ class User extends Authenticatable implements MustVerifyEmail
     // Scopes
     public function scopeDrivers($query)
     {
-        return $query->where('user_type', 'driver')
-            ->orWhere('user_type', 'transport_manager');
+        return $query->where('user_type', 'driver');
+    }
+
+    /** Every account except drivers (who have their own Drivers page): employees, admins, untyped */
+    public function scopeNonDrivers($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('user_type')->orWhere('user_type', '!=', 'driver'));
     }
 
     public function scopeEmployees($query)
@@ -254,6 +276,26 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->drivers()
             ->where('driver_status', 'available')
             ->where('status', 'active');
+    }
+
+    /**
+     * Drivers who may be put on a vehicle: active, available and with an
+     * unexpired licence, plus $includeDriverId (the vehicle's current
+     * driver) so an edit can keep them.
+     */
+    public function scopeAssignableDrivers($query, ?int $includeDriverId = null)
+    {
+        return $query->drivers()->where(function ($query) use ($includeDriverId) {
+            $query->where(function ($eligible) {
+                $eligible->where('status', 'active')
+                    ->where('driver_status', 'available')
+                    ->where(fn ($license) => $license->whereNull('license_expiry_date')->orWhere('license_expiry_date', '>', now()));
+            });
+
+            if ($includeDriverId) {
+                $query->orWhere('id', $includeDriverId);
+            }
+        });
     }
 
     public function scopeActive($query)
@@ -269,7 +311,7 @@ class User extends Authenticatable implements MustVerifyEmail
     // Helper Methods
     public function isDriver(): bool
     {
-        return in_array($this->user_type, ['driver', 'transport_manager'])
+        return $this->user_type === 'driver'
                && ! empty($this->driving_license_no);
     }
 
@@ -278,9 +320,10 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->user_type === 'employee';
     }
 
+    // Transport managers are employees with the transport-manager role
     public function isTransportManager(): bool
     {
-        return $this->user_type === 'transport_manager';
+        return $this->hasRole('transport-manager');
     }
 
     public function isAdmin(): bool

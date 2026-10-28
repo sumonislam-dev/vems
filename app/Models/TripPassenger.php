@@ -2,9 +2,8 @@
 
 namespace App\Models;
 
-use App\Models\TripPassengerEvent;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\DB;
@@ -97,7 +96,7 @@ class TripPassenger extends Model
             $replacementEvent = $this->createPassengerEvent(
                 $eventAttributes['event_type'] ?? $event->event_type,
                 array_merge($eventAttributes, [
-                    'source' => $eventAttributes['source'] ?? 'admin_correction',
+                    'source' => $eventAttributes['source'] ?? TripPassengerEvent::CORRECTION_SOURCE,
                     'metadata' => array_merge($event->metadata ?? [], $eventAttributes['metadata'] ?? [], [
                         'corrected_event_id' => $event->id,
                         'correction_reason' => $eventAttributes['reason'] ?? null,

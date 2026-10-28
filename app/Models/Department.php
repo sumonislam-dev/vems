@@ -61,7 +61,7 @@ class Department extends Model
      */
     public function drivers()
     {
-        return $this->users()->whereIn('user_type', ['driver', 'transport_manager']);
+        return $this->users()->where('user_type', 'driver');
     }
 
     /**

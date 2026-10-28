@@ -30,7 +30,7 @@ class UsersImportTemplate implements WithMultipleSheets
     {
         $departments = Department::where('is_active', true)->orderBy('name')->get(['code', 'name']);
         $zones = Zone::whereIn('id', Zone::selectableBy($this->user)->pluck('id'))->orderBy('name')->get(['code', 'name']);
-        $canGrantAllZones = Zone::selectableIds($this->user) === null;
+        $canGrantAllZones = Zone::canGrantAllZones($this->user);
         $roles = $this->user->can('manage-user-roles')
             ? Role::whereNotIn('name', ['super-admin', 'driver'])->orderBy('name')->pluck('name')
             : collect(['employee']);

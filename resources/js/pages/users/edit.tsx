@@ -165,8 +165,9 @@ export default function EditUser({
     const driverStatusOptions = [
         { label: 'Available', value: 'available' },
         { label: 'On Trip', value: 'on_trip' },
-        { label: 'Off Duty', value: 'off_duty' },
-        { label: 'Maintenance', value: 'maintenance' },
+        { label: 'On Leave', value: 'on_leave' },
+        { label: 'Inactive', value: 'inactive' },
+        { label: 'Suspended', value: 'suspended' },
     ];
 
     // Handle field changes
@@ -361,6 +362,7 @@ export default function EditUser({
                                             onChange={(value) => handleFieldChange('personal_phone', value)}
                                             error={errors.personal_phone}
                                             placeholder="+880 1711 000000"
+                                            required
                                         />
 
                                         <FormField
@@ -370,6 +372,7 @@ export default function EditUser({
                                             onChange={(value) => handleFieldChange('whatsapp_id', value)}
                                             error={errors.whatsapp_id}
                                             placeholder="+880 1711 000000"
+                                            required
                                         />
                                     </div>
                                 </div>

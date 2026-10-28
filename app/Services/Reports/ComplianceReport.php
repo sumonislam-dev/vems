@@ -165,7 +165,7 @@ class ComplianceReport extends AnalyticsReport
         $zoneIds = $this->zoneIds();
 
         return User::withoutGlobalScope('zone')
-            ->whereIn('user_type', ['driver', 'transport_manager'])
+            ->where('user_type', 'driver')
             ->where('status', 'active')
             ->when($zoneIds !== null, fn ($q) => $q->whereIn('zone_id', $zoneIds))
             ->when($this->filters['vendor_id'] ?? null, fn ($q, $id) => $q->where('vendor_id', $id))

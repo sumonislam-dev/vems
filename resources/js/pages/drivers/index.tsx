@@ -1,10 +1,9 @@
 import { ServerSideDataTable } from '@/base-components/base-data-table';
 import { PageHeader } from '@/base-components/page-header';
 import { confirmDelete } from '@/components/confirm-dialog';
-import InputError from '@/components/input-error';
+import { DriverAssignVehicleDialog } from '@/components/driver-assign-vehicle-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,19 +11,9 @@ import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import axios from 'axios';
+import { Head, router } from '@inertiajs/react';
 import { AlertTriangle, Car, CheckCircle, Download, Edit, Eye, Mail, Plus, Trash2, Upload, User } from 'lucide-react';
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-
-type AssignableVehicle = {
-    id: number;
-    registration_number: string;
-    brand: string;
-    model: string;
-    current_driver_id: number | null;
-    current_driver_name: string | null;
-};
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 interface User {
     id: number;
@@ -64,7 +53,6 @@ interface PaginatedUsers {
 interface UsersPageProps {
     users: PaginatedUsers;
     filterOptions: {
-        user_types?: string[];
         statuses?: string[];
         driver_statuses?: string[];
         roles?: string[];
@@ -152,57 +140,6 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
     };
 
     const [assignVehicleDriver, setAssignVehicleDriver] = useState<User | null>(null);
-    const [assignableVehicles, setAssignableVehicles] = useState<AssignableVehicle[]>([]);
-    const [loadingVehicles, setLoadingVehicles] = useState(false);
-
-    const {
-        data: assignVehicleData,
-        setData: setAssignVehicleData,
-        post: postAssignVehicle,
-        processing: assignVehicleProcessing,
-        errors: assignVehicleErrors,
-        reset: resetAssignVehicle,
-        clearErrors: clearAssignVehicleErrors,
-    } = useForm<{ driver_id: string; vehicle_id: string; confirm_reassign: boolean }>({
-        driver_id: '',
-        vehicle_id: '',
-        confirm_reassign: false,
-    });
-
-    const openAssignVehicleDialog = useCallback(
-        async (driver: User) => {
-            setAssignVehicleData({ driver_id: String(driver.id), vehicle_id: '', confirm_reassign: false });
-            clearAssignVehicleErrors();
-            setAssignVehicleDriver(driver);
-
-            setLoadingVehicles(true);
-            try {
-                const response = await axios.get<AssignableVehicle[]>(route('drivers.assignable-vehicles', driver.id));
-                setAssignableVehicles(response.data);
-            } catch {
-                // Non-critical: the select will just show no options if this fails.
-            } finally {
-                setLoadingVehicles(false);
-            }
-        },
-        [setAssignVehicleData, clearAssignVehicleErrors],
-    );
-
-    const closeAssignVehicleDialog = () => {
-        setAssignVehicleDriver(null);
-        resetAssignVehicle();
-        clearAssignVehicleErrors();
-    };
-
-    const submitAssignVehicle = (submitEvent: FormEvent<HTMLFormElement>) => {
-        submitEvent.preventDefault();
-        if (!assignVehicleData.vehicle_id) return;
-
-        postAssignVehicle(route('vehicles.assign-driver', assignVehicleData.vehicle_id), {
-            preserveScroll: true,
-            onSuccess: () => closeAssignVehicleDialog(),
-        });
-    };
 
     const handleRowClick = (user: User) => {
         router.visit(route('drivers.show', user.id));
@@ -387,7 +324,7 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                                 size="sm"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    openAssignVehicleDialog(row);
+                                    setAssignVehicleDriver(row);
                                 }}
                                 title="Assign vehicle"
                                 className="cursor-pointer transition-all hover:scale-110 hover:bg-emerald-50 hover:text-emerald-600"
@@ -417,21 +354,12 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                 ),
             },
         ],
-        [canAssignVehicles, canEditDrivers, canDeleteDrivers, openAssignVehicleDialog],
+        [canAssignVehicles, canEditDrivers, canDeleteDrivers],
     );
 
     // Define filters
     const filters: ColumnFilter[] = useMemo(
         () => [
-            {
-                key: 'user_type',
-                label: 'User Type',
-                type: 'multiselect',
-                options: (filterOptions.user_types || []).map((type) => ({
-                    label: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
-                    value: type,
-                })),
-            },
             {
                 key: 'driver_status',
                 label: 'Driver Status',
@@ -497,7 +425,6 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
             },
         ],
         [
-            filterOptions.user_types,
             filterOptions.driver_statuses,
             filterOptions.statuses,
             filterOptions.departments,
@@ -515,7 +442,7 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
             <div className="space-y-6">
                 <PageHeader
                     title="Drivers"
-                    description="Manage drivers and transport managers"
+                    description="Manage drivers"
                     actions={[
                         {
                             label: 'Import Drivers',
@@ -669,61 +596,9 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={assignVehicleDriver !== null} onOpenChange={(open) => !open && closeAssignVehicleDialog()}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Assign Vehicle</DialogTitle>
-                        <DialogDescription>Choose a vehicle to assign to {assignVehicleDriver?.name}.</DialogDescription>
-                    </DialogHeader>
-
-                    <form className="space-y-4" onSubmit={submitAssignVehicle}>
-                        <div className="space-y-2">
-                            <Label htmlFor="assign_vehicle_id">Vehicle</Label>
-                            <Select value={assignVehicleData.vehicle_id} onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}>
-                                <SelectTrigger id="assign_vehicle_id" className="w-full">
-                                    <SelectValue placeholder={loadingVehicles ? 'Loading vehicles...' : 'Select a vehicle'} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {assignableVehicles.map((vehicle) => (
-                                        <SelectItem key={vehicle.id} value={String(vehicle.id)}>
-                                            {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
-                                            {vehicle.current_driver_id && vehicle.current_driver_id !== assignVehicleDriver?.id
-                                                ? ` (currently: ${vehicle.current_driver_name})`
-                                                : ''}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <InputError message={assignVehicleErrors.vehicle_id ?? assignVehicleErrors.driver_id} />
-                        </div>
-
-                        {assignVehicleErrors.confirm_reassign && (
-                            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
-                                <p className="text-sm text-amber-800">{assignVehicleErrors.confirm_reassign}</p>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="confirm_reassign_vehicle"
-                                        checked={assignVehicleData.confirm_reassign}
-                                        onCheckedChange={(checked) => setAssignVehicleData('confirm_reassign', checked === true)}
-                                    />
-                                    <Label htmlFor="confirm_reassign_vehicle" className="text-sm font-normal">
-                                        Confirm reassign
-                                    </Label>
-                                </div>
-                            </div>
-                        )}
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={closeAssignVehicleDialog} disabled={assignVehicleProcessing}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={assignVehicleProcessing || !assignVehicleData.vehicle_id}>
-                                {assignVehicleProcessing ? 'Saving...' : 'Save'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            {assignVehicleDriver && (
+                <DriverAssignVehicleDialog key={assignVehicleDriver.id} driver={assignVehicleDriver} onClose={() => setAssignVehicleDriver(null)} />
+            )}
         </AppSidebarLayout>
     );
 }

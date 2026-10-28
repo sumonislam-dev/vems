@@ -7,6 +7,7 @@ use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -78,11 +79,25 @@ class RoleController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        $permissions = Permission::orderBy('name')->get();
-
         return Inertia::render('roles/create', [
-            'permissions' => $permissions,
+            'permissions' => $this->withGroups(Permission::orderBy('name')->get()),
         ]);
+    }
+
+    /**
+     * The permissions with their `group`, in the order of
+     * RolePermissionSeeder::permissionGroups(); unlisted ones last as "Other".
+     */
+    private function withGroups(Collection $permissions): Collection
+    {
+        $groups = RolePermissionSeeder::permissionGroups();
+        $groupOf = collect($groups)->flatMap(fn (array $names, string $group) => array_fill_keys($names, $group));
+        $position = array_flip(array_merge(...array_values($groups)));
+
+        return $permissions
+            ->sortBy(fn (Permission $permission) => $position[$permission->name] ?? PHP_INT_MAX)
+            ->values()
+            ->each(fn (Permission $permission) => $permission->setAttribute('group', $groupOf[$permission->name] ?? 'Other'));
     }
 
     /**
@@ -125,6 +140,7 @@ class RoleController extends Controller implements HasMiddleware
     public function show(Role $role)
     {
         $role->load(['permissions', 'users']);
+        $role->setRelation('permissions', $this->withGroups($role->permissions));
 
         return Inertia::render('roles/show', [
             'role' => $role,
@@ -137,11 +153,10 @@ class RoleController extends Controller implements HasMiddleware
     public function edit(Role $role)
     {
         $role->load('permissions');
-        $permissions = Permission::orderBy('name')->get();
 
         return Inertia::render('roles/edit', [
             'role' => $role,
-            'permissions' => $permissions,
+            'permissions' => $this->withGroups(Permission::orderBy('name')->get()),
         ]);
     }
 

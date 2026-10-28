@@ -6,10 +6,12 @@ use App\Models\Factory;
 use App\Models\Trip;
 use App\Models\TripPassenger;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function () {
     // Attendance events carry real GPS coordinates in these tests; stub
@@ -21,11 +23,11 @@ beforeEach(function () {
 
 function seedAttendanceOwnPermission(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'capture-own-attendance', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'manage-attendance', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'view-attendance-reports', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeAttendanceUser(string $suffix = '1'): User
@@ -385,4 +387,35 @@ it('filters the attendance reports list to a single user via user_id', function 
         ->where('records.data.0.user.id', $userOne->id)
         ->where('records.total', 1)
     );
+});
+
+it('shows the trip driver and check-in source in the report and export, and filters by source', function () {
+    Permission::firstOrCreate(['name' => 'export-attendance-reports', 'guard_name' => 'web']);
+    $viewer = makeAttendanceUser('report-viewer');
+    $viewer->givePermissionTo(['view-attendance-reports', 'export-attendance-reports']);
+
+    $driver = makeAttendanceUser('report-driver');
+    $driver->update(['user_type' => 'driver', 'name' => 'Rahim Driver']);
+    $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'ATT-1', 'driver_id' => $driver->id]);
+    $trip = makeInProgressTrip('report');
+    $trip->update(['vehicle_id' => $vehicle->id]);
+
+    $user = makeAttendanceUser('report-rider');
+    TripPassenger::create(['trip_id' => $trip->id, 'user_id' => $user->id, 'status' => 'pending']);
+    $this->actingAs($user)->post('/attendance/check-in', ['latitude' => 23.8759, 'longitude' => 90.3795])->assertRedirect();
+
+    $this->actingAs($viewer)->get('/attendance/reports')->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('records.data.0.trip_passenger_event.trip.driver.name', 'Rahim Driver')
+            ->where('records.data.0.source', 'self_service'));
+
+    $this->actingAs($viewer)->get('/attendance/reports?source=self_service')
+        ->assertInertia(fn ($page) => $page->where('records.total', 1));
+    $this->actingAs($viewer)->get('/attendance/reports?source=manual')
+        ->assertInertia(fn ($page) => $page->where('records.total', 0));
+
+    $csv = $this->actingAs($viewer)->get('/attendance/reports/export?format=csv')->assertOk()->streamedContent();
+    expect($csv)->toContain('Rahim Driver')->toContain('self_service');
+    $this->actingAs($viewer)->get('/attendance/reports/export?format=excel')->assertOk()->assertDownload();
+    $this->actingAs($viewer)->get('/attendance/reports/export?format=pdf')->assertOk()->assertHeader('content-type', 'application/pdf');
 });

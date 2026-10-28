@@ -1,18 +1,13 @@
 import { PageHeader } from '@/base-components/page-header';
 import { confirmDelete } from '@/components/confirm-dialog';
-import InputError from '@/components/input-error';
+import { DriverAssignVehicleDialog } from '@/components/driver-assign-vehicle-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { BreadcrumbItem, User } from '@/types';
-import { Head, router, useForm } from '@inertiajs/react';
-import axios from 'axios';
+import { Head, router } from '@inertiajs/react';
 import {
     ArrowLeft,
     Briefcase,
@@ -34,7 +29,7 @@ import {
     User as UserIcon,
     UserX,
 } from 'lucide-react';
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 
 type VehicleAssignment = {
     id: number;
@@ -69,15 +64,6 @@ interface ShowUserProps {
     recentTrips?: RecentTrip[];
 }
 
-type AssignableVehicle = {
-    id: number;
-    registration_number: string;
-    brand: string;
-    model: string;
-    current_driver_id: number | null;
-    current_driver_name: string | null;
-};
-
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Dashboard', href: '/dashboard' },
     { title: 'Users', href: '/users' },
@@ -89,54 +75,6 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
     const canAssignVehicles = can('assign-vehicles');
 
     const [assignVehicleOpen, setAssignVehicleOpen] = useState(false);
-    const [assignableVehicles, setAssignableVehicles] = useState<AssignableVehicle[]>([]);
-    const [loadingVehicles, setLoadingVehicles] = useState(false);
-
-    const {
-        data: assignVehicleData,
-        setData: setAssignVehicleData,
-        post: postAssignVehicle,
-        processing: assignVehicleProcessing,
-        errors: assignVehicleErrors,
-        reset: resetAssignVehicle,
-        clearErrors: clearAssignVehicleErrors,
-    } = useForm<{ driver_id: string; vehicle_id: string; confirm_reassign: boolean }>({
-        driver_id: String(user.id),
-        vehicle_id: '',
-        confirm_reassign: false,
-    });
-
-    const openAssignVehicleDialog = async () => {
-        setAssignVehicleData({ driver_id: String(user.id), vehicle_id: '', confirm_reassign: false });
-        clearAssignVehicleErrors();
-        setAssignVehicleOpen(true);
-
-        setLoadingVehicles(true);
-        try {
-            const response = await axios.get<AssignableVehicle[]>(route('drivers.assignable-vehicles', user.id));
-            setAssignableVehicles(response.data);
-        } catch {
-            // Non-critical: the select will just show no options if this fails.
-        } finally {
-            setLoadingVehicles(false);
-        }
-    };
-
-    const closeAssignVehicleDialog = () => {
-        setAssignVehicleOpen(false);
-        resetAssignVehicle();
-        clearAssignVehicleErrors();
-    };
-
-    const submitAssignVehicle = (submitEvent: FormEvent<HTMLFormElement>) => {
-        submitEvent.preventDefault();
-        if (!assignVehicleData.vehicle_id) return;
-
-        postAssignVehicle(route('vehicles.assign-driver', assignVehicleData.vehicle_id), {
-            preserveScroll: true,
-            onSuccess: () => closeAssignVehicleDialog(),
-        });
-    };
 
     const handleDelete = async () => {
         if (await confirmDelete(`Are you sure you want to delete ${user.name}?`)) {
@@ -214,7 +152,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                                   {
                                       label: 'Assign Vehicle',
                                       icon: <Car className="mr-2 h-4 w-4" />,
-                                      onClick: openAssignVehicleDialog,
+                                      onClick: () => setAssignVehicleOpen(true),
                                       variant: 'outline' as const,
                                   },
                               ]
@@ -925,61 +863,7 @@ export default function ShowUser({ user, vehicleAssignments = [], driverStats, r
                 </Card>
             </div>
 
-            <Dialog open={assignVehicleOpen} onOpenChange={(open) => !open && closeAssignVehicleDialog()}>
-                <DialogContent className="sm:max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>Assign Vehicle</DialogTitle>
-                        <DialogDescription>Choose a vehicle to assign to {user.name}.</DialogDescription>
-                    </DialogHeader>
-
-                    <form className="space-y-4" onSubmit={submitAssignVehicle}>
-                        <div className="space-y-2">
-                            <Label htmlFor="assign_vehicle_id">Vehicle</Label>
-                            <Select value={assignVehicleData.vehicle_id} onValueChange={(value) => setAssignVehicleData('vehicle_id', value)}>
-                                <SelectTrigger id="assign_vehicle_id" className="w-full">
-                                    <SelectValue placeholder={loadingVehicles ? 'Loading vehicles...' : 'Select a vehicle'} />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {assignableVehicles.map((vehicle) => (
-                                        <SelectItem key={vehicle.id} value={String(vehicle.id)}>
-                                            {vehicle.registration_number} - {vehicle.brand} {vehicle.model}
-                                            {vehicle.current_driver_id && vehicle.current_driver_id !== user.id
-                                                ? ` (currently: ${vehicle.current_driver_name})`
-                                                : ''}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <InputError message={assignVehicleErrors.vehicle_id ?? assignVehicleErrors.driver_id} />
-                        </div>
-
-                        {assignVehicleErrors.confirm_reassign && (
-                            <div className="space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3">
-                                <p className="text-sm text-amber-800">{assignVehicleErrors.confirm_reassign}</p>
-                                <div className="flex items-center gap-2">
-                                    <Checkbox
-                                        id="confirm_reassign_vehicle"
-                                        checked={assignVehicleData.confirm_reassign}
-                                        onCheckedChange={(checked) => setAssignVehicleData('confirm_reassign', checked === true)}
-                                    />
-                                    <Label htmlFor="confirm_reassign_vehicle" className="text-sm font-normal">
-                                        Confirm reassign
-                                    </Label>
-                                </div>
-                            </div>
-                        )}
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={closeAssignVehicleDialog} disabled={assignVehicleProcessing}>
-                                Cancel
-                            </Button>
-                            <Button type="submit" disabled={assignVehicleProcessing || !assignVehicleData.vehicle_id}>
-                                {assignVehicleProcessing ? 'Saving...' : 'Save'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            {assignVehicleOpen && <DriverAssignVehicleDialog driver={user} onClose={() => setAssignVehicleOpen(false)} />}
         </AppSidebarLayout>
     );
 }

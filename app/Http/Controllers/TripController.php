@@ -161,8 +161,12 @@ class TripController extends Controller implements HasMiddleware
             'actor:id,name',
         ]);
 
+        // A correction is stored as a replacement event of the corrected type
+        // (TripPassenger::correctPassengerEvent()), marked by its source
         if ($request->filled('event_type')) {
-            $query->where('event_type', $request->event_type);
+            $request->event_type === 'correction'
+                ? $query->where('source', TripPassengerEvent::CORRECTION_SOURCE)
+                : $query->where('event_type', $request->event_type);
         }
 
         if ($request->filled('validity')) {
@@ -208,7 +212,7 @@ class TripController extends Controller implements HasMiddleware
             'check_out' => TripPassengerEvent::where('event_type', 'check_out')->count(),
             'no_show' => TripPassengerEvent::where('event_type', 'no_show')->count(),
             'voided' => TripPassengerEvent::where('is_valid', false)->count(),
-            'corrections' => TripPassengerEvent::where('event_type', 'correction')->count(),
+            'corrections' => TripPassengerEvent::where('source', TripPassengerEvent::CORRECTION_SOURCE)->count(),
         ];
 
         // Unique sources for filter dropdown
@@ -266,6 +270,9 @@ class TripController extends Controller implements HasMiddleware
             $search = $request->search;
             $query->where(function ($q) use ($search) {
                 $q->where('trip_number', 'like', "%{$search}%")
+                    ->orWhere('description', 'like', "%{$search}%")
+                    ->orWhere('start_location', 'like', "%{$search}%")
+                    ->orWhere('end_location', 'like', "%{$search}%")
                     ->orWhereHas('vehicle', function ($vq) use ($search) {
                         $vq->where('registration_number', 'like', "%{$search}%");
                     })
@@ -642,6 +649,7 @@ class TripController extends Controller implements HasMiddleware
             'departments',
             'feedbackEntries' => fn ($query) => $query->visibleTo(auth()->user())->latest(),
         ]);
+        $trip->feedbackEntries->each->hideAnonymousSubmitterFrom(auth()->user());
 
         $vehicleAssignments = $trip->vehicleAssignments()
             ->with(['vehicle', 'assignedByUser'])

@@ -32,6 +32,12 @@ class VendorController extends Controller implements HasMiddleware
      */
     public function index(Request $request)
     {
+        $validated = $request->validate([
+            'filters' => 'nullable|array',
+            'filters.status' => 'nullable|array',
+            'filters.status.*' => 'in:active,inactive',
+        ]);
+
         $query = Vendor::with([
             'contactPersons:id,vendor_id',
             'vehicles:id,vendor_id',
@@ -49,9 +55,9 @@ class VendorController extends Controller implements HasMiddleware
             });
         }
 
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+        // Filter by status (the data table sends filters[status][]=<value>)
+        if (! empty($validated['filters']['status'])) {
+            $query->whereIn('status', $validated['filters']['status']);
         }
 
         // Sorting
@@ -83,7 +89,7 @@ class VendorController extends Controller implements HasMiddleware
         return Inertia::render('vendors/index', [
             'vendors' => $vendors,
             'stats' => $stats,
-            'queryParams' => $request->only(['search', 'sort', 'direction', 'status', 'per_page']),
+            'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
         ]);
     }
 

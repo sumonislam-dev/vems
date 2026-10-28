@@ -1,9 +1,12 @@
 <?php
 
 use App\Models\Trip;
+use App\Models\TripFeedback;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * The trips index table (base-data-table.tsx) sends its "Filters" dropdown
@@ -14,9 +17,9 @@ use Spatie\Permission\Models\Permission;
  */
 function seedTripIndexFilterPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeTripIndexFilterUser(): User
@@ -202,4 +205,43 @@ it('keeps pick-up and drop-off as distinct schedule_type values from each other 
                 && ! $ids->contains($pickAndDrop->id);
         })
     );
+});
+
+// The trips list and trip page read the driver from the vehicle (trips.driver_id
+// is never filled) and the feedback from feedback_entries.
+it('sends the vehicle driver and the feedback entries the trip page shows', function () {
+    seedTripIndexFilterPermissions();
+    $user = makeTripIndexFilterUser();
+    $user->givePermissionTo('view-trips');
+    $driver = makeTripIndexFilterUser();
+    $driver->update(['user_type' => 'driver', 'name' => 'Karim Driver']);
+    $vehicle = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'DHK-1234', 'driver_id' => $driver->id]);
+    $trip = makeTripIndexFilterTrip($user, ['status' => 'completed', 'vehicle_id' => $vehicle->id]);
+    TripFeedback::create([
+        'trip_id' => $trip->id, 'submitted_by' => $user->id, 'type' => 'feedback', 'category' => 'other',
+        'subject' => 'Smooth ride', 'description' => 'All good.', 'priority' => 'low', 'status' => 'open',
+    ]);
+
+    $this->actingAs($user)->get("/trips/{$trip->id}")->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('trip.vehicle.driver.name', 'Karim Driver')
+            ->where('trip.feedback_entries.0.subject', 'Smooth ride'));
+
+    $this->actingAs($user)->get('/trips')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('trips.data.0.vehicle.driver.name', 'Karim Driver'));
+});
+
+it('searches trips by description and location', function () {
+    seedTripIndexFilterPermissions();
+    $user = makeTripIndexFilterUser();
+    $user->givePermissionTo('view-trips');
+    $byDescription = makeTripIndexFilterTrip($user, ['description' => 'Audit visit to Gazipur']);
+    $byLocation = makeTripIndexFilterTrip($user, ['end_location' => 'Savar EPZ']);
+    makeTripIndexFilterTrip($user);
+
+    $ids = fn (string $search) => collect($this->actingAs($user)->get(route('trips.index', ['search' => $search]))->assertOk()
+        ->viewData('page')['props']['trips']['data'])->pluck('id')->all();
+
+    expect($ids('Gazipur'))->toBe([$byDescription->id])
+        ->and($ids('Savar'))->toBe([$byLocation->id]);
 });

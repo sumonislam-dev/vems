@@ -284,7 +284,7 @@ it('only lets the importer give roles they may manage, never super-admin or driv
 
     expect(User::whereIn('username', ['would_be_super', 'would_be_driver'])->exists())->toBeFalse()
         ->and($created->hasRole('transport-manager'))->toBeTrue()
-        ->and($created->user_type)->toBe('transport_manager');
+        ->and($created->user_type)->toBe('employee');
 });
 
 it('does not let a zone-limited importer use other zones or ALL', function () {
@@ -341,4 +341,26 @@ it('reports an unexpected failure mid-import instead of a server error', functio
     ])->assertRedirect()
         ->assertSessionHas('error', fn ($message) => str_contains($message, 'Import stopped by an unexpected error after 0 user(s)')
             && ! str_contains($message, 'Unknown column'));
+});
+
+it('exports only the users matching the table filters, as CSV, Excel or PDF', function () {
+    seedUserExportImportPermissions();
+    $actor = makeUserExportImportActor(['view-users', 'export-users']);
+    foreach (['active' => 'Still Working', 'inactive' => 'Has Left'] as $status => $name) {
+        User::create([
+            'name' => $name,
+            'username' => 'export_filter_'.$status,
+            'user_type' => 'employee',
+            'status' => $status,
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+    $csv = $this->actingAs($actor)->get(route('users.export', ['filters' => ['status' => ['inactive']]]))->assertOk()->getContent();
+    expect($csv)->toContain('Has Left')->not->toContain('Still Working');
+
+    $this->actingAs($actor)->get(route('users.export', ['format' => 'excel']))->assertOk()
+        ->assertDownload();
+    $this->actingAs($actor)->get(route('users.export', ['format' => 'pdf']))->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
 });

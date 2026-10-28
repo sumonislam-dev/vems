@@ -110,7 +110,8 @@ class TripPassengerController extends Controller implements HasMiddleware
         $this->ensureEventBelongsToPassenger($tripPassenger, $tripPassengerEvent);
 
         $validated = $request->validate([
-            'event_type' => 'required|in:check_in,check_out,no_show,manual_override',
+            // Only the types the passenger's status follows (see TripPassenger::syncSnapshotFromEvents())
+            'event_type' => 'required|in:check_in,check_out,no_show',
             'event_time' => 'required|date',
             'stop_id' => 'nullable|exists:stops,id',
             'latitude' => 'nullable|numeric|between:-90,90',
@@ -126,7 +127,7 @@ class TripPassengerController extends Controller implements HasMiddleware
             [
                 'event_type' => $validated['event_type'],
                 'reason' => $validated['reason'],
-                'source' => 'admin_correction',
+                'source' => TripPassengerEvent::CORRECTION_SOURCE,
             ]
         ));
 

@@ -178,7 +178,7 @@ it('accepts the support rental type the form offers', function () {
     $vendor = Vendor::create(['name' => 'Support Vendor', 'status' => 'active']);
     $driver = User::create([
         'name' => 'Support Driver', 'username' => 'support_drv_'.uniqid(),
-        'email' => 'support_drv_'.uniqid().'@example.com', 'user_type' => 'driver',
+        'email' => 'support_drv_'.uniqid().'@example.com', 'user_type' => 'driver', 'driver_status' => 'available',
         'status' => 'active', 'password' => Hash::make('password'),
     ]);
 

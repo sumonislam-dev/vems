@@ -19,8 +19,9 @@ class ProfileUpdateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
 
+            // Optional: accounts are created by an admin, often without one
             'email' => [
-                'required',
+                'nullable',
                 'string',
                 'lowercase',
                 'email',

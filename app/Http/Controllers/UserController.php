@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\UsersExport;
 use App\Exports\UsersImportTemplate;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
 use App\Services\UserSaver;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -21,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
@@ -71,7 +74,7 @@ class UserController extends Controller implements HasMiddleware
             'total_trips_completed',
             'average_rating',
         ])
-            ->where('user_type', 'employee')
+            ->nonDrivers()
             ->with(['department:id,name', 'zone:id,name', 'accessZones:id,name', 'roles:id,name']);
 
         // Apply search
@@ -149,7 +152,7 @@ class UserController extends Controller implements HasMiddleware
                 'blood_group' => $user->blood_group,
                 'phone' => $user->personal_phone ?? $user->official_phone,
                 'roles' => $user->roles,
-                'is_driver' => in_array($user->user_type, ['driver', 'transport_manager']),
+                'is_driver' => $user->user_type === 'driver',
                 'created_at' => $user->created_at,
                 'image' => $user->image,
                 'photo' => $user->photo,
@@ -163,7 +166,7 @@ class UserController extends Controller implements HasMiddleware
         // Get filter options
         $departments = Department::active()->get(['id', 'name']);
         $zones = Zone::selectableBy();
-        $userTypes = User::distinct()->pluck('user_type')->filter()->values()->toArray();
+        $userTypes = User::nonDrivers()->distinct()->pluck('user_type')->filter()->values()->toArray();
         $statuses = User::distinct()->pluck('status')->filter()->values()->toArray();
         $bloodGroups = User::distinct()->pluck('blood_group')->filter()->values()->toArray();
         $roles = Role::pluck('name')->toArray();
@@ -172,9 +175,9 @@ class UserController extends Controller implements HasMiddleware
         $userStats = User::selectRaw(
             'COUNT(*) as total, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
-            'SUM(CASE WHEN user_type IN (?, ?) THEN 1 ELSE 0 END) as drivers, '.
+            'SUM(CASE WHEN user_type = ? THEN 1 ELSE 0 END) as drivers, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive',
-            ['active', 'driver', 'transport_manager', 'inactive']
+            ['active', 'driver', 'inactive']
         )->first();
 
         $stats = [
@@ -214,13 +217,6 @@ class UserController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Heavy Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -239,7 +235,7 @@ class UserController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
         ]);
     }
@@ -327,13 +323,6 @@ class UserController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Heavy Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -369,7 +358,7 @@ class UserController extends Controller implements HasMiddleware
             'roles' => $roles,
             'userRoles' => $userRoles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
             'statusOptions' => $statusOptions,
             'driverStatusOptions' => $driverStatusOptions,
@@ -381,6 +370,22 @@ class UserController extends Controller implements HasMiddleware
      */
     public function update(UpdateUserRequest $request, User $user, UserSaver $saver): RedirectResponse
     {
+        // Setting Status to inactive/suspended here is a deactivation too
+        $newStatus = $request->validated()['status'] ?? null;
+        if ($newStatus && $newStatus !== 'active' && $user->status === 'active'
+            && $blocked = $saver->switchOffBlocker($request->user(), $user, 'deactivate')) {
+            throw ValidationException::withMessages(['status' => $blocked]);
+        }
+
+        // Another super admin can take the role away, but not its holder:
+        // so there is always at least one super admin
+        $roleIds = $request->validated()['roles'] ?? null;
+        if (is_array($roleIds) && $request->user()->is($user) && $user->hasRole('super-admin')
+            && $request->user()->can('manage-user-roles')
+            && ! Role::whereIn('id', $roleIds)->where('name', 'super-admin')->exists()) {
+            throw ValidationException::withMessages(['roles' => "You can't remove your own super admin role."]);
+        }
+
         // All-or-nothing: the record and its roles/zones/related rows
         return DB::transaction(function () use ($request, $user, $saver) {
             $validated = $request->validated();
@@ -417,8 +422,12 @@ class UserController extends Controller implements HasMiddleware
     /**
      * Remove the specified user from storage.
      */
-    public function destroy(User $user, UserSaver $saver): RedirectResponse
+    public function destroy(Request $request, User $user, UserSaver $saver): RedirectResponse
     {
+        if ($protected = $saver->switchOffBlocker($request->user(), $user, 'delete')) {
+            return redirect()->back()->with('error', $protected);
+        }
+
         $blocked = match ($saver->deletionBlocker($user)) {
             'active_trips' => 'Cannot delete user with active trips. Please complete or reassign trips first.',
             'requested_trips' => 'Cannot delete user: they have requested trips on record. Deactivate the account instead.',
@@ -442,8 +451,12 @@ class UserController extends Controller implements HasMiddleware
      * from the confirm dialog's checkbox (see UserObserver), not automatic —
      * unlike a status change made through the full edit form.
      */
-    public function deactivate(Request $request, User $user): RedirectResponse
+    public function deactivate(Request $request, User $user, UserSaver $saver): RedirectResponse
     {
+        if ($blocked = $saver->switchOffBlocker($request->user(), $user, 'deactivate')) {
+            return redirect()->back()->with('error', $blocked);
+        }
+
         $validated = $request->validate([
             'remove_from_groups' => 'boolean',
         ]);
@@ -534,11 +547,10 @@ class UserController extends Controller implements HasMiddleware
         $roleMapping = [
             'employee' => 'employee',
             'driver' => 'driver',
-            'transport_manager' => 'transport-manager',
             'admin' => 'admin',
         ];
 
-        // Handing out a management role (admin, transport-manager) is itself
+        // Handing out the admin role is itself
         // role management; without it the user starts as a plain employee
         if (! in_array($userType, ['employee', 'driver'], true) && ! auth()->user()?->can('manage-user-roles')) {
             $userType = 'employee';
@@ -555,14 +567,14 @@ class UserController extends Controller implements HasMiddleware
     }
 
     /**
-     * Export the (filtered) employee list as CSV.
+     * Export the (filtered) user list (everyone but drivers) as CSV.
      */
     public function export(UserIndexRequest $request)
     {
         $validated = $request->validated();
 
         $query = User::with(['department:id,name'])
-            ->where('user_type', 'employee');
+            ->nonDrivers();
 
         if (! empty($validated['search'])) {
             $search = $validated['search'];
@@ -612,26 +624,28 @@ class UserController extends Controller implements HasMiddleware
             $query->orderBy($validated['sort'], $validated['direction']);
         }
 
-        $users = $query->get();
+        $format = $validated['format'] ?? 'csv';
         $timestamp = now()->format('Y-m-d_H-i-s');
 
-        $output = fopen('php://temp', 'r+');
-        fputcsv($output, ['ID', 'Name', 'Username', 'Employee ID', 'Designation', 'Email', 'User Type', 'Status', 'Department', 'Phone', 'Created At']);
+        if ($format === 'excel') {
+            return Excel::download(new UsersExport($query), "users_export_{$timestamp}.xlsx");
+        }
 
-        foreach ($users as $user) {
-            fputcsv($output, [
-                $user->id,
-                $user->name,
-                $user->username,
-                $user->employee_id,
-                $user->designation,
-                $user->email,
-                $user->user_type,
-                $user->status,
-                $user->department->name ?? '',
-                $user->personal_phone ?? $user->official_phone,
-                $user->created_at->format('Y-m-d H:i:s'),
-            ]);
+        $rows = $query->get()->map(fn (User $user) => UsersExport::row($user));
+
+        if ($format === 'pdf') {
+            return Pdf::loadView('exports.users-pdf', [
+                'headings' => UsersExport::HEADINGS,
+                'rows' => $rows,
+                'exportDate' => now()->format('F j, Y \a\t g:i A'),
+            ])->setPaper('A4', 'landscape')->download("users_export_{$timestamp}.pdf");
+        }
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, UsersExport::HEADINGS);
+
+        foreach ($rows as $row) {
+            fputcsv($output, $row);
         }
 
         rewind($output);

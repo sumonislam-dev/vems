@@ -8,8 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { formatDate } from '@/lib/utils';
-import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
-import { Head, router } from '@inertiajs/react';
+import { BreadcrumbItem, ColumnFilter, DataTableColumn, type SharedData } from '@/types';
+import { Head, router, usePage } from '@inertiajs/react';
 import { Download, Edit, Eye, Mail, Plus, Shield, Trash2, Upload, User, UserCheck, UserX } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
@@ -76,6 +76,8 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
     const can = useCan();
     const canEdit = can('edit-users');
     const canDelete = can('delete-users');
+    // Your own account can't be deactivated or deleted (the server refuses too)
+    const currentUserId = usePage<SharedData>().props.auth.user.id;
 
     const handleRowClick = (user: User) => {
         router.visit(route('users.show', user.id));
@@ -259,6 +261,7 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                             </Button>
                         )}
                         {canEdit &&
+                            row.id !== currentUserId &&
                             (row.status === 'active' ? (
                                 <Button
                                     variant="ghost"
@@ -286,7 +289,7 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                                     <UserCheck className="h-4 w-4" />
                                 </Button>
                             ))}
-                        {canDelete && (
+                        {canDelete && row.id !== currentUserId && (
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -308,7 +311,7 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                 ),
             },
         ],
-        [canEdit, canDelete],
+        [canEdit, canDelete, currentUserId],
     );
 
     // Define filters
@@ -373,12 +376,6 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     description="Manage users and permissions"
                     actions={[
                         {
-                            label: 'Export Users',
-                            variant: 'outline',
-                            href: route('users.export'),
-                            permission: 'export-users',
-                        },
-                        {
                             label: 'Import Users',
                             variant: 'outline',
                             icon: <Upload className="mr-2 h-4 w-4" />,
@@ -420,7 +417,8 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search users by name, email, username, or department..."
-                    exportable={true}
+                    exportable={can('export-users')}
+                    exportUrl={route('users.export')}
                     onRowClick={handleRowClick}
                     emptyMessage="No users found. Add your first user to get started."
                     showSerialColumn

@@ -76,6 +76,15 @@ const STATUS_OPTIONS = [
     { label: 'Inactive', value: 'false' },
 ];
 
+// Maintenance / Out of Service starts a downtime automatically (VehicleObserver)
+const CONDITION_OPTIONS = [
+    { label: 'Available', value: 'available' },
+    { label: 'Assigned', value: 'assigned' },
+    { label: 'In Transit', value: 'in_transit' },
+    { label: 'Maintenance', value: 'maintenance' },
+    { label: 'Out of Service', value: 'out_of_service' },
+];
+
 const INSURANCE_TYPE_OPTIONS = [
     { label: 'Select Insurance Type', value: 'none' },
     { label: '1st Party', value: '1st_party' },
@@ -140,6 +149,8 @@ interface VehicleFormBodyProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
+    /** Routes for the regular pick & drop route */
+    routes: { id: number; name: string }[];
     /** The vehicle being edited (adds "View current file" links) */
     vehicle?: Vehicle;
     submitLabel: string;
@@ -155,6 +166,7 @@ export function VehicleFormBody({
     vendors,
     drivers,
     zones,
+    routes,
     vehicle,
     submitLabel,
     submitIcon,
@@ -285,6 +297,23 @@ export function VehicleFormBody({
                         options={STATUS_OPTIONS}
                         error={errors.is_active || undefined}
                         required
+                    />
+                    <FormSelect
+                        label="Condition"
+                        name="status"
+                        value={data.status}
+                        onChange={(value) => setData('status', value)}
+                        options={CONDITION_OPTIONS}
+                        error={errors.status || undefined}
+                    />
+                    <SearchableSelect
+                        label="Pick & Drop Route"
+                        name="default_route_id"
+                        value={data.default_route_id}
+                        onChange={(value) => setData('default_route_id', value)}
+                        options={[{ label: 'No route', value: 'none' }, ...toOptions(routes)]}
+                        error={errors.default_route_id || undefined}
+                        placeholder="Search route..."
                     />
                 </Section>
 

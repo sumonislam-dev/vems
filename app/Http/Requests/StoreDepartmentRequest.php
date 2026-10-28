@@ -21,7 +21,7 @@ class StoreDepartmentRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $budget = $this->input('budget_allocation');
-        if (!is_array($budget)) {
+        if (! is_array($budget)) {
             $this->merge(['budget_allocation' => null]);
         }
     }
@@ -47,6 +47,8 @@ class StoreDepartmentRequest extends FormRequest
 
             // Status
             'is_active' => ['required', 'boolean'],
+            // How the department's staff record attendance (left out = unchanged / the column default)
+            'attendance_mode' => ['sometimes', 'in:biometric,self_service'],
 
             // Budget (optional JSON field)
             'budget_allocation' => ['nullable', 'array'],

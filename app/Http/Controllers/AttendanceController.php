@@ -222,6 +222,8 @@ class AttendanceController extends Controller implements HasMiddleware
         $query->orderBy($sortColumn, $sortDirection);
 
         $records = $query->paginate($request->get('per_page', 20))->withQueryString();
+        AttendanceReportExport::attachTripDrivers($records->getCollection())
+            ->each(fn (AttendanceRecord $record) => $record->setAttribute('source', $record->checkInSource()));
 
         $stats = [
             'total' => AttendanceRecord::count(),
@@ -247,8 +249,8 @@ class AttendanceController extends Controller implements HasMiddleware
         $query = AttendanceRecord::with([
             'user:id,name,employee_id,department_id',
             'user.department:id,name',
-            'tripPassengerEvent.trip:id,trip_number,trip_type,driver_id',
-            'tripPassengerEvent.trip.driver:id,name',
+            // The trip's driver is filled in by AttendanceReportExport::attachTripDrivers()
+            'tripPassengerEvent.trip:id,trip_number,trip_type,driver_id,vehicle_id,scheduled_date',
             'events' => fn ($q) => $q->where('is_valid', true)->orderBy('event_time')->with('factory:id,name,address'),
         ]);
 
@@ -268,8 +270,9 @@ class AttendanceController extends Controller implements HasMiddleware
             $query->where('user_id', $request->user_id);
         }
 
+        // The events carry the source (see AttendanceRecord::checkInSource())
         if ($request->filled('source')) {
-            $query->where('source', $request->source);
+            $query->whereHas('events', fn ($q) => $q->where('event_type', 'check_in')->where('is_valid', true)->where('source', $request->source));
         }
 
         if ($request->filled('used_transport')) {
@@ -306,7 +309,7 @@ class AttendanceController extends Controller implements HasMiddleware
             fputcsv($handle, AttendanceReportExport::headingList());
 
             $query->chunk(200, function ($records) use ($handle) {
-                foreach ($records as $record) {
+                foreach (AttendanceReportExport::attachTripDrivers($records) as $record) {
                     fputcsv($handle, AttendanceReportExport::mapRow($record));
                 }
             });
@@ -319,7 +322,7 @@ class AttendanceController extends Controller implements HasMiddleware
 
     private function exportPdf($query, string $timestamp)
     {
-        $records = $query->get();
+        $records = AttendanceReportExport::attachTripDrivers($query->get());
 
         $pdf = Pdf::loadView('exports.attendance-report-pdf', [
             'headings' => AttendanceReportExport::headingList(),

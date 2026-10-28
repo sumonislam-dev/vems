@@ -320,3 +320,81 @@ it('denies assigning or resolving complaints to users without the required permi
     $this->actingAs($unauthorized)->post("/complaints/{$feedback->id}/assign", ['assigned_to' => $submitter->id])->assertForbidden();
     $this->actingAs($unauthorized)->post("/complaints/{$feedback->id}/resolve", ['resolution_notes' => 'x'])->assertForbidden();
 });
+
+function makeFeedbackEntry(User $submitter, array $attributes = []): TripFeedback
+{
+    return TripFeedback::create([
+        'trip_id' => makeFeedbackTrip($submitter)->id,
+        'submitted_by' => $submitter->id,
+        'type' => 'complaint',
+        'category' => 'other',
+        'subject' => 'Test',
+        'description' => 'Test description.',
+        'priority' => 'low',
+        'status' => 'open',
+        ...$attributes,
+    ]);
+}
+
+it('resolves an open complaint without assigning it first', function () {
+    seedFeedbackPermissions();
+    $manager = makeFeedbackUser('manager-6');
+    $manager->givePermissionTo('resolve-complaints');
+    $feedback = makeFeedbackEntry(makeFeedbackUser('owner-6'));
+
+    $this->actingAs($manager)->post("/complaints/{$feedback->id}/resolve", ['resolution_notes' => 'Spoke to the driver.'])
+        ->assertSessionHas('success');
+
+    expect($feedback->fresh()->status)->toBe('resolved');
+});
+
+it('closes an in-review complaint without resolving it', function () {
+    seedFeedbackPermissions();
+    $manager = makeFeedbackUser('manager-7');
+    $manager->givePermissionTo('resolve-complaints');
+    $feedback = makeFeedbackEntry(makeFeedbackUser('owner-7'), ['status' => 'in_review']);
+
+    $this->actingAs($manager)->post("/complaints/{$feedback->id}/close")->assertSessionHas('success');
+
+    expect($feedback->fresh()->status)->toBe('closed')
+        ->and($feedback->fresh()->closed_at)->not->toBeNull();
+});
+
+it('filters the complaints list by the table filters and sorts by subject', function () {
+    seedFeedbackPermissions();
+    $manager = makeFeedbackUser('manager-8');
+    $manager->givePermissionTo('view-complaints');
+    $submitter = makeFeedbackUser('owner-8');
+    $open = makeFeedbackEntry($submitter, ['subject' => 'B open complaint']);
+    $feedback = makeFeedbackEntry($submitter, ['subject' => 'A feedback', 'type' => 'feedback', 'status' => 'closed', 'priority' => 'high']);
+
+    $ids = fn (array $query) => collect($this->actingAs($manager)->get(route('complaints.index', $query))->assertOk()
+        ->viewData('page')['props']['items']['data'])->pluck('id')->all();
+
+    expect($ids(['filters' => ['type' => ['feedback']]]))->toBe([$feedback->id])
+        ->and($ids(['filters' => ['status' => ['open', 'in_review']]]))->toBe([$open->id])
+        ->and($ids(['filters' => ['priority' => ['high']]]))->toBe([$feedback->id])
+        ->and($ids(['filters' => ['category' => ['other']]]))->toHaveCount(2)
+        ->and($ids(['sort' => 'subject', 'direction' => 'asc']))->toBe([$feedback->id, $open->id]);
+});
+
+it('does not send an anonymous submitter to anyone but the submitter', function () {
+    seedFeedbackPermissions();
+    $manager = makeFeedbackUser('manager-9');
+    $manager->givePermissionTo('view-complaints');
+    $submitter = makeFeedbackUser('owner-9');
+    $submitter->givePermissionTo('view-own-complaints');
+    $feedback = makeFeedbackEntry($submitter, ['is_anonymous' => true]);
+
+    $listRow = $this->actingAs($manager)->get('/complaints')->assertOk()->viewData('page')['props']['items']['data'][0];
+    $item = $this->actingAs($manager)->get("/complaints/{$feedback->id}")->assertOk()->viewData('page')['props']['item'];
+
+    foreach ([$listRow, $item] as $payload) {
+        expect($payload)->not->toHaveKey('submitted_by')
+            ->and($payload['submitter'] ?? null)->toBeNull();
+    }
+    expect(json_encode($item))->not->toContain($submitter->name);
+
+    $ownItem = $this->actingAs($submitter)->get("/complaints/{$feedback->id}")->assertOk()->viewData('page')['props']['item'];
+    expect($ownItem['submitted_by'])->toBe($submitter->id);
+});

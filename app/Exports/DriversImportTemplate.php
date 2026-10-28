@@ -58,7 +58,7 @@ class DriversImportTemplate implements WithMultipleSheets
         $departments = Department::where('is_active', true)->orderBy('name')->get(['code', 'name']);
 
         $zoneRows = $zones->map(fn ($zone) => [$zone->code, $zone->name])->all();
-        if (Zone::selectableIds($this->user) === null) {
+        if (Zone::canGrantAllZones($this->user)) {
             $zoneRows[] = [DriversImport::ALL_ZONES, 'All zones'];
         }
 

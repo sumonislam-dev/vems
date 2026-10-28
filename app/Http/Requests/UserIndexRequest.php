@@ -24,12 +24,12 @@ class UserIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'sort' => ['nullable', 'string', 'in:id,name,email,username,user_type,status,department,blood_group,created_at'],
+            'sort' => ['nullable', 'string', 'in:id,name,email,username,user_type,status,department,area,blood_group,created_at'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'filters' => ['nullable', 'array'],
             'filters.user_type' => ['nullable', 'array'],
-            'filters.user_type.*' => ['string', 'in:employee,driver,transport_manager,admin'],
+            'filters.user_type.*' => ['string', 'in:employee,driver,admin'],
             'filters.status' => ['nullable', 'array'],
             'filters.status.*' => ['string', 'in:active,inactive,suspended'],
             'filters.department_id' => ['nullable', 'array'],
