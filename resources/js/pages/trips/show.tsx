@@ -61,7 +61,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 type AttendanceMode = 'check_in' | 'check_out' | 'no_show' | 'correct';
 
 type AttendanceFormShape = {
-    event_type: 'check_in' | 'check_out' | 'no_show' | 'manual_override';
+    event_type: 'check_in' | 'check_out' | 'no_show';
     event_time: string;
     stop_id: string;
     latitude: string;
@@ -1317,7 +1317,6 @@ export default function ShowTrip({
                                     <option value="check_in">Check In</option>
                                     <option value="check_out">Check Out</option>
                                     <option value="no_show">No Show</option>
-                                    <option value="manual_override">Manual Override</option>
                                 </select>
                                 <InputError message={errors.event_type} />
                             </div>

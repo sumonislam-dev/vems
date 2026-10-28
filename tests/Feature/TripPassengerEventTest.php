@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Seed the permissions required for attendance tests.
@@ -13,10 +14,10 @@ use Spatie\Permission\Models\Permission;
  */
 function seedAttendancePermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'capture-passenger-attendance', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'correct-passenger-attendance', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 /**
@@ -29,7 +30,7 @@ function assignVehicleWithDriver(User $driver): Vehicle
     return Vehicle::create([
         'brand' => 'Toyota',
         'model' => 'Hiace',
-        'registration_number' => 'VEH-' . uniqid(),
+        'registration_number' => 'VEH-'.uniqid(),
         'driver_id' => $driver->id,
         'is_active' => true,
     ]);
@@ -261,6 +262,23 @@ it('voids the original event and supersedes it when an attendance correction is 
         'is_valid' => 0,
         'void_reason' => 'Corrected delayed sync timestamp',
     ]);
+
+    // The Passenger Events log counts and filters corrections by their source
+    Permission::firstOrCreate(['name' => 'view-trips', 'guard_name' => 'web']);
+    $requester->givePermissionTo('view-trips');
+    $this->actingAs($requester)->get('/trips/passenger-events')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('stats.corrections', 1));
+    $this->actingAs($requester)->get('/trips/passenger-events?event_type=correction')->assertOk()
+        ->assertInertia(fn ($page) => $page->where('events.total', 1)->where('events.data.0.id', $replacementEvent->id));
+
+    // "Manual override" isn't a correction type: the status ignores it, so
+    // it would reset the passenger to pending
+    $this->actingAs($requester)->post("/trips/{$trip->id}/passengers/{$tripPassenger->id}/events/{$replacementEvent->id}/correct", [
+        'event_type' => 'manual_override',
+        'event_time' => '2026-05-03 08:08:00',
+        'reason' => 'Override',
+    ])->assertSessionHasErrors('event_type');
+    expect($tripPassenger->fresh()->status)->toBe('boarded');
 });
 
 it('denies access to check-in endpoint for users without capture-passenger-attendance permission', function () {

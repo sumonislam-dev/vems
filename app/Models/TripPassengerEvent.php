@@ -10,6 +10,13 @@ class TripPassengerEvent extends Model
 {
     use HasFactory;
 
+    /**
+     * Source of the replacement event a correction creates (the original is
+     * voided). Corrections are found by this, not by event_type: the
+     * 'correction' type is never written.
+     */
+    public const CORRECTION_SOURCE = 'admin_correction';
+
     protected $fillable = [
         'trip_passenger_id',
         'trip_id',

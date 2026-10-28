@@ -471,6 +471,8 @@ The original entry is kept and marked **Voided**, so the history is never lost.
 **Passenger Events** (Operations → **Passenger Events**) lists check-ins,
 check-outs and no-shows across all trips. Click **"Show"** to open the
 filters (Event Type, Validity, Source, Trip, dates, area), then **"Apply Filters"**.
+The **"Corrections"** card counts corrected entries; choose Event Type
+**"Correction"** to list them.
 
 ## 5.6 Handle feedback and complaints
 

@@ -161,8 +161,12 @@ class TripController extends Controller implements HasMiddleware
             'actor:id,name',
         ]);
 
+        // A correction is stored as a replacement event of the corrected type
+        // (TripPassenger::correctPassengerEvent()), marked by its source
         if ($request->filled('event_type')) {
-            $query->where('event_type', $request->event_type);
+            $request->event_type === 'correction'
+                ? $query->where('source', TripPassengerEvent::CORRECTION_SOURCE)
+                : $query->where('event_type', $request->event_type);
         }
 
         if ($request->filled('validity')) {
@@ -208,7 +212,7 @@ class TripController extends Controller implements HasMiddleware
             'check_out' => TripPassengerEvent::where('event_type', 'check_out')->count(),
             'no_show' => TripPassengerEvent::where('event_type', 'no_show')->count(),
             'voided' => TripPassengerEvent::where('is_valid', false)->count(),
-            'corrections' => TripPassengerEvent::where('event_type', 'correction')->count(),
+            'corrections' => TripPassengerEvent::where('source', TripPassengerEvent::CORRECTION_SOURCE)->count(),
         ];
 
         // Unique sources for filter dropdown

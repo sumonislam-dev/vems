@@ -71,7 +71,9 @@ export function AttendanceHistoryCard({
 
     const attendanceEvents = useMemo(() => {
         return allAttendanceEvents.filter(({ passenger, event }) => {
-            if (filterEventTypes.length > 0 && !filterEventTypes.includes(event.event_type)) return false;
+            // "Correction" matches the replacement events a correction creates (source admin_correction)
+            const types = event.source === 'admin_correction' ? [event.event_type, 'correction'] : [event.event_type];
+            if (filterEventTypes.length > 0 && !types.some((type) => filterEventTypes.includes(type))) return false;
             if (filterValidity === 'valid' && !event.is_valid) return false;
             if (filterValidity === 'voided' && event.is_valid) return false;
             if (filterSources.length > 0 && !filterSources.includes(event.source ?? '')) return false;
@@ -159,7 +161,7 @@ export function AttendanceHistoryCard({
                             <div>
                                 <p className="mb-2.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Event Type</p>
                                 <div className="space-y-2">
-                                    {(['check_in', 'check_out', 'no_show', 'manual_override', 'correction'] as const).map((type) => (
+                                    {(['check_in', 'check_out', 'no_show', 'correction'] as const).map((type) => (
                                         <label key={type} className="flex cursor-pointer items-center gap-2">
                                             <Checkbox
                                                 id={`filter_event_${type}`}
