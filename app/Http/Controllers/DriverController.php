@@ -22,11 +22,13 @@ use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Maatwebsite\Excel\Facades\Excel;
 use Spatie\Permission\Models\Role;
+use Throwable;
 
 class DriverController extends Controller implements HasMiddleware
 {
@@ -241,8 +243,19 @@ class DriverController extends Controller implements HasMiddleware
             'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
         ]);
 
+        // A big file can take longer than the default 30 s PHP limit
+        set_time_limit(300);
+
         $import = new DriversImport($request->user());
-        Excel::import($import, $request->file('file'));
+
+        try {
+            Excel::import($import, $request->file('file'));
+        } catch (Throwable $e) {
+            // Rows before the failure are saved (each row commits on its own)
+            Log::error('Driver import stopped.', ['error' => $e->getMessage(), 'imported' => $import->imported, 'user_id' => $request->user()->id]);
+
+            return back()->with('error', "Import stopped by an unexpected error after {$import->imported} driver(s) were imported. Check the driver list before importing the file again.");
+        }
 
         if ($import->failures()->isNotEmpty()) {
             $errors = $import->failures()->take(5)->map(

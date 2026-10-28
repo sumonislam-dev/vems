@@ -7,7 +7,6 @@ use App\Models\User;
 use App\Models\Vendor;
 use Closure;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Validator;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
@@ -102,7 +101,7 @@ class DriversImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHead
                 'driver_status' => $row['driver_status'] ?: 'available',
                 'status' => $row['status'] ?: 'active',
                 'email_verified_at' => now(),
-                'password' => Hash::make(Str::random(32)),
+                'password' => $this->unknownPasswordHash(),
             ]);
 
             $driver->assignRole('driver');
