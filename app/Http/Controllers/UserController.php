@@ -215,13 +215,6 @@ class UserController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Heavy Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -240,7 +233,7 @@ class UserController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
         ]);
     }
@@ -328,13 +321,6 @@ class UserController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Heavy Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -370,7 +356,7 @@ class UserController extends Controller implements HasMiddleware
             'roles' => $roles,
             'userRoles' => $userRoles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
             'statusOptions' => $statusOptions,
             'driverStatusOptions' => $driverStatusOptions,

@@ -8,6 +8,7 @@ use App\Models\Vendor;
 use Closure;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\SkipsFailures;
@@ -42,8 +43,6 @@ class DriversImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHead
         'blood_group', 'joining_date', 'present_address', 'emergency_contact_name',
         'emergency_phone', 'driver_status', 'status',
     ];
-
-    public const LICENSE_CLASSES = ['A', 'B', 'C', 'D'];
 
     public const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
@@ -154,7 +153,7 @@ class DriversImport implements SkipsEmptyRows, SkipsOnFailure, ToModel, WithHead
             'zone_code' => ['required', $this->zoneRule()],
             'department_code' => ['nullable', $this->departmentRule()],
             'driving_license_no' => ['required', 'string', 'max:50', 'unique:users,driving_license_no'],
-            'license_class' => ['required', 'in:'.implode(',', self::LICENSE_CLASSES)],
+            'license_class' => ['required', Rule::in(array_keys(User::LICENSE_CLASSES))],
             'license_issue_date' => ['nullable', 'date_format:Y-m-d', 'before_or_equal:today'],
             'license_expiry_date' => ['required', 'date_format:Y-m-d'],
             'blood_group' => ['nullable', 'in:'.implode(',', self::BLOOD_GROUPS)],

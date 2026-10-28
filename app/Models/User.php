@@ -31,6 +31,23 @@ class User extends Authenticatable implements MustVerifyEmail
             ->useLogName('users');
     }
 
+    /** Driving licence classes a driver may hold: code => description */
+    public const LICENSE_CLASSES = [
+        'A' => 'Motorcycle',
+        'B' => 'Car/Light Vehicle',
+        'C' => 'Medium Vehicle',
+        'D' => 'Heavy Vehicle/Bus',
+    ];
+
+    /** LICENSE_CLASSES as select options for the user and driver forms */
+    public static function licenseClassOptions(): array
+    {
+        return collect(self::LICENSE_CLASSES)
+            ->map(fn (string $label, string $code) => ['value' => $code, 'label' => "Class {$code} - {$label}"])
+            ->values()
+            ->all();
+    }
+
     /**
      * The attributes that are mass assignable.
      *

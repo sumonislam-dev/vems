@@ -398,14 +398,6 @@ class DriverController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Medium Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Heavy Vehicle/Bus'],
-            ['value' => 'E', 'label' => 'Class E - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -423,7 +415,7 @@ class DriverController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'roles' => $roles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
             'defaults' => [
                 'user_type' => 'driver',
@@ -538,14 +530,6 @@ class DriverController extends Controller implements HasMiddleware
             ['value' => 'driver', 'label' => 'Driver'],
         ];
 
-        $licenseClasses = [
-            ['value' => 'A', 'label' => 'Class A - Motorcycle'],
-            ['value' => 'B', 'label' => 'Class B - Car/Light Vehicle'],
-            ['value' => 'C', 'label' => 'Class C - Medium Vehicle'],
-            ['value' => 'D', 'label' => 'Class D - Heavy Vehicle/Bus'],
-            ['value' => 'E', 'label' => 'Class E - Professional'],
-        ];
-
         $bloodGroups = [
             ['value' => 'A+', 'label' => 'A+'],
             ['value' => 'A-', 'label' => 'A-'],
@@ -567,7 +551,7 @@ class DriverController extends Controller implements HasMiddleware
             'roles' => $roles,
             'userRoles' => $userRoles,
             'userTypes' => $userTypes,
-            'licenseClasses' => $licenseClasses,
+            'licenseClasses' => User::licenseClassOptions(),
             'bloodGroups' => $bloodGroups,
         ]);
     }
@@ -617,7 +601,7 @@ class DriverController extends Controller implements HasMiddleware
         };
 
         if ($blocked) {
-            return redirect()->back()->withErrors(['error' => $blocked]);
+            return redirect()->back()->with('error', $blocked);
         }
 
         $saver->delete($driver);

@@ -546,11 +546,12 @@ licence badge: **Valid**, **Expiring Soon** (within 30 days), **Expired** or
 1. Click **"Add Driver"**.
 2. Fill in **"Full Name"**, optional **"Username"** (left blank, it is made
    from the email or name; see [7.1](#71-users)), and the zone access.
-3. In **"Driver Information"**: **"Vendor"**, **"License Class"** (A–D),
+3. In **"Driver Information"**: **"Vendor"**, **"License Class"** (A Motorcycle,
+   B Car/Light Vehicle, C Medium Vehicle, D Heavy Vehicle/Bus),
    **"Driving License Number"** and **"License Expiry Date"** are required.
    Upload the **"License Scan"** if you have it.
 4. In **"Additional Details"**: **"Personal Phone"** and **"WhatsApp ID"** are
-   required (even though they have no *), and **"Status"**.
+   required, and **"Status"**.
 5. Enter a **"Password"** and **"Confirm Password"** and give them to the driver.
 6. Click **"Create Driver"** (it becomes active once all required fields are filled).
 
@@ -577,7 +578,8 @@ they log in.
   Status"**, choose **"Driver Status"** (Available, On Trip, On Leave,
   Inactive, Suspended) and click **"Update N Driver(s)"**.
 - **Assign a vehicle:** click **"Assign Vehicle"** on the driver page and pick
-  the vehicle. If the vehicle already has a driver, that driver is replaced.
+  the vehicle. If the vehicle already has a driver, tick **"Replace <name>"**
+  to confirm: that driver is taken off the vehicle.
 - **Export:** use **"Export"** above the table.
 
 ## 5.9 Vendors (service providers)
@@ -863,9 +865,6 @@ These are current gaps in VEMS. Work around them as described until they are fix
 - **Trips can't be deleted**; cancel them instead.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone
   can use Check In / Check Out.
-- On the **Edit Driver** page, choose only **Available, On Leave, Inactive or
-  Suspended** as driver status, and only licence classes **A–D**. The other
-  options are refused.
 
 ## 8.5 For administrators: server commands
 

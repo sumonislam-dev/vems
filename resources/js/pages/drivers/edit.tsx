@@ -9,7 +9,7 @@ import { ArrowLeft, Car, CheckCircle, Save, Users } from 'lucide-react';
 import { FormEventHandler } from 'react';
 
 /**
- * Edit User Page
+ * Edit Driver Page
  *
  * Features:
  * - Comprehensive form validation
@@ -147,8 +147,9 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
     const driverStatusOptions = [
         { label: 'Available', value: 'available' },
         { label: 'On Trip', value: 'on_trip' },
-        { label: 'Off Duty', value: 'off_duty' },
-        { label: 'Maintenance', value: 'maintenance' },
+        { label: 'On Leave', value: 'on_leave' },
+        { label: 'Inactive', value: 'inactive' },
+        { label: 'Suspended', value: 'suspended' },
     ];
 
     // Handle field changes
@@ -173,15 +174,15 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
 
     return (
         <AppLayout>
-            <Head title={`Edit User - ${user.name as string}`} />
+            <Head title={`Edit Driver - ${user.name as string}`} />
 
             <div className="container mx-auto space-y-6 px-4 py-8">
                 <PageHeader
-                    title={`Edit User - ${user.name as string}`}
-                    description="Update user information and settings"
+                    title={`Edit Driver - ${user.name as string}`}
+                    description="Update driver information and settings"
                     actions={[
                         {
-                            label: 'Back to Users',
+                            label: 'Back to Drivers',
                             icon: <ArrowLeft className="h-4 w-4" />,
                             href: route('drivers.index'),
                             variant: 'outline',
@@ -200,8 +201,8 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
                                             <Users className="h-4 w-4 text-primary" />
                                         </div>
                                         <div>
-                                            <CardTitle className="text-lg">Edit User</CardTitle>
-                                            <CardDescription className="text-sm">Update user information and settings</CardDescription>
+                                            <CardTitle className="text-lg">Edit Driver</CardTitle>
+                                            <CardDescription className="text-sm">Update driver information and settings</CardDescription>
                                         </div>
                                     </div>
                                     {/* Compact Progress */}
@@ -646,7 +647,7 @@ export default function EditUser({ user, zones, currentZoneIds, hasAllZoneAccess
                             </Button>
                             <Button type="submit" size="sm" disabled={processing}>
                                 <Save className="h-4 w-4" />
-                                Update User
+                                Update Driver
                             </Button>
                         </div>
                     </BaseForm>

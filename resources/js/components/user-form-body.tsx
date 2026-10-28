@@ -354,6 +354,7 @@ export function UserFormBody({
                                 onChange={(value) => handleFieldChange('personal_phone', value)}
                                 error={getFieldError('personal_phone')}
                                 placeholder="+880 1711 000000"
+                                required
                             />
 
                             <FormField
@@ -363,6 +364,7 @@ export function UserFormBody({
                                 onChange={(value) => handleFieldChange('whatsapp_id', value)}
                                 error={getFieldError('whatsapp_id')}
                                 placeholder="+880 1711 000000"
+                                required
                             />
                         </div>
                     </div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use App\Models\Zone;
 use App\Support\UsernameGenerator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -59,7 +60,7 @@ class StoreUserRequest extends FormRequest
             'passport_number' => ['nullable', 'string', 'max:50'],
             'driving_license_no' => ['nullable', 'string', 'max:50'],
             'driving_license_file' => ['nullable', 'file', 'mimes:jpeg,png,jpg,pdf', 'max:2048'],
-            'license_class' => ['nullable', 'string', 'in:A,B,C,D'],
+            'license_class' => ['nullable', 'string', Rule::in(array_keys(User::LICENSE_CLASSES))],
             'license_issue_date' => ['nullable', 'date', 'before_or_equal:today'],
             'license_expiry_date' => ['nullable', 'date', 'after:license_issue_date'],
 
@@ -86,6 +87,7 @@ class StoreUserRequest extends FormRequest
             // Address Information
             'present_address' => ['nullable', 'string'],
             'permanent_address' => ['nullable', 'string'],
+            'area' => ['nullable', 'string', 'max:255'],
 
             // Driver Specific Fields
             'driver_status' => ['nullable', 'string', 'in:available,on_trip,on_leave,inactive,suspended'],
