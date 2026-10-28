@@ -82,7 +82,7 @@ arrive, click **"Resend verification email"**.
 1. Click your name at the bottom of the left menu (or your avatar at the top right).
 2. Click **"Settings"**.
 3. Choose a page on the left:
-   - **"Profile"**: change your **"Name"** and **"Email address"**, then click **"Save"**. (Changing your email asks you to verify the new one.)
+   - **"Profile"**: change your **"Name"** and **"Email address"** (optional), then click **"Save"**. (A new email address must be verified.)
    - **"Password"**: enter your **"Current password"**, a **"New password"** and **"Confirm password"**, then click **"Save password"**.
    - **"Appearance"**: choose **"Light"**, **"Dark"** or **"System"**.
 
@@ -648,8 +648,11 @@ the **"Export"** button where shown. Reports only include your zones.
 | **Department Usage** | Trips, shared-trip headcount, passengers, no-shows and kilometres per department. |
 
 **Attendance Reports** (Operations → **Attendance Reports**, management and
-admins) shows everyone's attendance: filter by **"User"**, dates, **"Used
-Transport"** and **"Anomaly"**, choose columns with **"Columns"**, and export.
+admins) shows everyone's attendance: filter by **"User"**, dates, **"Source"**
+(how the check-in was made: Self Service, Biometric Device or Manual), **"Used
+Transport"** and **"Anomaly"**, and choose columns with **"Columns"**. The
+**"Driver"** column shows who drove the trip the person rode on. Admins can
+**"Export"** (CSV, Excel or PDF) what is on screen.
 Click the eye icon to see a day's events. Admins can **"Correct"** an event's
 time (a **"Reason"** is required; the original is kept).
 
@@ -725,7 +728,8 @@ To protect against lock-outs:
 - A super admin can't remove their **own** super-admin role; another super
   admin has to. So there is always at least one super admin.
 
-**"Export Users"** downloads all non-driver accounts as a CSV file.
+**"Export"** (above the table) downloads the non-driver accounts that match
+the current search and filters, as CSV, Excel or PDF.
 
 ## 7.2 User groups
 

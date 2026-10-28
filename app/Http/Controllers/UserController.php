@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\UsersExport;
 use App\Exports\UsersImportTemplate;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
@@ -12,6 +13,7 @@ use App\Models\User;
 use App\Models\Vendor;
 use App\Models\Zone;
 use App\Services\UserSaver;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controllers\HasMiddleware;
@@ -622,26 +624,28 @@ class UserController extends Controller implements HasMiddleware
             $query->orderBy($validated['sort'], $validated['direction']);
         }
 
-        $users = $query->get();
+        $format = $validated['format'] ?? 'csv';
         $timestamp = now()->format('Y-m-d_H-i-s');
 
-        $output = fopen('php://temp', 'r+');
-        fputcsv($output, ['ID', 'Name', 'Username', 'Employee ID', 'Designation', 'Email', 'User Type', 'Status', 'Department', 'Phone', 'Created At']);
+        if ($format === 'excel') {
+            return Excel::download(new UsersExport($query), "users_export_{$timestamp}.xlsx");
+        }
 
-        foreach ($users as $user) {
-            fputcsv($output, [
-                $user->id,
-                $user->name,
-                $user->username,
-                $user->employee_id,
-                $user->designation,
-                $user->email,
-                $user->user_type,
-                $user->status,
-                $user->department->name ?? '',
-                $user->personal_phone ?? $user->official_phone,
-                $user->created_at->format('Y-m-d H:i:s'),
-            ]);
+        $rows = $query->get()->map(fn (User $user) => UsersExport::row($user));
+
+        if ($format === 'pdf') {
+            return Pdf::loadView('exports.users-pdf', [
+                'headings' => UsersExport::HEADINGS,
+                'rows' => $rows,
+                'exportDate' => now()->format('F j, Y \a\t g:i A'),
+            ])->setPaper('A4', 'landscape')->download("users_export_{$timestamp}.pdf");
+        }
+
+        $output = fopen('php://temp', 'r+');
+        fputcsv($output, UsersExport::HEADINGS);
+
+        foreach ($rows as $row) {
+            fputcsv($output, $row);
         }
 
         rewind($output);

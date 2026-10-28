@@ -4,17 +4,18 @@ namespace App\Exports;
 
 use App\Models\AttendanceEvent;
 use App\Models\AttendanceRecord;
+use App\Models\Trip;
+use App\Services\Reports\TripDrivers;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 
-class AttendanceReportExport implements FromQuery, WithHeadings, WithMapping, ShouldAutoSize
+class AttendanceReportExport implements FromQuery, ShouldAutoSize, WithHeadings, WithMapping
 {
-    public function __construct(private $query)
-    {
-    }
+    public function __construct(private $query) {}
 
     public function query()
     {
@@ -26,9 +27,33 @@ class AttendanceReportExport implements FromQuery, WithHeadings, WithMapping, Sh
         return self::headingList();
     }
 
+    /** Called per chunk before map() */
+    public function prepareRows($rows)
+    {
+        return self::attachTripDrivers($rows);
+    }
+
     public function map($record): array
     {
         return self::mapRow($record);
+    }
+
+    /**
+     * Set each record's trip `driver` relation to whoever drove it
+     * (trips.driver_id is never filled; see TripDrivers). Pass a batch, so
+     * the lookup runs once per page or chunk.
+     *
+     * @param  iterable<AttendanceRecord>  $records
+     * @return Collection<int, AttendanceRecord>
+     */
+    public static function attachTripDrivers(iterable $records): Collection
+    {
+        $records = collect($records);
+        $trips = $records->map(fn (AttendanceRecord $record) => $record->tripPassengerEvent?->trip)->filter()->values();
+        $drivers = new TripDrivers($trips);
+        $trips->each(fn (Trip $trip) => $trip->setRelation('driver', $drivers->for($trip)?->setVisible(['id', 'name'])));
+
+        return $records;
     }
 
     public static function headingList(): array
@@ -95,7 +120,7 @@ class AttendanceReportExport implements FromQuery, WithHeadings, WithMapping, Sh
             $trip?->trip_type,
         ], $breakSlot(0), $breakSlot(1), $breakSlot(2), [
             $trip?->trip_number,
-            $record->source,
+            $record->checkInSource(),
             $record->has_anomaly ? 'Yes' : 'No',
         ]);
     }

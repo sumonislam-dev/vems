@@ -30,7 +30,9 @@ class ProfileController extends Controller
     {
         $request->user()->fill($request->validated());
 
-        if ($request->user()->isDirty('email')) {
+        // A new address must be verified; removing it doesn't lock the user
+        // out (with no email there is nothing to verify)
+        if ($request->user()->isDirty('email') && $request->user()->email !== null) {
             $request->user()->email_verified_at = null;
         }
 

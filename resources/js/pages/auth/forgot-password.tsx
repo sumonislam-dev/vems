@@ -53,6 +53,10 @@ export default function ForgotPassword({ status }: { status?: string }) {
                     </div>
                 </form>
 
+                <p className="text-center text-sm text-muted-foreground">
+                    No email address on your account? Ask your administrator to set a new password.
+                </p>
+
                 <div className="space-x-1 text-center text-sm text-muted-foreground">
                     <span>Or, return to</span>
                     <TextLink href={route('login')}>log in</TextLink>

@@ -342,3 +342,25 @@ it('reports an unexpected failure mid-import instead of a server error', functio
         ->assertSessionHas('error', fn ($message) => str_contains($message, 'Import stopped by an unexpected error after 0 user(s)')
             && ! str_contains($message, 'Unknown column'));
 });
+
+it('exports only the users matching the table filters, as CSV, Excel or PDF', function () {
+    seedUserExportImportPermissions();
+    $actor = makeUserExportImportActor(['view-users', 'export-users']);
+    foreach (['active' => 'Still Working', 'inactive' => 'Has Left'] as $status => $name) {
+        User::create([
+            'name' => $name,
+            'username' => 'export_filter_'.$status,
+            'user_type' => 'employee',
+            'status' => $status,
+            'password' => Hash::make('password'),
+        ]);
+    }
+
+    $csv = $this->actingAs($actor)->get(route('users.export', ['filters' => ['status' => ['inactive']]]))->assertOk()->getContent();
+    expect($csv)->toContain('Has Left')->not->toContain('Still Working');
+
+    $this->actingAs($actor)->get(route('users.export', ['format' => 'excel']))->assertOk()
+        ->assertDownload();
+    $this->actingAs($actor)->get(route('users.export', ['format' => 'pdf']))->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+});

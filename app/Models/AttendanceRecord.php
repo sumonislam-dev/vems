@@ -55,6 +55,16 @@ class AttendanceRecord extends Model
     }
 
     /**
+     * How the day was captured: the source of its first valid check-in
+     * (self_service, biometric_device or manual). The record's own `source`
+     * column is never filled; the events carry it.
+     */
+    public function checkInSource(): ?string
+    {
+        return $this->events->where('is_valid', true)->firstWhere('event_type', 'check_in')?->source;
+    }
+
+    /**
      * §5: allowed only when no open record exists for today (status absent,
      * modeled here as the default 'checked_out' on a freshly created row, or
      * checked_out from a prior correction reopen).

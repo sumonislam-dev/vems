@@ -376,12 +376,6 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     description="Manage users and permissions"
                     actions={[
                         {
-                            label: 'Export Users',
-                            variant: 'outline',
-                            href: route('users.export'),
-                            permission: 'export-users',
-                        },
-                        {
                             label: 'Import Users',
                             variant: 'outline',
                             icon: <Upload className="mr-2 h-4 w-4" />,
@@ -423,7 +417,8 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     filterOptions={filterOptions}
                     filters={filters}
                     searchPlaceholder="Search users by name, email, username, or department..."
-                    exportable={true}
+                    exportable={can('export-users')}
+                    exportUrl={route('users.export')}
                     onRowClick={handleRowClick}
                     emptyMessage="No users found. Add your first user to get started."
                     showSerialColumn
