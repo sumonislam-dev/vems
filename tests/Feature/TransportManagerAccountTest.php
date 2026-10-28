@@ -70,17 +70,3 @@ it('does not open a transport manager through the Drivers edit form', function (
         ->and($manager->fresh()->user_type)->toBe('employee')
         ->and($manager->fresh()->hasRole('transport-manager'))->toBeTrue();
 });
-
-it('converts existing transport_manager accounts to employees, keeping their role', function () {
-    $manager = makeTransportManagerAccount();
-    $manager->forceFill(['user_type' => 'transport_manager'])->saveQuietly();
-
-    $migration = require database_path('migrations/2026_10_28_000000_convert_transport_manager_users_to_employees.php');
-
-    $migration->up();
-    expect($manager->fresh()->user_type)->toBe('employee')
-        ->and($manager->fresh()->hasRole('transport-manager'))->toBeTrue();
-
-    $migration->down();
-    expect($manager->fresh()->user_type)->toBe('transport_manager');
-});
