@@ -50,7 +50,7 @@ trait ResolvesUserImportCodes
             ->mapWithKeys(fn ($id, $code) => [strtolower($code) => $id])
             ->all();
 
-        $this->canGrantAllZones = Zone::selectableIds($importer) === null;
+        $this->canGrantAllZones = Zone::canGrantAllZones($importer);
         $this->zones = Zone::whereIn('id', Zone::selectableBy($importer)->pluck('id'))
             ->pluck('id', 'code')
             ->mapWithKeys(fn ($id, $code) => [strtolower($code) => $id])

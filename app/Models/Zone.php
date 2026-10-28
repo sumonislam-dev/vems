@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Closure;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -191,6 +192,32 @@ class Zone extends Model
     public static function selectableIds(?User $user = null): ?array
     {
         return static::accessIds($user);
+    }
+
+    /**
+     * Whether $user may give someone "All Zones" access: only someone who
+     * has it themselves. Uses their real access, so an all-zones admin who
+     * has narrowed their view with the zone switcher still can.
+     */
+    public static function canGrantAllZones(?User $user = null): bool
+    {
+        return static::realAccessIds($user) === null;
+    }
+
+    /**
+     * The validation rule for a zone_access field (User/Driver forms):
+     * "all" only for someone allowed to grant it, or when $editing already
+     * has all-zone access (saving their form unchanged).
+     *
+     * @return array<mixed>
+     */
+    public static function accessRule(?User $editing = null): array
+    {
+        return ['required', 'in:all,specific', function (string $attribute, mixed $value, Closure $fail) use ($editing) {
+            if ($value === 'all' && ! static::canGrantAllZones() && ! ($editing && static::realAccessIds($editing) === null)) {
+                $fail('You are not allowed to grant access to all zones.');
+            }
+        }];
     }
 
     /**

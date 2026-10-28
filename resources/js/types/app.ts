@@ -13,6 +13,7 @@ export interface Auth {
     roles?: string[];
     availableZones?: AvailableZone[];
     activeZoneId?: number | null;
+    canGrantAllZones?: boolean;
 }
 
 export interface NotificationItem {

@@ -1,4 +1,6 @@
 import { FormMultiSelect } from '@/base-components/base-form';
+import { type SharedData } from '@/types';
+import { usePage } from '@inertiajs/react';
 
 const ALL_ZONES_VALUE = 'all';
 
@@ -15,10 +17,14 @@ interface ZoneAccessSelectProps {
  * "All Zones" for unrestricted access. Picking "All Zones" is exclusive —
  * it replaces any specific selections — and picking a specific zone while
  * "All Zones" is selected drops it. Admins/Super Admins get full zone
- * access via their role regardless of this setting.
+ * access via their role regardless of this setting. "All Zones" is only
+ * offered to someone who has all-zone access themselves (or kept when the
+ * user being edited already has it); the server checks the same rule.
  */
 export function ZoneAccessSelect({ zoneAccess, zoneIds, onChange, zoneOptions, error }: ZoneAccessSelectProps) {
-    const options = [{ label: 'All Zones', value: ALL_ZONES_VALUE }, ...zoneOptions];
+    const { auth } = usePage<SharedData>().props;
+    const offerAllZones = auth.canGrantAllZones || zoneAccess === 'all';
+    const options = offerAllZones ? [{ label: 'All Zones', value: ALL_ZONES_VALUE }, ...zoneOptions] : zoneOptions;
     const value = zoneAccess === 'all' ? [ALL_ZONES_VALUE] : zoneIds;
 
     const handleChange = (values: string[]) => {
