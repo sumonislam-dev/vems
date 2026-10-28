@@ -154,32 +154,24 @@ class UserSeeder extends Seeder
             );
         }
 
-        // Create Transport Manager
+        // Create Transport Manager: an office employee with the transport-manager role (doesn't drive)
         $transportManager = User::updateOrCreate(
             ['email' => 'transport.manager@vems.com'],
             [
                 'name' => 'Sarah Transport Manager',
                 'username' => 'sarah.manager',
                 'employee_id' => 'TM001',
-                'user_type' => 'transport_manager',
+                'user_type' => 'employee',
                 'department_id' => $this->departmentId('ENL'), // Engagement and Logistics
                 'official_phone' => '+8801711000002',
                 'personal_phone' => '+8801855000002',
                 'emergency_phone' => '+8801999000002',
                 'emergency_contact_name' => 'Manager Emergency Contact',
                 'emergency_contact_relation' => 'Spouse',
-                'driving_license_no' => 'DL-TM-001',
-                'license_class' => 'B',
-                'license_issue_date' => '2018-03-15',
-                'license_expiry_date' => '2026-03-15',
-                'driver_status' => 'available',
                 'present_address' => 'Transport Manager Residence, Chittagong',
                 'permanent_address' => 'Transport Manager Permanent, Chittagong',
                 'joining_date' => '2021-02-15',
                 'blood_group' => 'A+',
-                'total_distance_covered' => 25000.75,
-                'total_trips_completed' => 200,
-                'average_rating' => 4.8,
                 'status' => 'active',
                 'zone_id' => Zone::idForCity('Chittagong'),
                 'email_verified_at' => now(),

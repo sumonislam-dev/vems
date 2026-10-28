@@ -131,9 +131,9 @@ export default function CreateUser({ departments, zones, defaultZoneId, vendors,
 
     const handleUserTypeChange = (value: string) => {
         handleFieldChange('user_type', value);
-        setShowDriverFields(['driver', 'transport_manager'].includes(value));
+        setShowDriverFields(value === 'driver');
 
-        if (!['driver', 'transport_manager'].includes(value)) {
+        if (value !== 'driver') {
             setData((prev) => ({
                 ...prev,
                 driving_license_no: '',

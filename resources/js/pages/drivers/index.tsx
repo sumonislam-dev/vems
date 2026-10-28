@@ -64,7 +64,6 @@ interface PaginatedUsers {
 interface UsersPageProps {
     users: PaginatedUsers;
     filterOptions: {
-        user_types?: string[];
         statuses?: string[];
         driver_statuses?: string[];
         roles?: string[];
@@ -424,15 +423,6 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
     const filters: ColumnFilter[] = useMemo(
         () => [
             {
-                key: 'user_type',
-                label: 'User Type',
-                type: 'multiselect',
-                options: (filterOptions.user_types || []).map((type) => ({
-                    label: type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' '),
-                    value: type,
-                })),
-            },
-            {
                 key: 'driver_status',
                 label: 'Driver Status',
                 type: 'multiselect',
@@ -497,7 +487,6 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
             },
         ],
         [
-            filterOptions.user_types,
             filterOptions.driver_statuses,
             filterOptions.statuses,
             filterOptions.departments,
@@ -515,7 +504,7 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
             <div className="space-y-6">
                 <PageHeader
                     title="Drivers"
-                    description="Manage drivers and transport managers"
+                    description="Manage drivers"
                     actions={[
                         {
                             label: 'Import Drivers',

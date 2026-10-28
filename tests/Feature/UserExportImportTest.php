@@ -284,7 +284,7 @@ it('only lets the importer give roles they may manage, never super-admin or driv
 
     expect(User::whereIn('username', ['would_be_super', 'would_be_driver'])->exists())->toBeFalse()
         ->and($created->hasRole('transport-manager'))->toBeTrue()
-        ->and($created->user_type)->toBe('transport_manager');
+        ->and($created->user_type)->toBe('employee');
 });
 
 it('does not let a zone-limited importer use other zones or ALL', function () {

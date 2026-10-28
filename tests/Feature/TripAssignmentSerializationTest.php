@@ -6,6 +6,7 @@ use App\Models\Vehicle;
 use App\Models\VehicleRoute;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 /**
  * Regression coverage for a bug found while auditing trips/show.tsx's type
@@ -22,9 +23,9 @@ use Spatie\Permission\Models\Permission;
  */
 function seedAssignmentSerializationPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'view-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeAssignmentSerializationUser(string $username): User
@@ -34,7 +35,7 @@ function makeAssignmentSerializationUser(string $username): User
         'name' => 'User '.$username,
         'username' => $username,
         'email' => $username.'@example.com',
-        'user_type' => 'transport_manager',
+        'user_type' => 'employee',
         'status' => 'active',
         'password' => Hash::make('password'),
     ]);

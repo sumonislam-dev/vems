@@ -94,7 +94,7 @@ class UpdateUserRequest extends FormRequest
             'license_expiry_date' => ['nullable', 'date', 'after:license_issue_date'],
 
             // User Classification
-            'user_type' => ['nullable', 'string', 'in:employee,driver,transport_manager,admin'],
+            'user_type' => ['nullable', 'string', 'in:employee,driver,admin'],
             'department_id' => ['nullable', 'exists:departments,id'],
             'zone_access' => Zone::accessRule($user),
             'zone_ids' => ['nullable', 'array'],
@@ -161,8 +161,8 @@ class UpdateUserRequest extends FormRequest
     public function withValidator($validator)
     {
         $validator->after(function ($validator) {
-            // If user is driver or transport_manager, driving license is required
-            if (in_array($this->user_type, ['driver', 'transport_manager'])) {
+            // A driver needs a driving license
+            if ($this->user_type === 'driver') {
                 if (empty($this->driving_license_no)) {
                     $validator->errors()->add('driving_license_no', 'Driving license number is required for drivers.');
                 }

@@ -240,8 +240,7 @@ class User extends Authenticatable implements MustVerifyEmail
     // Scopes
     public function scopeDrivers($query)
     {
-        return $query->where('user_type', 'driver')
-            ->orWhere('user_type', 'transport_manager');
+        return $query->where('user_type', 'driver');
     }
 
     public function scopeEmployees($query)
@@ -269,7 +268,7 @@ class User extends Authenticatable implements MustVerifyEmail
     // Helper Methods
     public function isDriver(): bool
     {
-        return in_array($this->user_type, ['driver', 'transport_manager'])
+        return $this->user_type === 'driver'
                && ! empty($this->driving_license_no);
     }
 
@@ -278,9 +277,10 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->user_type === 'employee';
     }
 
+    // Transport managers are employees with the transport-manager role
     public function isTransportManager(): bool
     {
-        return $this->user_type === 'transport_manager';
+        return $this->hasRole('transport-manager');
     }
 
     public function isAdmin(): bool

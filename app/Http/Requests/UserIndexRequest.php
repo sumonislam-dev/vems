@@ -29,7 +29,7 @@ class UserIndexRequest extends FormRequest
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'filters' => ['nullable', 'array'],
             'filters.user_type' => ['nullable', 'array'],
-            'filters.user_type.*' => ['string', 'in:employee,driver,transport_manager,admin'],
+            'filters.user_type.*' => ['string', 'in:employee,driver,admin'],
             'filters.status' => ['nullable', 'array'],
             'filters.status.*' => ['string', 'in:active,inactive,suspended'],
             'filters.department_id' => ['nullable', 'array'],

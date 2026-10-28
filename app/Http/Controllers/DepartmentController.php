@@ -151,7 +151,7 @@ class DepartmentController extends Controller implements HasMiddleware
             'active_users' => $department->users->where('status', 'active')->count(),
             'drivers' => $department->users->filter(function ($user) {
                 return $user->roles->contains('name', 'Driver') ||
-                       in_array($user->user_type, ['driver', 'transport_manager']);
+                       $user->user_type === 'driver';
             })->count(),
             'managers' => $department->users->filter(function ($user) {
                 return $user->roles->contains('name', 'Manager');

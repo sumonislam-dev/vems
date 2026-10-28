@@ -82,7 +82,7 @@ class SendExpiryReminders extends Command
     private function collectDrivingLicences(): void
     {
         User::withoutGlobalScope('zone')
-            ->whereIn('user_type', ['driver', 'transport_manager'])
+            ->where('user_type', 'driver')
             ->where('status', 'active')
             ->whereNotNull('license_expiry_date')
             ->get()

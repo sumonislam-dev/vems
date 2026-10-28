@@ -40,7 +40,7 @@ function makeTripStateUser(string $username): User
         'name' => 'Trip Manager '.$username,
         'username' => $username,
         'email' => $username.'@example.com',
-        'user_type' => 'transport_manager',
+        'user_type' => 'employee',
         'status' => 'active',
         'password' => Hash::make('password'),
     ]);

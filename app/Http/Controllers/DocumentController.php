@@ -25,7 +25,7 @@ class DocumentController extends Controller
     public function user(Request $request, User $user, string $field): StreamedResponse
     {
         $viewer = $request->user();
-        $isDriver = in_array($user->user_type, ['driver', 'transport_manager']);
+        $isDriver = $user->user_type === 'driver';
 
         abort_unless(
             $viewer->is($user) || $viewer->can('view-users') || ($isDriver && $viewer->can('view-drivers')),

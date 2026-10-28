@@ -149,7 +149,7 @@ class UserController extends Controller implements HasMiddleware
                 'blood_group' => $user->blood_group,
                 'phone' => $user->personal_phone ?? $user->official_phone,
                 'roles' => $user->roles,
-                'is_driver' => in_array($user->user_type, ['driver', 'transport_manager']),
+                'is_driver' => $user->user_type === 'driver',
                 'created_at' => $user->created_at,
                 'image' => $user->image,
                 'photo' => $user->photo,
@@ -172,9 +172,9 @@ class UserController extends Controller implements HasMiddleware
         $userStats = User::selectRaw(
             'COUNT(*) as total, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, '.
-            'SUM(CASE WHEN user_type IN (?, ?) THEN 1 ELSE 0 END) as drivers, '.
+            'SUM(CASE WHEN user_type = ? THEN 1 ELSE 0 END) as drivers, '.
             'SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as inactive',
-            ['active', 'driver', 'transport_manager', 'inactive']
+            ['active', 'driver', 'inactive']
         )->first();
 
         $stats = [
@@ -534,11 +534,10 @@ class UserController extends Controller implements HasMiddleware
         $roleMapping = [
             'employee' => 'employee',
             'driver' => 'driver',
-            'transport_manager' => 'transport-manager',
             'admin' => 'admin',
         ];
 
-        // Handing out a management role (admin, transport-manager) is itself
+        // Handing out the admin role is itself
         // role management; without it the user starts as a plain employee
         if (! in_array($userType, ['employee', 'driver'], true) && ! auth()->user()?->can('manage-user-roles')) {
             $userType = 'employee';
