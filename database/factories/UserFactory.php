@@ -34,7 +34,8 @@ class UserFactory extends Factory
             'emergency_phone' => fake()->optional()->phoneNumber(),
             'user_type' => $userType,
             'blood_group' => fake()->randomElement(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']),
-            'status' => fake()->randomElement(['active', 'inactive', 'suspended']),
+            // Active, like a newly created account: inactive users are signed out (EnsureUserIsActive)
+            'status' => 'active',
             'present_address' => fake()->optional()->address(),
             'permanent_address' => fake()->optional()->address(),
             'whatsapp_id' => fake()->optional()->phoneNumber(),

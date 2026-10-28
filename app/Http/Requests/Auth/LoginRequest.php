@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Http\Middleware\EnsureUserIsActive;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -76,7 +77,18 @@ class LoginRequest extends FormRequest
             'password' => $password,
         ];
 
-        if (! Auth::attempt($credentials, $this->boolean('remember'))) {
+        // Only active accounts may sign in; inactive/suspended ones are
+        // turned away without being logged in at all
+        $isActive = fn ($user) => $user->status === 'active';
+
+        if (! Auth::attemptWhen($credentials, $isActive, $this->boolean('remember'))) {
+            $user = Auth::getLastAttempted();
+
+            // Right password, but the account is switched off
+            if ($user && ! $isActive($user) && Auth::getProvider()->validateCredentials($user, $credentials)) {
+                throw ValidationException::withMessages(['login' => EnsureUserIsActive::MESSAGE]);
+            }
+
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -102,8 +114,9 @@ class LoginRequest extends FormRequest
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 
+        // On 'login', the field the login form shows errors for
         throw ValidationException::withMessages([
-            'email' => __('auth.throttle', [
+            'login' => __('auth.throttle', [
                 'seconds' => $seconds,
                 'minutes' => ceil($seconds / 60),
             ]),
