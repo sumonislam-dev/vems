@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
+ * @extends Factory<User>
  */
 class UserFactory extends Factory
 {
@@ -46,7 +47,7 @@ class UserFactory extends Factory
 
         // Add driver-specific fields if user is a driver
         if ($userType === 'driver') {
-            $data['driving_license_no'] = 'DL-' . fake()->unique()->numerify('########');
+            $data['driving_license_no'] = 'DL-'.fake()->unique()->numerify('########');
             $data['nid_number'] = fake()->unique()->numerify('#############');
             $data['present_address'] = fake()->address();
             $data['permanent_address'] = fake()->address();
