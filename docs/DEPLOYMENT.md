@@ -23,7 +23,7 @@ Copy `.env.example` to `.env`, then set at least:
 | `DB_*` | The production database |
 | `SESSION_SECURE_COOKIE` | `true` when the site runs on HTTPS |
 | `QUEUE_CONNECTION` | `database` (needs the queue worker in step 5) |
-| `MAIL_*` | A real mail server (needed for password resets and backup alerts) |
+| `MAIL_*` | A real mail server (needed for password resets and backup alerts). Check it with `php artisan vems:test-mail you@example.org` |
 | `BACKUP_NOTIFY_EMAIL` | Who gets an email when a backup fails |
 
 ## 3. Install
