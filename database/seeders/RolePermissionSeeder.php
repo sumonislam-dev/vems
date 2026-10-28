@@ -67,6 +67,7 @@ class RolePermissionSeeder extends Seeder
             'edit-drivers',
             'delete-drivers',
             'export-drivers',
+            'import-drivers',
 
             // Maintenance (planned feature)
             'view-maintenance',
@@ -178,7 +179,7 @@ class RolePermissionSeeder extends Seeder
                 'capture-passenger-attendance', 'correct-passenger-attendance',
                 'view-vehicles', 'create-vehicles', 'edit-vehicles', 'assign-vehicles', 'export-vehicles',
                 'manage-vehicle-downtime',
-                'view-drivers', 'create-drivers', 'edit-drivers', 'export-drivers',
+                'view-drivers', 'create-drivers', 'edit-drivers', 'export-drivers', 'import-drivers',
                 'view-vendors', 'create-vendors', 'edit-vendors',
                 'view-routes', 'create-routes', 'edit-routes',
                 'view-stops', 'create-stops',

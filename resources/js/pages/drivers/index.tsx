@@ -14,7 +14,7 @@ import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
 import { Head, router, useForm } from '@inertiajs/react';
 import axios from 'axios';
-import { AlertTriangle, Car, CheckCircle, Edit, Eye, Mail, Plus, Trash2, User } from 'lucide-react';
+import { AlertTriangle, Car, CheckCircle, Download, Edit, Eye, Mail, Plus, Trash2, Upload, User } from 'lucide-react';
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
 type AssignableVehicle = {
@@ -105,6 +105,9 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
     const [bulkStatusOpen, setBulkStatusOpen] = useState(false);
     const [bulkStatusProcessing, setBulkStatusProcessing] = useState(false);
     const [bulkDriverStatus, setBulkDriverStatus] = useState('available');
+    const [importOpen, setImportOpen] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importProcessing, setImportProcessing] = useState(false);
 
     // Every server round trip (page/filter/sort change, or a successful bulk
     // status update reloading this page) hands us a fresh `users` object, so
@@ -126,6 +129,26 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                 onSuccess: () => setBulkStatusOpen(false),
             },
         );
+    };
+
+    const submitImport = () => {
+        if (!importFile) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', importFile);
+
+        router.post(route('drivers.import'), formData, {
+            forceFormData: true,
+            preserveScroll: true,
+            onStart: () => setImportProcessing(true),
+            onFinish: () => setImportProcessing(false),
+            onSuccess: () => {
+                setImportOpen(false);
+                setImportFile(null);
+            },
+        });
     };
 
     const [assignVehicleDriver, setAssignVehicleDriver] = useState<User | null>(null);
@@ -495,6 +518,13 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                     description="Manage drivers and transport managers"
                     actions={[
                         {
+                            label: 'Import Drivers',
+                            variant: 'outline',
+                            icon: <Upload className="mr-2 h-4 w-4" />,
+                            onClick: () => setImportOpen(true),
+                            permission: 'import-drivers',
+                        },
+                        {
                             label: 'Add Driver',
                             icon: <Plus className="mr-2 h-4 w-4" />,
                             href: route('drivers.create'),
@@ -558,6 +588,51 @@ export default function DriversIndex({ users, filterOptions = {}, stats = {}, qu
                     <div className="py-8 text-center">Loading drivers...</div>
                 )}
             </div>
+
+            <Dialog open={importOpen} onOpenChange={(open) => !open && setImportOpen(false)}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Import Drivers</DialogTitle>
+                        <DialogDescription>
+                            Fill in the template and upload it. Required: name, personal phone, vendor, zone code, licence number, licence class and
+                            licence expiry date (shaded in the template; its Instructions sheet explains every column). A licence number already on
+                            file is skipped. Reset each driver&apos;s password from their profile before they sign in.
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <a
+                        href={route('drivers.import-template')}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                        download
+                    >
+                        <Download className="h-4 w-4" />
+                        Download template
+                    </a>
+
+                    <div>
+                        <label htmlFor="drivers_import_file" className="mb-1 block text-sm font-medium">
+                            File
+                        </label>
+                        <input
+                            id="drivers_import_file"
+                            name="file"
+                            type="file"
+                            accept=".csv,.txt,.xlsx,.xls"
+                            className="block w-full rounded-md border border-input text-sm file:mr-2 file:border-0 file:bg-secondary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-secondary-foreground hover:file:bg-secondary/80"
+                            onChange={(e) => setImportFile(e.target.files?.[0] ?? null)}
+                        />
+                    </div>
+
+                    <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setImportOpen(false)} disabled={importProcessing}>
+                            Cancel
+                        </Button>
+                        <Button type="button" onClick={submitImport} disabled={!importFile || importProcessing}>
+                            {importProcessing ? 'Importing…' : 'Import'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog open={bulkStatusOpen} onOpenChange={(open) => !open && setBulkStatusOpen(false)}>
                 <DialogContent className="sm:max-w-md">

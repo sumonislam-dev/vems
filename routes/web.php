@@ -89,6 +89,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/users/{user}/activate', [UserController::class, 'activate'])->name('users.activate');
     Route::get('/drivers/{driver}/assignable-vehicles', [DriverController::class, 'assignableVehicles'])->name('drivers.assignable-vehicles');
     Route::get('/drivers-export', [DriverController::class, 'export'])->name('drivers.export');
+    Route::post('/drivers-import', [DriverController::class, 'import'])->name('drivers.import');
+    Route::get('/drivers-import-template', [DriverController::class, 'importTemplate'])->name('drivers.import-template');
     Route::post('/drivers-bulk-status', [DriverController::class, 'bulkUpdateStatus'])->name('drivers.bulk-status');
     // Hyphenated (not nested under /users/) to avoid colliding with the
     // users resource's GET /users/{user} route registered above — a nested
@@ -97,6 +99,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // drivers-export routes for the same pattern).
     Route::get('/users-export', [UserController::class, 'export'])->name('users.export');
     Route::post('/users-import', [UserController::class, 'import'])->name('users.import');
+    Route::get('/users-import-template', [UserController::class, 'importTemplate'])->name('users.import-template');
 
     // Driver management routes (filtered view of users)
     Route::resource('drivers', DriverController::class);

@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Enums\TripStatus;
 use App\Exports\DriversExport;
+use App\Exports\DriversImportTemplate;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Requests\UserIndexRequest;
+use App\Imports\DriversImport;
 use App\Models\Department;
 use App\Models\User;
 use App\Models\Vehicle;
@@ -33,6 +35,7 @@ class DriverController extends Controller implements HasMiddleware
         return [
             new Middleware('permission:view-drivers', only: ['index', 'show']),
             new Middleware('permission:export-drivers', only: ['export']),
+            new Middleware('permission:import-drivers', only: ['import', 'importTemplate']),
             new Middleware('permission:create-drivers', only: ['create', 'store']),
             new Middleware('permission:edit-drivers', only: ['edit', 'update', 'bulkUpdateStatus']),
             new Middleware('permission:delete-drivers', only: ['destroy']),
@@ -218,6 +221,41 @@ class DriverController extends Controller implements HasMiddleware
             'stats' => $stats,
             'queryParams' => $request->only(['search', 'sort', 'direction', 'filters', 'per_page']),
         ]);
+    }
+
+    /**
+     * The Excel template for import(), with the required columns marked.
+     */
+    public function importTemplate(Request $request)
+    {
+        return Excel::download(new DriversImportTemplate($request->user()), 'drivers_import_template.xlsx');
+    }
+
+    /**
+     * Bulk-create drivers from an uploaded CSV/Excel file (see
+     * DriversImport for the columns).
+     */
+    public function import(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:csv,txt,xlsx,xls', 'max:5120'],
+        ]);
+
+        $import = new DriversImport($request->user());
+        Excel::import($import, $request->file('file'));
+
+        if ($import->failures()->isNotEmpty()) {
+            $errors = $import->failures()->take(5)->map(
+                fn ($failure) => "row {$failure->row()}: ".implode(', ', $failure->errors())
+            )->implode('; ');
+
+            return back()->with(
+                'warning',
+                "Imported {$import->imported} driver(s). {$import->failures()->count()} row(s) skipped ({$errors})."
+            );
+        }
+
+        return back()->with('success', "Imported {$import->imported} driver(s) successfully.");
     }
 
     /**

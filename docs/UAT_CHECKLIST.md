@@ -93,6 +93,8 @@ Use a private browser window for each account, so you can stay logged in as seve
   **Expect:** "...is larger than 2 MB" under the field.
 - [ ] **8a.3** Delete a factory, switch the factory list to **Deleted**, and click **Restore**.
   **Expect:** it is back in the normal list, and old trips still show its name.
+- [ ] **8a.4** As admin, Users → **Import Users** → **Download template**. Fill in 3 rows (one with a wrong zone code) and import it.
+  **Expect:** 2 users created with their department and zone; the wrong row is reported and skipped. The new users can set a password via "Forgot Password".
 
 ## 9. Private documents
 

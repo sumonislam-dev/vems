@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Zone;
+use App\Support\UsernameGenerator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -17,6 +18,16 @@ class StoreUserRequest extends FormRequest
     }
 
     /**
+     * A blank username is generated from the email or name.
+     */
+    protected function prepareForValidation(): void
+    {
+        if (blank($this->input('username'))) {
+            $this->merge(['username' => UsernameGenerator::generate($this->input('email'), $this->input('name'))]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      */
     public function rules(): array
@@ -26,6 +37,7 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'unique:users'],
             'employee_id' => ['nullable', 'string', 'max:255', 'unique:users'],
+            'designation' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', 'unique:users'],
 
             // Contact Information

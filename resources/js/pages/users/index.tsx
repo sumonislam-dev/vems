@@ -10,7 +10,7 @@ import { useCan } from '@/lib/permissions';
 import { formatDate } from '@/lib/utils';
 import { BreadcrumbItem, ColumnFilter, DataTableColumn } from '@/types';
 import { Head, router } from '@inertiajs/react';
-import { Edit, Eye, Mail, Plus, Shield, Trash2, Upload, User, UserCheck, UserX } from 'lucide-react';
+import { Download, Edit, Eye, Mail, Plus, Shield, Trash2, Upload, User, UserCheck, UserX } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 interface User {
@@ -432,10 +432,19 @@ export default function UsersIndex({ users, filterOptions, stats, queryParams }:
                     <DialogHeader>
                         <DialogTitle>Import Users</DialogTitle>
                         <DialogDescription>
-                            Upload a CSV or Excel file with columns: name, username, email, personal_phone, whatsapp_id, role, status. Only name and
-                            username are required.
+                            Fill in the template and upload it. Name and zone code are required (a blank username is made from the email or name); the
+                            template lists the valid department, zone and role codes. Imported users set their password via "Forgot Password".
                         </DialogDescription>
                     </DialogHeader>
+
+                    <a
+                        href={route('users.import-template')}
+                        className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+                        download
+                    >
+                        <Download className="h-4 w-4" />
+                        Download template
+                    </a>
 
                     <div>
                         <label htmlFor="users_import_file" className="mb-1 block text-sm font-medium">

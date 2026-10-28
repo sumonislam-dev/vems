@@ -132,6 +132,32 @@ it('creates a user with the submitted role when authorized', function () {
         ->and($created->hasRole('employee'))->toBeTrue();
 });
 
+it('generates a username when it is left blank', function () {
+    seedUserCrudPermissions();
+    $actor = makeUserCrudActor(['create-users']);
+    $employeeRole = Role::where('name', 'employee')->first();
+    $post = fn (array $fields) => $this->actingAs($actor)->post('/users', [
+        'zone_access' => 'specific',
+        'zone_ids' => [testZoneId()],
+        'username' => '',
+        'personal_phone' => '01700000001',
+        'whatsapp_id' => '01700000001',
+        'status' => 'active',
+        'user_type' => 'employee',
+        'roles' => [$employeeRole->id],
+        'password' => 'password123',
+        'password_confirmation' => 'password123',
+        ...$fields,
+    ])->assertSessionDoesntHaveErrors();
+
+    $post(['name' => 'Rowshan Runa', 'email' => 'rowshan.runa@rsc-bd.org']);
+    $post(['name' => 'Md. Shajahan Mia']);
+    $post(['name' => 'Md. Shajahan Mia']);
+
+    expect(User::where('email', 'rowshan.runa@rsc-bd.org')->value('username'))->toBe('rowshan.runa')
+        ->and(User::where('name', 'Md. Shajahan Mia')->orderBy('id')->pluck('username')->all())->toBe(['shajahan.mia', 'mdshajahan.mia']);
+});
+
 it('requires personal_phone and whatsapp_id to create a user', function () {
     seedUserCrudPermissions();
     $actor = makeUserCrudActor(['create-users']);

@@ -72,6 +72,7 @@ class UpdateUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', Rule::unique('users')->ignore($userId)],
             'employee_id' => ['nullable', 'string', 'max:255', Rule::unique('users')->ignore($userId)],
+            'designation' => ['nullable', 'string', 'max:255'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('users')->ignore($userId)],
 
             // Contact Information

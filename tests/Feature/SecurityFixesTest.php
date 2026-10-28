@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\Vendor;
 use App\Models\Zone;
+use Database\Seeders\DepartmentSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Hash;
@@ -214,7 +215,7 @@ it('seeds only roles, permissions, zones and the real departments in production'
 
     expect(Role::where('name', 'super-admin')->exists())->toBeTrue()
         ->and(Zone::count())->toBeGreaterThan(0)
-        ->and(Department::count())->toBe(14)
+        ->and(Department::count())->toBe(count(DepartmentSeeder::DEPARTMENTS))
         ->and(Department::find(2)?->name)->toBe('Engagement and Logistics')
         ->and(User::count())->toBe(0)
         ->and(Vehicle::count())->toBe(0)
