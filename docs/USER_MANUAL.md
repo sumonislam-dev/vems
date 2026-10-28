@@ -468,16 +468,19 @@ filters (Event Type, Validity, Source, Trip, dates, area), then **"Apply Filters
 New **complaints** (not plain feedback) in your zone trigger a notification.
 
 1. Go to **Feedback & Complaints** and open the complaint.
-2. Click **"Assign to Me"**. The status becomes **In Review**.
-   *(Do this first: a complaint must be In Review before it can be resolved.)*
+2. Click **"Assign to Me"** so others know you are handling it. The status
+   becomes **In Review**. *(Optional: you can also resolve it straight away.)*
 3. Look into it. When it is sorted, enter the **"Resolution notes"** in the
    **"Resolve"** card and click **"Mark Resolved"**.
 4. Then either:
    - click **"Confirm & Close"** to finish it, or
    - click **"Reopen"** if it needs more work.
 
-To close an **Open** complaint that needs no action, click **"Close Without
-Resolving"** (before assigning it).
+To close an **Open** or **In Review** complaint that needs no action, click
+**"Close Without Resolving"**.
+
+Use the **filters** button above the list to show only some types, statuses,
+priorities or categories.
 
 ## 5.7 Vehicles
 
@@ -844,7 +847,6 @@ Entries are kept for a year.
 | "This vehicle is already booked on an overlapping trip" | Choose another vehicle, or change the trip's time. |
 | "This vehicle seats X, but N passengers were selected" | Choose a bigger vehicle, or split the trip. |
 | A driver can't be assigned to a vehicle | The driver must be active, **Available** and have a valid licence. |
-| "Mark Resolved" fails on a complaint | Click **"Assign to Me"** first so it is In Review. |
 | An import says some rows were skipped | The message lists the row numbers and reasons. Fix those rows and import only them again. |
 | "Server error" | Try again once. If it repeats, tell your administrator what you did and when. |
 
@@ -862,7 +864,6 @@ These are current gaps in VEMS. Work around them as described until they are fix
   **Feedback & Complaints** instead).
 - **The "Driver" column on the Trips list** may show "Not assigned"; the trip
   page shows the vehicle and its driver.
-- **The Feedback & Complaints list filters** don't filter yet; use the search box.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone
   can use Check In / Check Out.
 - On the **Edit Driver** page, choose only **Available, On Leave, Inactive or

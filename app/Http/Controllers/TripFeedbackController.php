@@ -39,28 +39,28 @@ class TripFeedbackController extends Controller implements HasMiddleware
     {
         $user = $request->user();
 
-        $request->validate([
-            'sort' => 'nullable|in:created_at,status,priority,type',
+        $validated = $request->validate([
+            'sort' => 'nullable|in:created_at,subject,status,priority,type',
             'direction' => 'nullable|in:asc,desc',
+            'filters' => 'nullable|array',
+            'filters.type' => 'nullable|array',
+            'filters.type.*' => 'in:feedback,complaint',
+            'filters.category' => 'nullable|array',
+            'filters.category.*' => 'in:'.implode(',', array_keys(self::CATEGORIES)),
+            'filters.status' => 'nullable|array',
+            'filters.status.*' => 'in:open,in_review,resolved,closed',
+            'filters.priority' => 'nullable|array',
+            'filters.priority.*' => 'in:low,medium,high,critical',
         ]);
 
         $query = TripFeedback::with(['trip:id,trip_number,scheduled_date', 'submitter:id,name', 'assignee:id,name'])
             ->visibleTo($user);
 
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
-
-        if ($request->filled('category')) {
-            $query->where('category', $request->category);
-        }
-
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
-        }
-
-        if ($request->filled('priority')) {
-            $query->where('priority', $request->priority);
+        // The data table sends filters[<column>][]=<value> (multi-select)
+        foreach (['type', 'category', 'status', 'priority'] as $column) {
+            if (! empty($validated['filters'][$column])) {
+                $query->whereIn($column, $validated['filters'][$column]);
+            }
         }
 
         if ($request->filled('search')) {
@@ -76,6 +76,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
         $query->orderBy($sortColumn, $sortDirection);
 
         $items = $query->paginate($request->get('per_page', 15))->withQueryString();
+        $items->getCollection()->each->hideAnonymousSubmitterFrom($user);
 
         $scopedStats = TripFeedback::visibleTo($user)->selectRaw(
             'COUNT(*) as total, '.
@@ -96,7 +97,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
             ],
             'categories' => self::CATEGORIES,
             'canViewAll' => $user->can('view-complaints'),
-            'queryParams' => $request->only(['search', 'type', 'category', 'status', 'priority', 'sort', 'direction', 'per_page']),
+            'queryParams' => $request->only(['search', 'filters', 'sort', 'direction', 'per_page']),
         ]);
     }
 
@@ -179,7 +180,7 @@ class TripFeedbackController extends Controller implements HasMiddleware
         ]);
 
         return Inertia::render('complaints/show', [
-            'item' => $complaint,
+            'item' => $complaint->hideAnonymousSubmitterFrom($request->user()),
             'categories' => self::CATEGORIES,
         ]);
     }

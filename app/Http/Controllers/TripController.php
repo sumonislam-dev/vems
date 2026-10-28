@@ -642,6 +642,7 @@ class TripController extends Controller implements HasMiddleware
             'departments',
             'feedbackEntries' => fn ($query) => $query->visibleTo(auth()->user())->latest(),
         ]);
+        $trip->feedbackEntries->each->hideAnonymousSubmitterFrom(auth()->user());
 
         $vehicleAssignments = $trip->vehicleAssignments()
             ->with(['vehicle', 'assignedByUser'])

@@ -76,13 +76,28 @@ class TripFeedback extends Model
         return $query->where('submitted_by', $user->id);
     }
 
-    // Status lifecycle
+    /**
+     * Leave out who submitted an anonymous entry before it goes to anyone
+     * but the submitter: hiding the name in the UI isn't enough, as the
+     * page data would still carry it.
+     */
+    public function hideAnonymousSubmitterFrom(User $viewer): static
+    {
+        if ($this->is_anonymous && $this->submitted_by !== $viewer->id) {
+            $this->unsetRelation('submitter')->makeHidden('submitted_by');
+        }
+
+        return $this;
+    }
+
+    // Status lifecycle: a handler may resolve or close straight from open or
+    // in review (assigning first is optional), and a resolution may be reopened.
 
     public function canTransitionTo(string $newStatus): bool
     {
         return match ($this->status) {
-            'open' => in_array($newStatus, ['in_review', 'closed']),
-            'in_review' => in_array($newStatus, ['resolved', 'open']),
+            'open' => in_array($newStatus, ['in_review', 'resolved', 'closed']),
+            'in_review' => in_array($newStatus, ['resolved', 'open', 'closed']),
             'resolved' => in_array($newStatus, ['closed', 'in_review']),
             'closed' => false,
             default => false,
