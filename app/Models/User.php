@@ -278,6 +278,26 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where('status', 'active');
     }
 
+    /**
+     * Drivers who may be put on a vehicle: active, available and with an
+     * unexpired licence, plus $includeDriverId (the vehicle's current
+     * driver) so an edit can keep them.
+     */
+    public function scopeAssignableDrivers($query, ?int $includeDriverId = null)
+    {
+        return $query->drivers()->where(function ($query) use ($includeDriverId) {
+            $query->where(function ($eligible) {
+                $eligible->where('status', 'active')
+                    ->where('driver_status', 'available')
+                    ->where(fn ($license) => $license->whereNull('license_expiry_date')->orWhere('license_expiry_date', '>', now()));
+            });
+
+            if ($includeDriverId) {
+                $query->orWhere('id', $includeDriverId);
+            }
+        });
+    }
+
     public function scopeActive($query)
     {
         return $query->where('status', 'active');

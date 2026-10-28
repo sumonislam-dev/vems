@@ -167,7 +167,7 @@ it('shows a generic message and logs the real error when creating a vehicle fail
     $actor = makeErrorHandlingUser('vehicle-actor', ['create-vehicles']);
     $vendor = Vendor::create(['name' => 'Error Handling Vendor', 'status' => 'active']);
     $driver = makeErrorHandlingUser('driver');
-    $driver->forceFill(['user_type' => 'driver'])->save();
+    $driver->forceFill(['user_type' => 'driver', 'driver_status' => 'available'])->save();
 
     Log::spy();
 

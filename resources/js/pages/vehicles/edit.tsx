@@ -10,6 +10,7 @@ interface EditVehicleProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
+    routes: { id: number; name: string }[];
 }
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -18,7 +19,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Edit Vehicle', href: '#' },
 ];
 
-export default function EditVehicle({ vehicle, vendors = [], drivers = [], zones = [] }: EditVehicleProps) {
+export default function EditVehicle({ vehicle, vendors = [], drivers = [], zones = [], routes = [] }: EditVehicleProps) {
     const vendorValue = typeof vehicle.vendor === 'object' && vehicle.vendor !== null ? vehicle.vendor.name : vehicle.vendor || '';
 
     const { data, setData, post, transform, processing, errors } = useForm<VehicleForm>({
@@ -109,6 +110,7 @@ export default function EditVehicle({ vehicle, vendors = [], drivers = [], zones
                         vendors={vendors}
                         drivers={drivers}
                         zones={zones}
+                        routes={routes}
                         vehicle={vehicle}
                         submitLabel="Update Vehicle"
                         submitIcon={<Save className="mr-2 h-4 w-4" />}

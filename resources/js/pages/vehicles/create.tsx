@@ -9,6 +9,7 @@ interface CreateVehicleProps {
     vendors: Vendor[];
     drivers: User[];
     zones: Zone[];
+    routes: { id: number; name: string }[];
     defaultZoneId: number | null;
 }
 
@@ -18,7 +19,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Create Vehicle', href: '#' },
 ];
 
-export default function CreateVehicle({ vendors = [], drivers = [], zones = [], defaultZoneId = null }: CreateVehicleProps) {
+export default function CreateVehicle({ vendors = [], drivers = [], zones = [], routes = [], defaultZoneId = null }: CreateVehicleProps) {
     const { data, setData, post, processing, errors } = useForm<VehicleForm>({
         brand: '',
         model: '',
@@ -102,6 +103,7 @@ export default function CreateVehicle({ vendors = [], drivers = [], zones = [], 
                         vendors={vendors}
                         drivers={drivers}
                         zones={zones}
+                        routes={routes}
                         submitLabel="Create Vehicle"
                         submitIcon={<Plus className="mr-2 h-4 w-4" />}
                     />

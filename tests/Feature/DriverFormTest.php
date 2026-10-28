@@ -114,3 +114,17 @@ it('flashes why a driver cannot be deleted', function () {
 
     expect($driver->fresh())->not->toBeNull();
 });
+
+it('sorts drivers by area', function () {
+    $editor = makeDriverFormEditor();
+    $vendor = Vendor::create(['name' => 'V4', 'status' => 'active']);
+    $savar = makeFormDriver($vendor);
+    $savar->update(['area' => 'Savar']);
+    $gazipur = User::create([...$savar->only(['personal_phone', 'whatsapp_id', 'user_type', 'status', 'vendor_id']),
+        'name' => 'Second Driver', 'username' => 'second.driver', 'area' => 'Gazipur', 'password' => Hash::make('password')]);
+
+    $ids = collect($this->actingAs($editor)->get(route('drivers.index', ['sort' => 'area', 'direction' => 'asc']))
+        ->assertOk()->viewData('page')['props']['users']['data'])->pluck('id')->all();
+
+    expect($ids)->toBe([$gazipur->id, $savar->id]);
+});

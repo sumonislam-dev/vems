@@ -49,7 +49,7 @@ it('sets the operational status when creating a vehicle', function () {
         'name' => 'Driver 1',
         'username' => 'driver1_'.uniqid(),
         'email' => 'driver1_'.uniqid().'@example.com',
-        'user_type' => 'driver',
+        'user_type' => 'driver', 'driver_status' => 'available',
         'status' => 'active',
         'password' => Hash::make('password'),
     ]);
@@ -80,7 +80,7 @@ it('updates the operational status when editing a vehicle', function () {
         'name' => 'Driver 2',
         'username' => 'driver2_'.uniqid(),
         'email' => 'driver2_'.uniqid().'@example.com',
-        'user_type' => 'driver',
+        'user_type' => 'driver', 'driver_status' => 'available',
         'status' => 'active',
         'password' => Hash::make('password'),
     ]);

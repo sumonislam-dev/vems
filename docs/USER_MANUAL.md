@@ -495,6 +495,8 @@ Fleet → **Vehicles**.
    - **"Vehicle Type"**: Sedan, SUV, Van, Microbus, Coaster, Bus, Pickup, Truck or Other.
    - **"Rental Type"**: Own (Company Owned), Pool (Shared Vehicle), Rental (Leased), Ad-hoc Rental or Support Vehicle.
    - **"Capacity (Seats)"**, **"Service Provider"** (the vendor), **"Driver"**, **"Zone"**, **"Active Status"**.
+   - **"Condition"** (Available, Assigned, In Transit, Maintenance or Out of Service) and the regular **"Pick & Drop Route"** (optional).
+   - The **"Driver"** must be active, available, have a valid licence and not already drive another vehicle (use **"Assign Driver"** to move a driver between vehicles).
    - For an **Ad-hoc Rental** whose details you don't know yet, you may leave brand, model, registration, provider and driver empty; VEMS fills in placeholders (registration **ADHOC-001**, …) and marks it **"Details pending"**.
 3. Optional sections: **"Parking Location"**, **"Vehicle Details"** (year, fuel, engine and chassis numbers).
 4. **Documents**: for **"Documentation"** (tax token, fitness certificate), **"Insurance"**, **"Route Permit"** and **"Registration & Owner"**, enter the number, the **expiry date** and upload the file (JPG, PNG or PDF, up to 2 MB).
@@ -509,7 +511,9 @@ Fleet → **Vehicles**.
 - Click a row to open the vehicle page. A red box at the top lists documents
   that are expiring or expired; **"View file"** opens a document.
 - Click **"Edit Vehicle"**, change what you need, and click **"Update Vehicle"**.
-  Uploading a new file replaces the old one.
+  Uploading a new file replaces the old one. Setting **"Condition"** to
+  **Maintenance** or **Out of Service** starts a downtime from today (see
+  below); setting it back ends it.
 - To **activate or deactivate several vehicles**, tick them in the list and
   click **"Activate Selected"** or **"Deactivate Selected"**.
 - **Delete** (admins only) is refused while the vehicle has open trips. Past
@@ -865,8 +869,6 @@ Entries are kept for a year.
 
 These are current gaps in VEMS. Work around them as described until they are fixed.
 
-- **A vehicle's "Condition" and regular "Pick & Drop Route"** are shown but
-  can't be changed yet.
 - **A whole recurring trip series can't be cancelled in one go**; cancel each day.
 - **Trips can't be deleted**; cancel them instead.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone

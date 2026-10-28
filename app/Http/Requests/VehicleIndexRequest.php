@@ -24,7 +24,7 @@ class VehicleIndexRequest extends FormRequest
     {
         return [
             'search' => ['nullable', 'string', 'max:255'],
-            'sort' => ['nullable', 'string', 'in:id,brand,model,color,registration_number,vendor,is_active,created_at'],
+            'sort' => ['nullable', 'string', 'in:id,brand,model,vehicle_type,color,registration_number,vendor,driver,is_active,status,created_at'],
             'direction' => ['nullable', 'string', 'in:asc,desc'],
             'per_page' => ['nullable', 'integer', 'min:5', 'max:100'],
             'filters' => ['nullable', 'array'],

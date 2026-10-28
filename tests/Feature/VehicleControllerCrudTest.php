@@ -50,7 +50,7 @@ function makeVehicleCrudDriver(): User
         'name' => 'Vehicle CRUD Driver',
         'username' => 'vehicle_crud_driver_'.uniqid(),
         'email' => 'vehicle_crud_driver_'.uniqid().'@example.com',
-        'user_type' => 'driver',
+        'user_type' => 'driver', 'driver_status' => 'available',
         'status' => 'active',
         'password' => Hash::make('password'),
     ]);
@@ -288,4 +288,65 @@ it('denies deleting a vehicle to someone without delete-vehicles permission', fu
 
     $this->actingAs($actor)->delete("/vehicles/{$vehicle->id}")->assertForbidden();
     expect(Vehicle::find($vehicle->id))->not->toBeNull();
+});
+
+// --- driver checks on the form (same as "Assign Driver") -----------------
+
+function vehicleCrudPayload(array $overrides = []): array
+{
+    return [
+        'zone_id' => testZoneId(),
+        'brand' => 'Toyota',
+        'model' => 'Camry',
+        'registration_number' => 'CRUD-'.uniqid(),
+        'vehicle_type' => 'sedan',
+        'rental_type' => 'own',
+        'is_active' => true,
+        ...$overrides,
+    ];
+}
+
+it('refuses a driver on the vehicle form who is not eligible or already drives another vehicle', function () {
+    seedVehicleCrudPermissions();
+    $actor = makeVehicleCrudActor(['create-vehicles', 'edit-vehicles']);
+    $vendor = Vendor::create(['name' => 'V-checks', 'status' => 'active']);
+
+    $expired = makeVehicleCrudDriver();
+    $expired->update(['license_expiry_date' => now()->subDay()]);
+    $this->actingAs($actor)->post('/vehicles', vehicleCrudPayload(['vendor_id' => $vendor->id, 'driver_id' => $expired->id]))
+        ->assertSessionHasErrors(['driver_id' => 'This driver is not eligible for assignment (inactive, unavailable, or license expired).']);
+
+    $busy = makeVehicleCrudDriver();
+    $other = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'BUSY-1', 'driver_id' => $busy->id]);
+    $this->actingAs($actor)->post('/vehicles', vehicleCrudPayload(['vendor_id' => $vendor->id, 'driver_id' => $busy->id]))
+        ->assertSessionHasErrors('driver_id');
+
+    // Editing the vehicle the driver is on keeps them, even once ineligible
+    $busy->update(['license_expiry_date' => now()->subDay()]);
+    $this->actingAs($actor)->put("/vehicles/{$other->id}", vehicleCrudPayload([
+        'registration_number' => 'BUSY-1', 'vendor_id' => $vendor->id, 'driver_id' => $busy->id, 'color' => 'White',
+    ]))->assertSessionHasNoErrors();
+    expect($other->fresh()->color)->toBe('White');
+});
+
+it('sorts vehicles by vendor, driver, type and condition', function () {
+    seedVehicleCrudPermissions();
+    $actor = makeVehicleCrudActor(['view-vehicles']);
+    $zebra = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'A', 'registration_number' => 'SORT-1', 'vehicle_type' => 'van', 'status' => 'maintenance',
+        'vendor_id' => Vendor::create(['name' => 'Zebra Cars', 'status' => 'active'])->id,
+        'driver_id' => tap(makeVehicleCrudDriver())->update(['name' => 'Zakir'])->id,
+    ]);
+    $alpha = Vehicle::create([
+        'brand' => 'Toyota', 'model' => 'B', 'registration_number' => 'SORT-2', 'vehicle_type' => 'bus', 'status' => 'available',
+        'vendor_id' => Vendor::create(['name' => 'Alpha Rentals', 'status' => 'active'])->id,
+        'driver_id' => tap(makeVehicleCrudDriver())->update(['name' => 'Abdul'])->id,
+    ]);
+
+    foreach (['vendor', 'driver', 'vehicle_type', 'status'] as $sort) {
+        $ids = collect($this->actingAs($actor)->get(route('vehicles.index', ['sort' => $sort, 'direction' => 'asc']))
+            ->assertOk()->viewData('page')['props']['vehicles']['data'])->pluck('id')->all();
+
+        expect($ids)->toBe([$alpha->id, $zebra->id], "sort by {$sort}");
+    }
 });

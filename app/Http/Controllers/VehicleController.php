@@ -10,6 +10,7 @@ use App\Http\Requests\VehicleIndexRequest;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleDowntime;
+use App\Models\VehicleRoute;
 use App\Models\Vendor;
 use App\Models\Zone;
 use App\Support\PrivateDocument;
@@ -37,33 +38,29 @@ class VehicleController extends Controller implements HasMiddleware
     }
 
     /**
-     * Drivers eligible for a vehicle assignment dropdown — mirrors
-     * User::canDrive() (active, available, license not expired) at the
-     * query level. $includeDriverId keeps a vehicle's already-assigned
-     * driver in the list even if they no longer qualify (e.g. their
-     * license expired since assignment), so editing doesn't silently
-     * drop the current selection.
+     * Drivers eligible for a vehicle assignment dropdown (see
+     * User::scopeAssignableDrivers()); $includeDriverId keeps a vehicle's
+     * current driver in the list even if they no longer qualify.
      */
     private function assignableDrivers(?int $includeDriverId = null)
     {
-        return User::where('user_type', 'driver')
-            ->where(function ($query) use ($includeDriverId) {
-                $query->where(function ($eligible) {
-                    $eligible->where('status', 'active')
-                        ->where('driver_status', 'available')
-                        ->where(function ($license) {
-                            $license->whereNull('license_expiry_date')
-                                ->orWhere('license_expiry_date', '>', now());
-                        });
-                });
-
-                if ($includeDriverId) {
-                    $query->orWhere('id', $includeDriverId);
-                }
-            })
+        return User::assignableDrivers($includeDriverId)
             ->select('id', 'name', 'email', 'user_type', 'official_phone')
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * Sort the list or export: vendor and driver by their names, everything
+     * else by the vehicle's own column (VehicleIndexRequest limits the keys).
+     */
+    private function applySort($query, string $column, string $direction): void
+    {
+        match ($column) {
+            'vendor' => $query->orderBy(Vendor::withoutGlobalScopes()->select('name')->whereColumn('vendors.id', 'vehicles.vendor_id'), $direction),
+            'driver' => $query->orderBy(User::withoutGlobalScopes()->select('name')->whereColumn('users.id', 'vehicles.driver_id'), $direction),
+            default => $query->orderBy($column, $direction),
+        };
     }
 
     /**
@@ -218,10 +215,7 @@ class VehicleController extends Controller implements HasMiddleware
             }
         }
 
-        // Apply sorting
-        $sortColumn = $validated['sort'];
-        $sortDirection = $validated['direction'];
-        $query->orderBy($sortColumn, $sortDirection);
+        $this->applySort($query, $validated['sort'], $validated['direction']);
 
         // Get pagination data
         $vehicles = $query->paginate($validated['per_page'])
@@ -377,7 +371,7 @@ class VehicleController extends Controller implements HasMiddleware
             }
         }
 
-        $query->orderBy($validated['sort'], $validated['direction']);
+        $this->applySort($query, $validated['sort'], $validated['direction']);
 
         $format = $validated['format'] ?? 'csv';
         $timestamp = now()->format('Y-m-d_H-i-s');
@@ -459,6 +453,7 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
+            'routes' => VehicleRoute::select('id', 'name')->orderBy('name')->get(),
             'defaultZoneId' => auth()->user()->zone_id,
         ]);
     }
@@ -564,6 +559,7 @@ class VehicleController extends Controller implements HasMiddleware
             'vendors' => $vendors,
             'drivers' => $drivers,
             'zones' => $zones,
+            'routes' => VehicleRoute::select('id', 'name')->orderBy('name')->get(),
         ]);
     }
 

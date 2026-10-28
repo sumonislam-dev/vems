@@ -42,7 +42,7 @@ it('stores an uploaded tax token file when creating a vehicle', function () {
     $vendor = Vendor::create(['name' => 'V1', 'status' => 'active']);
     $driver = User::create([
         'email_verified_at' => now(), 'name' => 'Driver 1', 'username' => 'doc_driver1_'.uniqid(),
-        'email' => 'doc_driver1_'.uniqid().'@example.com', 'user_type' => 'driver', 'status' => 'active',
+        'email' => 'doc_driver1_'.uniqid().'@example.com', 'user_type' => 'driver', 'driver_status' => 'available', 'status' => 'active',
         'password' => Hash::make('password'),
     ]);
 
@@ -152,7 +152,7 @@ it('rejects a document file that is too large or the wrong type', function () {
     $vendor = Vendor::create(['name' => 'V2', 'status' => 'active']);
     $driver = User::create([
         'email_verified_at' => now(), 'name' => 'Driver 2', 'username' => 'doc_driver2_'.uniqid(),
-        'email' => 'doc_driver2_'.uniqid().'@example.com', 'user_type' => 'driver', 'status' => 'active',
+        'email' => 'doc_driver2_'.uniqid().'@example.com', 'user_type' => 'driver', 'driver_status' => 'available', 'status' => 'active',
         'password' => Hash::make('password'),
     ]);
 
