@@ -649,9 +649,9 @@ time (a **"Reason"** is required; the original is kept).
 
 ## 7.1 Users
 
-Administration → **Users**. This page lists employee accounts, including
-transport managers (office staff with the **transport-manager** role).
-Drivers are managed under **Drivers** ([5.8](#58-drivers)).
+Administration → **Users**. This page lists every account except drivers:
+employees, transport managers (office staff with the **transport-manager**
+role) and admins. Drivers are managed under **Drivers** ([5.8](#58-drivers)).
 
 ### Add a user
 1. Click **"Add User"**.
@@ -709,7 +709,13 @@ can give or remove the super-admin role.
 - **Delete:** only possible for users with no trip history. Otherwise
   deactivate them instead.
 
-**"Export Users"** downloads all employee accounts as a CSV file.
+To protect against lock-outs:
+- You can't deactivate or delete **your own** account (the icons don't show on your row).
+- Only a **super admin** can deactivate or delete a super admin.
+- A super admin can't remove their **own** super-admin role; another super
+  admin has to. So there is always at least one super admin.
+
+**"Export Users"** downloads all non-driver accounts as a CSV file.
 
 ## 7.2 User groups
 
@@ -846,8 +852,6 @@ Entries are kept for a year.
 
 These are current gaps in VEMS. Work around them as described until they are fixed.
 
-- **Admin accounts don't appear on the Users list** (it shows employee
-  accounts only).
 - **A vehicle's "Condition" and regular "Pick & Drop Route"** are shown but
   can't be changed yet.
 - **Routes can't be deleted** from the Routes list.

@@ -44,6 +44,27 @@ class UserSaver
     }
 
     /**
+     * Why $actor may not switch off $user ($verb: "deactivate" or "delete"),
+     * or null if they may. A switched-off account can't log in, so these
+     * keep anyone from locking out themselves or the system's super admins:
+     * not your own account, and a super admin only by another super admin
+     * (so one always remains; UserController also stops a super admin
+     * removing their own super-admin role).
+     */
+    public function switchOffBlocker(User $actor, User $user, string $verb): ?string
+    {
+        if ($actor->is($user)) {
+            return "You can't {$verb} your own account.";
+        }
+
+        if ($user->hasRole('super-admin') && ! $actor->hasRole('super-admin')) {
+            return "Only a super admin can {$verb} a super admin.";
+        }
+
+        return null;
+    }
+
+    /**
      * Why $user can't be deleted, or null if it can: deleting would break
      * trip history (trips.requested_by / trip_recurring_groups.created_by
      * restrict deletion), so deactivate the account instead.

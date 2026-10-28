@@ -243,6 +243,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $query->where('user_type', 'driver');
     }
 
+    /** Every account except drivers (who have their own Drivers page): employees, admins, untyped */
+    public function scopeNonDrivers($query)
+    {
+        return $query->where(fn ($q) => $q->whereNull('user_type')->orWhere('user_type', '!=', 'driver'));
+    }
+
     public function scopeEmployees($query)
     {
         return $query->where('user_type', 'employee');
