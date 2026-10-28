@@ -10,11 +10,16 @@ use Illuminate\Validation\Rule;
 class StoreUserRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
+     * Users need create-users. Drivers → Create Driver also accepts
+     * create-drivers (e.g. transport managers): DriverController::store()
+     * always makes the account a driver with the Driver role.
      */
     public function authorize(): bool
     {
-        return auth()->user()->can('create-users');
+        $user = auth()->user();
+
+        return $user->can('create-users')
+            || ($this->routeIs('drivers.store') && $user->can('create-drivers'));
     }
 
     /**

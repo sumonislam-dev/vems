@@ -249,3 +249,30 @@ it('returns 404 when updating a non-driver user through drivers.update route', f
 
     $response->assertNotFound();
 });
+
+it('lets someone with only create-drivers (a transport manager) add a driver, but not a user', function () {
+    $transportManager = createAuthorizedUser(['create-drivers']);
+    $vendor = createVendor();
+    Role::firstOrCreate(['name' => 'driver', 'guard_name' => 'web']);
+
+    $this->actingAs($transportManager)
+        ->post(route('drivers.store'), validDriverPayload([
+            'username' => 'tm_added_driver',
+            'email' => 'tm.added@example.com',
+            'vendor_id' => $vendor->id,
+        ]))
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('drivers.index'));
+
+    $driver = User::where('username', 'tm_added_driver')->first();
+
+    expect($driver)->not->toBeNull()
+        ->and($driver->user_type)->toBe('driver')
+        ->and($driver->getRoleNames()->all())->toBe(['driver']);
+
+    $this->actingAs($transportManager)
+        ->post(route('users.store'), validDriverPayload(['username' => 'tm_added_user', 'email' => 'tm.user@example.com']))
+        ->assertForbidden();
+
+    expect(User::where('username', 'tm_added_user')->exists())->toBeFalse();
+});
