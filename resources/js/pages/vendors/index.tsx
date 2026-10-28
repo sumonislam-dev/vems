@@ -22,7 +22,7 @@ interface VendorsPageProps {
         search?: string;
         sort?: string;
         direction?: 'asc' | 'desc';
-        status?: string;
+        filters?: { status?: string[] };
         per_page?: number;
     };
 }

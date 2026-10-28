@@ -86,8 +86,10 @@ it('lists vendors with stats and filters by search and status', function () {
         ->where('queryParams.search', 'Acme')
     );
 
-    $this->actingAs($viewer)->get('/vendors?status=inactive')->assertInertia(fn ($page) => $page
+    // The data table sends filters[status][]=<value>
+    $this->actingAs($viewer)->get(route('vendors.index', ['filters' => ['status' => ['inactive']]]))->assertInertia(fn ($page) => $page
         ->where('vendors.data', fn ($rows) => collect($rows)->pluck('id')->all() === [$other->id])
+        ->where('queryParams.filters.status', ['inactive'])
     );
 });
 

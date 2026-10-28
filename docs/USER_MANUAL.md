@@ -615,6 +615,9 @@ Distances between stops are calculated automatically from their map
 positions (straight-line, not road distance). Switch to **"Manual Distance"**
 to type real distances instead.
 
+To **delete** a route, click the bin icon on its row and confirm. A route
+that trips have used can't be deleted (you'll see why); edit it instead.
+
 ## 5.11 Factories
 
 Fleet → **Factories**. Factories are the places trips visit.
@@ -860,7 +863,6 @@ These are current gaps in VEMS. Work around them as described until they are fix
 
 - **A vehicle's "Condition" and regular "Pick & Drop Route"** are shown but
   can't be changed yet.
-- **Routes can't be deleted** from the Routes list.
 - **A whole recurring trip series can't be cancelled in one go**; cancel each day.
 - **Trips can't be deleted**; cancel them instead.
 - **Attendance mode** (self-service / biometric) has no effect yet: everyone

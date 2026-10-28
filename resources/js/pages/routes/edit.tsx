@@ -268,7 +268,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                     </div>
                                     <Badge variant="secondary">{selectedStops.length} stops</Badge>
                                 </CardTitle>
-                                <CardDescription>Modify and arrange stops for this route. Drag to reorder.</CardDescription>
+                                <CardDescription>Modify and arrange stops for this route. Use the arrows to reorder.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {selectedStops.map((stop, index) => (

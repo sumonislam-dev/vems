@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import AppSidebarLayout from '@/layouts/app/app-sidebar-layout';
 import { useCan } from '@/lib/permissions';
 import { ColumnFilter, DataTableColumn } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { Edit, Eye, MapPin, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
 
 interface VehicleRoute {
@@ -166,8 +166,7 @@ export default function RoutesIndex({ routes, stats, queryParams }: RoutesPagePr
                             onClick={async (e) => {
                                 e.stopPropagation();
                                 if (await confirmDelete(`Are you sure you want to delete the route "${row.name}"?`)) {
-                                    // Delete functionality would go here
-                                    alert(`Delete route: ${row.name}`);
+                                    router.delete(route('routes.destroy', row.id), { preserveScroll: true });
                                 }
                             }}
                             title="Delete route"

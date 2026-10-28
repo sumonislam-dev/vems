@@ -323,7 +323,7 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
                                         <Badge variant="secondary">{selectedStops.length} stops</Badge>
                                     </div>
                                 </CardTitle>
-                                <CardDescription>Add and arrange stops for this route. Drag to reorder.</CardDescription>
+                                <CardDescription>Add and arrange stops for this route. Use the arrows to reorder.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {selectedStops.map((stop, index) => (
