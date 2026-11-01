@@ -52,6 +52,36 @@ function tripPayload(array $overrides = []): array
     ], $overrides);
 }
 
+it('mirrors trip_type onto schedule_type, since the form has no field for it (regression)', function () {
+    seedTripSchedulingPermissions();
+    $requester = makeSchedulingUser('requester-schedule-type');
+    $requester->givePermissionTo(['create-trips', 'edit-trips']);
+
+    $this->actingAs($requester)->post('/trips', tripPayload(['trip_type' => 'drop-off']))->assertSessionDoesntHaveErrors();
+    $trip = Trip::where('requested_by', $requester->id)->latest('id')->firstOrFail();
+    expect($trip->schedule_type)->toBe('drop-off');
+
+    $this->actingAs($requester)->put("/trips/{$trip->id}", tripPayload(['trip_type' => 'training']))->assertSessionDoesntHaveErrors();
+    expect($trip->fresh()->schedule_type)->toBe('training');
+});
+
+it('mirrors trip_type onto schedule_type for every trip in a recurring batch (regression)', function () {
+    seedTripSchedulingPermissions();
+    $requester = makeSchedulingUser('requester-schedule-type-recurring');
+    $requester->givePermissionTo('create-trips');
+
+    $this->actingAs($requester)->post('/trips/recurring', [
+        'priority' => 'medium',
+        'trip_type' => 'officials',
+        'recurring_start_date' => '2026-06-01',
+        'recurring_end_date' => '2026-06-02',
+        'scheduled_start_time' => '08:00',
+        'scheduled_end_time' => '09:00',
+    ])->assertSessionDoesntHaveErrors();
+
+    expect(Trip::where('requested_by', $requester->id)->pluck('schedule_type')->unique()->all())->toBe(['officials']);
+});
+
 it('refuses to create a trip that overlaps another trip already booked on the same vehicle', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-1');
