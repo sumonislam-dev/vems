@@ -258,6 +258,10 @@ type ShowTripProps = {
 
 const formatAuditAction = (action: string) => action.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
 
+// Shorter than toLocaleString()'s default (no seconds, 2-digit year) so these
+// history/audit tables fit their columns on mobile without wrapping oddly.
+const formatAssignmentDate = (value: string) => new Date(value).toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+
 export default function ShowTrip({
     trip,
     vehicleAssignments = [],
@@ -1007,20 +1011,24 @@ export default function ShowTrip({
                                         <tr>
                                             <th className="px-3 py-2 text-left">Vehicle</th>
                                             <th className="px-3 py-2 text-left">Assigned At</th>
-                                            <th className="px-3 py-2 text-left">Unassigned At</th>
-                                            <th className="px-3 py-2 text-left">Assigned By</th>
-                                            <th className="px-3 py-2 text-left">Reason</th>
+                                            <th className="hidden px-3 py-2 text-left sm:table-cell">Unassigned At</th>
+                                            <th className="hidden px-3 py-2 text-left md:table-cell">Assigned By</th>
+                                            <th className="hidden px-3 py-2 text-left md:table-cell">Reason</th>
                                             <th className="px-3 py-2 text-left">Status</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {vehicleAssignments.map((a) => (
                                             <tr key={a.id} className="border-t">
-                                                <td className="px-3 py-2">{a.vehicle?.registration_number ?? '-'}</td>
-                                                <td className="px-3 py-2">{new Date(a.assigned_at).toLocaleString()}</td>
-                                                <td className="px-3 py-2">{a.unassigned_at ? new Date(a.unassigned_at).toLocaleString() : '-'}</td>
-                                                <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
-                                                <td className="px-3 py-2 capitalize">{a.reason ?? '-'}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap">{a.vehicle?.registration_number ?? '-'}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap">{formatAssignmentDate(a.assigned_at)}</td>
+                                                <td className="hidden px-3 py-2 whitespace-nowrap sm:table-cell">
+                                                    {a.unassigned_at ? formatAssignmentDate(a.unassigned_at) : '-'}
+                                                </td>
+                                                <td className="hidden px-3 py-2 whitespace-nowrap md:table-cell">
+                                                    {a.assigned_by_user?.name ?? '-'}
+                                                </td>
+                                                <td className="hidden px-3 py-2 capitalize md:table-cell">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
                                                     <span
                                                         className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
@@ -1049,9 +1057,9 @@ export default function ShowTrip({
                                         <tr>
                                             <th className="px-3 py-2 text-left">Route</th>
                                             <th className="px-3 py-2 text-left">Assigned At</th>
-                                            <th className="px-3 py-2 text-left">Unassigned At</th>
-                                            <th className="px-3 py-2 text-left">Assigned By</th>
-                                            <th className="px-3 py-2 text-left">Reason</th>
+                                            <th className="hidden px-3 py-2 text-left sm:table-cell">Unassigned At</th>
+                                            <th className="hidden px-3 py-2 text-left md:table-cell">Assigned By</th>
+                                            <th className="hidden px-3 py-2 text-left md:table-cell">Reason</th>
                                             <th className="px-3 py-2 text-left">Status</th>
                                         </tr>
                                     </thead>
@@ -1059,10 +1067,14 @@ export default function ShowTrip({
                                         {routeAssignments.map((a) => (
                                             <tr key={a.id} className="border-t">
                                                 <td className="px-3 py-2">{a.vehicle_route?.name ?? '-'}</td>
-                                                <td className="px-3 py-2">{new Date(a.assigned_at).toLocaleString()}</td>
-                                                <td className="px-3 py-2">{a.unassigned_at ? new Date(a.unassigned_at).toLocaleString() : '-'}</td>
-                                                <td className="px-3 py-2">{a.assigned_by_user?.name ?? '-'}</td>
-                                                <td className="px-3 py-2">{a.reason ?? '-'}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap">{formatAssignmentDate(a.assigned_at)}</td>
+                                                <td className="hidden px-3 py-2 whitespace-nowrap sm:table-cell">
+                                                    {a.unassigned_at ? formatAssignmentDate(a.unassigned_at) : '-'}
+                                                </td>
+                                                <td className="hidden px-3 py-2 whitespace-nowrap md:table-cell">
+                                                    {a.assigned_by_user?.name ?? '-'}
+                                                </td>
+                                                <td className="hidden px-3 py-2 md:table-cell">{a.reason ?? '-'}</td>
                                                 <td className="px-3 py-2">
                                                     <span
                                                         className={`inline-flex items-center rounded px-2 py-0.5 text-xs ${a.is_current ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-700'}`}
@@ -1091,17 +1103,17 @@ export default function ShowTrip({
                                         <tr>
                                             <th className="px-3 py-2 text-left">When</th>
                                             <th className="px-3 py-2 text-left">Action</th>
-                                            <th className="px-3 py-2 text-left">By</th>
-                                            <th className="px-3 py-2 text-left">Reason</th>
+                                            <th className="hidden px-3 py-2 text-left sm:table-cell">By</th>
+                                            <th className="hidden px-3 py-2 text-left md:table-cell">Reason</th>
                                         </tr>
                                     </thead>
                                     <tbody>
                                         {auditLogs.map((log) => (
                                             <tr key={log.id} className="border-t align-top">
-                                                <td className="px-3 py-2 whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
+                                                <td className="px-3 py-2 whitespace-nowrap">{formatAssignmentDate(log.created_at)}</td>
                                                 <td className="px-3 py-2">{formatAuditAction(log.action)}</td>
-                                                <td className="px-3 py-2">{log.user?.name ?? '-'}</td>
-                                                <td className="px-3 py-2">{log.reason ?? '-'}</td>
+                                                <td className="hidden px-3 py-2 sm:table-cell">{log.user?.name ?? '-'}</td>
+                                                <td className="hidden px-3 py-2 md:table-cell">{log.reason ?? '-'}</td>
                                             </tr>
                                         ))}
                                     </tbody>

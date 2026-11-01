@@ -421,6 +421,11 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
             {
                 key: 'id',
                 label: 'Actions',
+                // Pinned to the right edge of the horizontally-scrolling table
+                // (this row has 13 columns) so the action buttons stay
+                // reachable without scrolling all the way across.
+                headerClassName: 'sticky right-0 bg-background shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.2)]',
+                className: 'sticky right-0 bg-background shadow-[-6px_0_6px_-6px_rgba(0,0,0,0.2)]',
                 render: (_, row) => {
                     const canApproveRow = row.status === 'pending' && !!row.can_approve;
                     const canRejectRow = row.status === 'pending' && !!row.can_reject;
