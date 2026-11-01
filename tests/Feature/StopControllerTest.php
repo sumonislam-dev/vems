@@ -115,6 +115,16 @@ it('creates a stop with only a name', function () {
         ->and($stop->zone_id)->toBeNull();
 });
 
+it('creates a stop with zone_id submitted as an empty string (regression)', function () {
+    // The zone select submits '' for "no zone chosen", not null/omitted —
+    // this used to crash the whole save (SQL error on an empty-string FK).
+    $this->actingAs(stopCtlTestUser(['create-stops']))
+        ->postJson('/api/stops', ['name' => 'No Zone Stop', 'zone_id' => ''])
+        ->assertCreated();
+
+    expect(Stop::where('name', 'No Zone Stop')->value('zone_id'))->toBeNull();
+});
+
 it('validates new stops', function (array $payload, string $errorKey) {
     Stop::create(['name' => 'Taken']);
 

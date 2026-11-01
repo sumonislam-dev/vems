@@ -193,6 +193,20 @@ it('creates a logistics record, storing the status as a boolean and the actor as
         ->and($logistic->created_by)->toBe($creator->id);
 });
 
+it('creates a logistics record with zone_id submitted as an empty string (regression)', function () {
+    // The zone select submits '' for "no zone chosen", not null/omitted —
+    // this used to crash the whole save (SQL error on an empty-string FK).
+    $this->actingAs(logisticsTestUser(['create-logistics']))->post('/logistics', [
+        'name' => 'No Zone Hub',
+        'department_id' => $this->ops->id,
+        'status' => 'active',
+        'zone_id' => '',
+    ])->assertSessionHasNoErrors();
+
+    $logistic = Logistics::where('name', 'No Zone Hub')->firstOrFail();
+    expect($logistic->zone_id)->toBeNull();
+});
+
 it('validates the logistics form', function (array $payload, array $errors) {
     $this->actingAs(logisticsTestUser(['create-logistics']))
         ->post('/logistics', $payload)
@@ -222,6 +236,20 @@ it('updates a logistics record without changing its creator', function () {
         ->and($logistic->department_id)->toBe($this->hr->id)
         ->and($logistic->status)->toBeFalse()
         ->and($logistic->created_by)->toBe($creator->id);
+});
+
+it('clears an existing zone when updated with zone_id as an empty string (regression)', function () {
+    $zone = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $logistic = logisticsTestRecord($this->ops, ['name' => 'Zoned Hub', 'zone_id' => $zone->id]);
+
+    $this->actingAs(logisticsTestUser(['edit-logistics']))->put("/logistics/{$logistic->id}", [
+        'name' => 'Zoned Hub',
+        'department_id' => $this->ops->id,
+        'status' => 'active',
+        'zone_id' => '',
+    ])->assertSessionHasNoErrors();
+
+    expect($logistic->fresh()->zone_id)->toBeNull();
 });
 
 it('toggles a logistics record between active and inactive', function () {

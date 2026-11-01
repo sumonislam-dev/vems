@@ -166,6 +166,30 @@ it('stores a factory', function () {
         ->and((float) $factory->mileage_km)->toBe(35.5);
 });
 
+it('stores a factory with zone_id submitted as an empty string (regression)', function () {
+    // The zone select submits '' for "no zone chosen", not null/omitted —
+    // this used to crash the whole save (SQL error on an empty-string FK).
+    $this->actingAs(factoryTestUser(['create-factories']))
+        ->post('/factories', factoryTestPayload(['zone_id' => '']))
+        ->assertRedirect('/factories')
+        ->assertSessionHas('success');
+
+    $factory = Factory::where('account_id', 'ACC-NEW-1')->firstOrFail();
+    expect($factory->zone_id)->toBeNull();
+});
+
+it('clears an existing zone when updated with zone_id as an empty string (regression)', function () {
+    $zone = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $factory = Factory::create(array_merge(factoryTestPayload(['account_id' => 'ACC-ZONED']), ['zone_id' => $zone->id]));
+
+    $this->actingAs(factoryTestUser(['edit-factories']))
+        ->put("/factories/{$factory->id}", factoryTestPayload(['account_id' => 'ACC-ZONED', 'zone_id' => '']))
+        ->assertRedirect('/factories')
+        ->assertSessionHas('success');
+
+    expect($factory->fresh()->zone_id)->toBeNull();
+});
+
 it('rejects invalid factory input', function () {
     $this->actingAs(factoryTestUser(['create-factories']))
         ->post('/factories', factoryTestPayload([

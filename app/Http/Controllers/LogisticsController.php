@@ -122,6 +122,10 @@ class LogisticsController extends Controller implements HasMiddleware
 
         $validated['status'] = $validated['status'] === 'active';
         $validated['created_by'] = auth()->id();
+        // The zone select submits '' for "no zone chosen" — normalize to
+        // null so it doesn't get written as an invalid empty string into
+        // the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
 
         try {
             Logistics::create($validated);
@@ -129,6 +133,8 @@ class LogisticsController extends Controller implements HasMiddleware
             return redirect()->route('logistics.index')
                 ->with('success', 'Logistics created successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to create logistics.');
         }
     }
@@ -199,6 +205,10 @@ class LogisticsController extends Controller implements HasMiddleware
         ]);
 
         $validated['status'] = $validated['status'] === 'active';
+        // The zone select submits '' for "no zone chosen" — normalize to
+        // null so it doesn't get written as an invalid empty string into
+        // the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
 
         try {
             $logistic->update($validated);
@@ -206,6 +216,8 @@ class LogisticsController extends Controller implements HasMiddleware
             return redirect()->route('logistics.index')
                 ->with('success', 'Logistics updated successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to update logistics.');
         }
     }

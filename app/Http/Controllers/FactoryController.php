@@ -124,6 +124,8 @@ class FactoryController extends Controller implements HasMiddleware
             return redirect()->route('factories.index')
                 ->with('success', 'Factory created successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to create factory.');
         }
     }
@@ -160,6 +162,8 @@ class FactoryController extends Controller implements HasMiddleware
             return redirect()->route('factories.index')
                 ->with('success', 'Factory updated successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to update factory.');
         }
     }
