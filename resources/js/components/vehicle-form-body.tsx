@@ -131,10 +131,24 @@ const ALERT_TOGGLES: { field: AlertField; label: string }[] = [
 const toOptions = (items: { id: number; name: string }[], label: (item: { id: number; name: string }) => string = (i) => i.name) =>
     items.map((item) => ({ label: label(item), value: item.id.toString() }));
 
-function Section({ title, columns = 4, children }: { title: string; columns?: 3 | 4; children: ReactNode }) {
+function Section({
+    title,
+    columns = 4,
+    headerExtra,
+    children,
+}: {
+    title: string;
+    columns?: 3 | 4;
+    /** Rendered on the right side of the section title, e.g. the Zone select */
+    headerExtra?: ReactNode;
+    children: ReactNode;
+}) {
     return (
         <div>
-            <h3 className="mb-3 text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h3>
+                {headerExtra && <div className="flex items-center gap-2 sm:w-64">{headerExtra}</div>}
+            </div>
             <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${columns === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'}`}>{children}</div>
         </div>
     );
@@ -225,7 +239,28 @@ export function VehicleFormBody({
     return (
         <BaseForm onSubmit={onSubmit}>
             <div className="space-y-4">
-                <Section title="Vehicle Information">
+                <Section
+                    title="Vehicle Information"
+                    headerExtra={
+                        <>
+                            <span className="text-sm font-medium text-muted-foreground">
+                                Zone<span className="ml-1 text-red-500">*</span>
+                            </span>
+                            <div className="flex-1">
+                                <SearchableSelect
+                                    label="Zone"
+                                    name="zone_id"
+                                    value={data.zone_id}
+                                    onChange={(value) => setData('zone_id', value)}
+                                    options={toOptions(zones)}
+                                    error={errors.zone_id || undefined}
+                                    placeholder="Search zone..."
+                                    hideLabel
+                                />
+                            </div>
+                        </>
+                    }
+                >
                     {text('brand', 'Brand', isAdhoc ? 'Ad-hoc (auto if blank)' : 'Toyota, Honda, Ford', { required: !isAdhoc })}
                     {text('model', 'Model', isAdhoc ? 'TBD (auto if blank)' : 'Camry, Civic, F-150', { required: !isAdhoc })}
                     {text('color', 'Color (Optional)', 'Red, Blue, White')}
@@ -278,17 +313,6 @@ export function VehicleFormBody({
                         required={!isAdhoc}
                         placeholder="Search driver..."
                     />
-                    <SearchableSelect
-                        label="Zone"
-                        name="zone_id"
-                        value={data.zone_id}
-                        onChange={(value) => setData('zone_id', value)}
-                        options={toOptions(zones)}
-                        error={errors.zone_id || undefined}
-                        required
-                        placeholder="Search zone..."
-                    />
-
                     <FormSelect
                         label="Active Status"
                         name="is_active"
