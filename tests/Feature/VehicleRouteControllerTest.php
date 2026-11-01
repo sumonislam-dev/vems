@@ -180,6 +180,30 @@ it('stores a route without stops', function () {
     expect($route->routeStops()->count())->toBe(0);
 });
 
+it('stores a route with zone_id submitted as an empty string (regression)', function () {
+    // The zone select submits '' for "no zone chosen", not null/omitted —
+    // this used to crash the whole save (SQL error on an empty-string FK).
+    $this->actingAs(vrcTestUser(['create-routes']))
+        ->post('/routes', ['name' => 'No Zone Route', 'zone_id' => ''])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('routes.index'));
+
+    $route = VehicleRoute::where('name', 'No Zone Route')->firstOrFail();
+    expect($route->zone_id)->toBeNull();
+});
+
+it('clears an existing zone when updated with zone_id as an empty string (regression)', function () {
+    $zone = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $route = VehicleRoute::create(['name' => 'Zoned Route', 'zone_id' => $zone->id]);
+
+    $this->actingAs(vrcTestUser(['edit-routes']))
+        ->put("/routes/{$route->id}", ['name' => 'Zoned Route', 'zone_id' => ''])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('routes.index'));
+
+    expect($route->fresh()->zone_id)->toBeNull();
+});
+
 it('validates the route payload', function (array $payload, string $errorKey) {
     $stop = Stop::create(['name' => 'Valid Stop']);
     $payload = json_decode(str_replace('__STOP__', (string) $stop->id, json_encode($payload)), true);
