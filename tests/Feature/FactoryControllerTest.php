@@ -85,6 +85,18 @@ it('lists factories with stats and filter options', function () {
         );
 });
 
+it('includes the zone name on the index, not just the zone_id (regression)', function () {
+    $zone = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    factoryTestMake(['name' => 'Zoned Factory', 'zone_id' => $zone->id]);
+
+    $this->actingAs(factoryTestUser(['view-factories']))->get('/factories')
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('factories.data.0.zone_id', $zone->id)
+            ->where('factories.data.0.zone.name', 'Dhaka')
+        );
+});
+
 it('searches and filters factories', function () {
     $alpha = factoryTestMake(['name' => 'Alpha', 'account_id' => 'ACC-ALPHA', 'city' => 'Dhaka', 'status' => 'active']);
     $beta = factoryTestMake(['name' => 'Beta', 'city' => 'Gazipur', 'status' => 'inactive']);

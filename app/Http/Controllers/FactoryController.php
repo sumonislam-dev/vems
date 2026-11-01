@@ -30,7 +30,7 @@ class FactoryController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
         $showDeleted = ! empty($validated['filters']['deleted']);
-        $query = $showDeleted ? Factory::onlyTrashed() : Factory::query();
+        $query = ($showDeleted ? Factory::onlyTrashed() : Factory::query())->with('zone:id,name');
 
         // Apply search
         if (! empty($validated['search'])) {
