@@ -287,7 +287,9 @@ export function FormMultiSelect({
     const dropdownRef = React.useRef<HTMLDivElement>(null);
 
     // Filter options based on search term
-    const filteredOptions = searchable ? options.filter((option) => option.label.toLowerCase().includes(searchTerm.toLowerCase())) : options;
+    const filteredOptions = searchable
+        ? options.filter((option) => (option.label ?? '').toLowerCase().includes(searchTerm.toLowerCase()))
+        : options;
 
     // Handle click outside to close dropdown
     React.useEffect(() => {

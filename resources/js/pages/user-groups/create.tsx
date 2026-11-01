@@ -71,8 +71,8 @@ export default function CreateUserGroup({ users }: CreateUserGroupProps) {
     const filteredUsers = availableUsers.filter((user) => {
         const matchesSearch =
             user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            user.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
+            (user.email ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (user.employee_id ?? '').toLowerCase().includes(searchTerm.toLowerCase());
         const matchesDepartment = filterDepartment === 'all' || user.department === filterDepartment;
         return matchesSearch && matchesDepartment;
     });
