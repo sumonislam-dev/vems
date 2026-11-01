@@ -317,16 +317,12 @@ export default function TripsIndex({ trips, stats, filterOptions, queryParams }:
             {
                 key: 'trip_type',
                 label: 'Type',
-                render: (value, row) => (
-                    <div className="flex flex-col space-y-1">
-                        {value && (
-                            <Badge variant="outline" className="text-xs font-medium capitalize">
-                                {value.replace('-', ' ')}
-                            </Badge>
-                        )}
-                        <span className="text-xs text-gray-500 capitalize">{row.schedule_type.replace('-', ' ')}</span>
-                    </div>
-                ),
+                render: (value) =>
+                    value && (
+                        <Badge variant="outline" className="text-xs font-medium capitalize">
+                            {value.replace('-', ' ')}
+                        </Badge>
+                    ),
             },
             {
                 key: 'description',

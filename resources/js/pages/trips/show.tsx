@@ -533,10 +533,6 @@ export default function ShowTrip({
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="text-sm font-medium text-gray-600">Schedule Type</label>
-                                        <p className="mt-1 text-sm capitalize">{trip.schedule_type.replace('-', ' ')}</p>
-                                    </div>
-                                    <div>
                                         <label className="flex items-center gap-1.5 text-sm font-medium text-gray-600">
                                             <Calendar className="h-3.5 w-3.5" />
                                             Scheduled Date
