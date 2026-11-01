@@ -69,6 +69,7 @@ it('actually persists recurring_group_id/is_recurring on every trip created by s
     $response = $this->actingAs($requester)->post('/trips/recurring', [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'recurring_start_date' => '2026-07-01',
         'recurring_end_date' => '2026-07-03',
         'scheduled_start_time' => '08:00',

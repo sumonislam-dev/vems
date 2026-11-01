@@ -44,6 +44,7 @@ function tripPayload(array $overrides = []): array
     return array_merge([
         'vehicle_id' => null,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-06-01',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',
@@ -154,6 +155,29 @@ it('refuses to create a trip that seats more passengers than the vehicle allows'
     expect(Trip::count())->toBe(0);
 });
 
+it('allows a pick-up/drop-off trip to seat more passengers than the vehicle capacity (regression)', function () {
+    seedTripSchedulingPermissions();
+    $requester = makeSchedulingUser('requester-pickup');
+    $requester->givePermissionTo(['create-trips', 'assign-vehicles']);
+    $vehicle = makeSchedulingVehicle(['capacity' => 2]);
+
+    $riders = collect(range(1, 5))->map(fn ($i) => makeSchedulingUser("rider-pickup-{$i}"));
+
+    $slots = ['pick-up' => ['08:00', '09:00'], 'drop-off' => ['17:00', '18:00']];
+    foreach ($slots as $tripType => [$start, $end]) {
+        $response = $this->actingAs($requester)->post('/trips', tripPayload([
+            'vehicle_id' => $vehicle->id,
+            'trip_type' => $tripType,
+            'scheduled_start_time' => $start,
+            'scheduled_end_time' => $end,
+            'passengers' => $riders->map(fn ($r) => ['user_id' => $r->id])->all(),
+        ]));
+
+        $response->assertSessionDoesntHaveErrors();
+        $response->assertRedirect();
+    }
+});
+
 it('allows a trip within the vehicle capacity, and skips the check when capacity is unset', function () {
     seedTripSchedulingPermissions();
     $requester = makeSchedulingUser('requester-5');
@@ -261,6 +285,7 @@ it('rejects the whole recurring batch if any single day would double-book the ve
     $response = $this->actingAs($requester)->post('/trips/recurring', [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'recurring_start_date' => '2026-06-01',
         'recurring_end_date' => '2026-06-03',
         'scheduled_start_time' => '08:00',

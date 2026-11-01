@@ -82,6 +82,7 @@ it('shows a generic message and logs the real error when creating a trip fails u
     $response = $this->actingAs($requester)->post('/trips', [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-06-01',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',
@@ -108,6 +109,7 @@ it('shows a generic message and logs the real error when creating recurring trip
     $response = $this->actingAs($requester)->post('/trips/recurring', [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'recurring_start_date' => '2026-06-01',
         'recurring_end_date' => '2026-06-02',
         'scheduled_start_time' => '08:00',
@@ -148,6 +150,7 @@ it('shows a generic message and logs the real error when updating a trip fails u
     $response = $this->actingAs($editor)->put("/trips/{$trip->id}", [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-06-01',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',

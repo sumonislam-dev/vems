@@ -145,6 +145,7 @@ it('keeps passenger rows when a trip is edited', function () {
 
     $this->actingAs(securityUser(['edit-trips']))->put("/trips/{$trip->id}", [
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-11-02',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',
@@ -170,6 +171,7 @@ it('refuses to remove a passenger who already has check-in history', function ()
 
     $this->actingAs(securityUser(['edit-trips']))->put("/trips/{$trip->id}", [
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-11-02',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',

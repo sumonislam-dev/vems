@@ -199,6 +199,7 @@ export function TripDetailsCard({ data, setData, errors, vehicles, routes, depar
                         onChange={(value) => setData('trip_type', value)}
                         options={TRIP_TYPES}
                         placeholder="Trip type..."
+                        required
                         error={errors.trip_type}
                     />
                     <SearchableSelect
