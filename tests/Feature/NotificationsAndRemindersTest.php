@@ -72,6 +72,7 @@ it('tells approvers in the same office and the department head about a new reque
 
     $this->actingAs($requester)->post('/trips', [
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-11-02',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',
@@ -91,6 +92,7 @@ it('sends one notification for a whole recurring series', function () {
 
     $this->actingAs($requester)->post('/trips/recurring', [
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'recurring_start_date' => '2026-11-02',
         'recurring_end_date' => '2026-11-05',
         'scheduled_start_time' => '08:00',

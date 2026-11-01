@@ -136,6 +136,11 @@ class VendorController extends Controller implements HasMiddleware
             'contact_persons.*.notes' => 'nullable|string',
         ]);
 
+        // The zone select submits '' for "no zone chosen" — normalize to
+        // null so it doesn't get written as an invalid empty string into
+        // the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
+
         // Only validated fields; files and contacts are handled separately
         $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
 
@@ -158,6 +163,8 @@ class VendorController extends Controller implements HasMiddleware
             return redirect()->route('vendors.index')
                 ->with('success', 'Vendor created successfully!');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to create vendor.');
         }
     }
@@ -238,6 +245,11 @@ class VendorController extends Controller implements HasMiddleware
             'contact_persons.*.notes' => 'nullable|string',
         ]);
 
+        // The zone select submits '' for "no zone chosen" — normalize to
+        // null so it doesn't get written as an invalid empty string into
+        // the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
+
         try {
             // Only validated fields; files and contacts are handled separately
             $data = Arr::except($validated, [...self::DOCUMENT_FIELDS, 'contact_persons']);
@@ -283,6 +295,8 @@ class VendorController extends Controller implements HasMiddleware
                 ->route('vendors.index')
                 ->with('success', 'Vendor updated successfully!');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to update vendor.');
         }
     }

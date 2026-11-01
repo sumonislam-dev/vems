@@ -180,6 +180,16 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             ),
         },
         {
+            key: 'rental_type',
+            label: 'Rental Type',
+            sortable: true,
+            render: (value) => (
+                <Badge variant="secondary">
+                    {filterOptions.rental_types.find((type) => type.value === value)?.label ?? (typeof value === 'string' ? value : 'N/A')}
+                </Badge>
+            ),
+        },
+        {
             key: 'color',
             label: 'Color',
             sortable: true,

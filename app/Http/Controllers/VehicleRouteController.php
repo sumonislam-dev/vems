@@ -221,6 +221,12 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'stops.*.manual_distance' => 'nullable|numeric|min:0',
         ]);
 
+        // The zone select submits '' for "no zone chosen" (including the
+        // clear/× button), and the key is simply absent when not sent at
+        // all — normalize both to null so it doesn't get written as an
+        // invalid empty string into the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
+
         if ($error = $this->stopsZoneMismatchError($validated)) {
             return back()->withInput()->withErrors(['zone_id' => $error]);
         }
@@ -231,7 +237,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
                     'name' => $validated['name'],
                     'description' => $validated['description'] ?? null,
                     'remarks' => $validated['remarks'] ?? null,
-                    'zone_id' => $validated['zone_id'] ?? null,
+                    'zone_id' => $validated['zone_id'],
                 ]);
 
                 if (! empty($validated['stops'])) {
@@ -243,6 +249,8 @@ class VehicleRouteController extends Controller implements HasMiddleware
             return redirect()->route('routes.index')
                 ->with('success', 'Route created successfully!');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to create route.');
         }
     }
@@ -292,6 +300,12 @@ class VehicleRouteController extends Controller implements HasMiddleware
             'stops.*.manual_distance' => 'nullable|numeric|min:0',
         ]);
 
+        // The zone select submits '' for "no zone chosen" (including the
+        // clear/× button), and the key is simply absent when not sent at
+        // all — normalize both to null so it doesn't get written as an
+        // invalid empty string into the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
+
         if ($error = $this->stopsZoneMismatchError($validated)) {
             return back()->withInput()->withErrors(['zone_id' => $error]);
         }
@@ -302,7 +316,7 @@ class VehicleRouteController extends Controller implements HasMiddleware
                     'name' => $validated['name'],
                     'description' => $validated['description'] ?? null,
                     'remarks' => $validated['remarks'] ?? null,
-                    'zone_id' => $validated['zone_id'] ?? null,
+                    'zone_id' => $validated['zone_id'],
                 ]);
 
                 $route->routeStops()->delete();
@@ -318,6 +332,8 @@ class VehicleRouteController extends Controller implements HasMiddleware
             return redirect()->route('routes.index')
                 ->with('success', 'Route updated successfully!');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to update route.');
         }
     }

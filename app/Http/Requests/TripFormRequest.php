@@ -35,7 +35,7 @@ abstract class TripFormRequest extends FormRequest
             'vehicle_route_id' => 'nullable|exists:vehicle_routes,id',
             'vehicle_id' => 'nullable|exists:vehicles,id',
             'department_id' => 'nullable|exists:departments,id',
-            'trip_type' => 'nullable|in:'.self::TRIP_TYPES,
+            'trip_type' => 'required|in:'.self::TRIP_TYPES,
             'team_number' => 'nullable|string|max:100',
             'description' => 'nullable|string',
             'remarks' => 'nullable|string',

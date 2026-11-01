@@ -60,6 +60,7 @@ function tripRequestPayload(array $overrides = []): array
 {
     return array_merge([
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2026-11-02',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '09:00',

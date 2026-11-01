@@ -265,6 +265,8 @@ interface FormMultiSelectProps {
     searchable?: boolean;
     /** Extra help shown from an (i) icon beside the label */
     info?: string;
+    /** Keep the label for screen readers only, e.g. when a heading beside it already names the field */
+    hideLabel?: boolean;
 }
 
 export function FormMultiSelect({
@@ -281,13 +283,16 @@ export function FormMultiSelect({
     className,
     searchable = true,
     info,
+    hideLabel = false,
 }: FormMultiSelectProps) {
     const [isOpen, setIsOpen] = React.useState(false);
     const [searchTerm, setSearchTerm] = React.useState('');
     const dropdownRef = React.useRef<HTMLDivElement>(null);
 
     // Filter options based on search term
-    const filteredOptions = searchable ? options.filter((option) => option.label.toLowerCase().includes(searchTerm.toLowerCase())) : options;
+    const filteredOptions = searchable
+        ? options.filter((option) => (option.label ?? '').toLowerCase().includes(searchTerm.toLowerCase()))
+        : options;
 
     // Handle click outside to close dropdown
     React.useEffect(() => {
@@ -327,7 +332,7 @@ export function FormMultiSelect({
 
     return (
         <div className={cn('space-y-2', className)} ref={dropdownRef}>
-            <div className="flex items-center gap-1.5">
+            <div className={cn('flex items-center gap-1.5', hideLabel && 'sr-only')}>
                 <Label htmlFor={name} className={cn(error && 'text-destructive')}>
                     {label}
                     {required && <span className="ml-1 text-destructive">*</span>}

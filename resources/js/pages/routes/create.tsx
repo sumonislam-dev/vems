@@ -12,9 +12,15 @@ import { Label } from '@/components/ui/label';
 import { ReorderButtons } from '@/components/ui/reorder-buttons';
 import AppLayout from '@/layouts/app-layout';
 import { calculateStopDistances } from '@/lib/distance-calculator';
+import { addMinutesToTime } from '@/lib/utils';
 import { Head, useForm } from '@inertiajs/react';
 import { ArrowLeft, Clock, Map, MapPin, Plus, Route as RouteIcon, Trash2 } from 'lucide-react';
 import { FormEventHandler, useState } from 'react';
+
+// Gap between a stop's arrival and its auto-filled departure time, in
+// minutes — configurable via VITE_ROUTE_STOP_DEPARTURE_GAP_MINUTES.
+const envGapMinutes = Number(import.meta.env.VITE_ROUTE_STOP_DEPARTURE_GAP_MINUTES);
+const DEPARTURE_GAP_MINUTES = Number.isFinite(envGapMinutes) && envGapMinutes > 0 ? envGapMinutes : 2;
 
 interface Stop {
     id: number;
@@ -120,7 +126,16 @@ export default function CreateRoute({ stops: initialStops, zones, defaultZoneId 
     };
 
     const updateStop = (index: number, field: keyof RouteStopForm, value: string | number | null) => {
-        const updatedStops = selectedStops.map((stop, i) => (i === index ? { ...stop, [field]: value } : stop));
+        const updatedStops = selectedStops.map((stop, i) => {
+            if (i !== index) return stop;
+            const updated = { ...stop, [field]: value };
+            // Auto-fill departure time from arrival time + the configured gap;
+            // the user can still edit it afterward via its own input.
+            if (field === 'arrival_time' && typeof value === 'string' && value) {
+                updated.departure_time = addMinutesToTime(value, DEPARTURE_GAP_MINUTES);
+            }
+            return updated;
+        });
         setSelectedStops(updatedStops);
         // @ts-expect-error Inertia form typing issue with arrays
         setData('stops', updatedStops);

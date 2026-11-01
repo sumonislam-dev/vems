@@ -107,7 +107,7 @@ export function UserFormBody({
             {/* Basic Information */}
             <Card className="shadow-sm">
                 <CardHeader className="px-4 pb-3 sm:px-6">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex items-center gap-2">
                             <div className="rounded-md bg-primary/10 p-1.5">
                                 <Users className="h-4 w-4 text-primary" />
@@ -117,14 +117,35 @@ export function UserFormBody({
                                 <CardDescription className="text-sm">Complete form progress: {formCompletion}%</CardDescription>
                             </div>
                         </div>
-                        {/* Compact Progress */}
-                        <div className="flex items-center gap-2">
-                            {formCompletion === 100 && <CheckCircle className="h-4 w-4 text-green-500" />}
-                            <div className="h-1.5 w-12 rounded-full bg-muted">
-                                <div
-                                    className={`h-1.5 rounded-full transition-all duration-300 ${formCompletion === 100 ? 'bg-green-500' : 'bg-primary'}`}
-                                    style={{ width: `${formCompletion}%` }}
-                                />
+                        <div className="flex items-center gap-4">
+                            {/* Zone sits in the title bar; the label stays for screen readers */}
+                            <div className="flex items-center gap-2 sm:w-64">
+                                <span className="text-sm font-medium text-muted-foreground">
+                                    Zone<span className="ml-1 text-red-500">*</span>
+                                </span>
+                                <div className="flex-1">
+                                    <ZoneAccessSelect
+                                        zoneAccess={data.zone_access}
+                                        zoneIds={data.zone_ids}
+                                        onChange={(zoneAccess, zoneIds) => {
+                                            setData('zone_access', zoneAccess);
+                                            setData('zone_ids', zoneIds);
+                                        }}
+                                        zoneOptions={zoneOptions}
+                                        error={getFieldError('zone_ids')}
+                                        hideLabel
+                                    />
+                                </div>
+                            </div>
+                            {/* Compact Progress */}
+                            <div className="flex items-center gap-2">
+                                {formCompletion === 100 && <CheckCircle className="h-4 w-4 text-green-500" />}
+                                <div className="h-1.5 w-12 rounded-full bg-muted">
+                                    <div
+                                        className={`h-1.5 rounded-full transition-all duration-300 ${formCompletion === 100 ? 'bg-green-500' : 'bg-primary'}`}
+                                        style={{ width: `${formCompletion}%` }}
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -203,17 +224,6 @@ export function UserFormBody({
                             error={getFieldError('department_id')}
                             options={departmentOptions}
                             placeholder="Select department..."
-                        />
-
-                        <ZoneAccessSelect
-                            zoneAccess={data.zone_access}
-                            zoneIds={data.zone_ids}
-                            onChange={(zoneAccess, zoneIds) => {
-                                setData('zone_access', zoneAccess);
-                                setData('zone_ids', zoneIds);
-                            }}
-                            zoneOptions={zoneOptions}
-                            error={getFieldError('zone_ids')}
                         />
 
                         {!hideUserTypeAndRoles && canManageRoles && (

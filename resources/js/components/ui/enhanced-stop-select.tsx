@@ -48,7 +48,7 @@ export function EnhancedStopSelect({
     const selectedStop = stops.find(stop => stop.id === value);
 
     const filteredStops = stops.filter(stop =>
-        stop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (stop.name ?? '').toLowerCase().includes(searchTerm.toLowerCase()) ||
         (stop.description && stop.description.toLowerCase().includes(searchTerm.toLowerCase()))
     );
 

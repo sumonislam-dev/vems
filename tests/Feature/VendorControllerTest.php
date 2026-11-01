@@ -158,6 +158,30 @@ it('stores a vendor together with its contact persons', function () {
         ->and($vendor->contactPersons()->primary()->value('name'))->toBe('Rahim');
 });
 
+it('stores a vendor with zone_id submitted as an empty string (regression)', function () {
+    // The zone select submits '' for "no zone chosen", not null/omitted —
+    // this used to crash the whole save (SQL error on an empty-string FK).
+    $this->actingAs(vendorTestUser(['create-vendors']))
+        ->post('/vendors', vendorTestPayload(['zone_id' => '']))
+        ->assertRedirect('/vendors')
+        ->assertSessionHas('success');
+
+    $vendor = Vendor::where('name', 'Acme Rentals')->firstOrFail();
+    expect($vendor->zone_id)->toBeNull();
+});
+
+it('clears an existing zone when updated with zone_id as an empty string (regression)', function () {
+    $zone = Zone::create(['name' => 'Dhaka', 'code' => 'DHK', 'is_active' => true]);
+    $vendor = vendorTestMake(['zone_id' => $zone->id]);
+
+    $this->actingAs(vendorTestUser(['edit-vendors']))
+        ->put("/vendors/{$vendor->id}", vendorTestPayload(['zone_id' => '']))
+        ->assertRedirect('/vendors')
+        ->assertSessionHas('success');
+
+    expect($vendor->fresh()->zone_id)->toBeNull();
+});
+
 it('rejects invalid vendor input', function () {
     $this->actingAs(vendorTestUser(['create-vendors']))
         ->post('/vendors', [

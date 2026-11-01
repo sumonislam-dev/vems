@@ -3,15 +3,17 @@
 use App\Models\Trip;
 use App\Models\TripRecurringGroup;
 use App\Models\User;
+use App\Models\Vehicle;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 
 function seedTripRecurringGroupPermissions(): void
 {
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
     Permission::firstOrCreate(['name' => 'edit-trips', 'guard_name' => 'web']);
     Permission::firstOrCreate(['name' => 'delete-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 }
 
 function makeRecurringGroupUser(string $username): User
@@ -55,11 +57,11 @@ function makeGroupTrip(User $requester, TripRecurringGroup $group, string $date,
 it('actually persists recurring_group_id/is_recurring on every trip created by storeRecurring (regression)', function () {
     seedTripRecurringGroupPermissions();
     Permission::firstOrCreate(['name' => 'create-trips', 'guard_name' => 'web']);
-    app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+    app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
     $requester = makeRecurringGroupUser('requester-regression');
     $requester->givePermissionTo('create-trips');
-    $vehicle = \App\Models\Vehicle::create([
+    $vehicle = Vehicle::create([
         'brand' => 'Toyota',
         'model' => 'Hiace',
         'registration_number' => 'VEH-'.uniqid(),
@@ -69,6 +71,7 @@ it('actually persists recurring_group_id/is_recurring on every trip created by s
     $response = $this->actingAs($requester)->post('/trips/recurring', [
         'vehicle_id' => $vehicle->id,
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'recurring_start_date' => '2026-07-01',
         'recurring_end_date' => '2026-07-03',
         'scheduled_start_time' => '08:00',

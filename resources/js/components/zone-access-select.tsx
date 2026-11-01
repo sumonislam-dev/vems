@@ -10,6 +10,8 @@ interface ZoneAccessSelectProps {
     onChange: (zoneAccess: 'all' | 'specific', zoneIds: string[]) => void;
     zoneOptions: Array<{ label: string; value: string }>;
     error?: string;
+    /** Keep the "Zone Access" label for screen readers only, e.g. when it sits beside a heading that already names it */
+    hideLabel?: boolean;
 }
 
 /**
@@ -21,7 +23,7 @@ interface ZoneAccessSelectProps {
  * offered to someone who has all-zone access themselves (or kept when the
  * user being edited already has it); the server checks the same rule.
  */
-export function ZoneAccessSelect({ zoneAccess, zoneIds, onChange, zoneOptions, error }: ZoneAccessSelectProps) {
+export function ZoneAccessSelect({ zoneAccess, zoneIds, onChange, zoneOptions, error, hideLabel = false }: ZoneAccessSelectProps) {
     const { auth } = usePage<SharedData>().props;
     const offerAllZones = auth.canGrantAllZones || zoneAccess === 'all';
     const options = offerAllZones ? [{ label: 'All Zones', value: ALL_ZONES_VALUE }, ...zoneOptions] : zoneOptions;
@@ -54,6 +56,7 @@ export function ZoneAccessSelect({ zoneAccess, zoneIds, onChange, zoneOptions, e
             searchable={false}
             required
             info="Admins and Super Admins always have access to every zone, whatever is chosen here."
+            hideLabel={hideLabel}
         />
     );
 }

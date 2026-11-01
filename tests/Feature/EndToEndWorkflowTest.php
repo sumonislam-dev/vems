@@ -34,6 +34,7 @@ it('walks a trip request through every role on the demo data', function () {
     // 1. Employee requests a trip, without a vehicle
     $this->actingAs($employee)->post('/trips', [
         'priority' => 'medium',
+        'trip_type' => 'inspection',
         'scheduled_date' => '2027-01-15',
         'scheduled_start_time' => '08:00',
         'scheduled_end_time' => '10:00',

@@ -32,6 +32,11 @@ class StopController extends Controller implements HasMiddleware
             'zone_id' => Zone::validationRule(),
         ]);
 
+        // The zone select submits '' for "no zone chosen" — normalize to
+        // null so it doesn't get written as an invalid empty string into
+        // the zone_id foreign key column.
+        $validated['zone_id'] = ($validated['zone_id'] ?? null) ?: null;
+
         $stop = Stop::create($validated);
 
         return response()->json([

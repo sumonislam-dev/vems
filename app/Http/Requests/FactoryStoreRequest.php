@@ -17,6 +17,18 @@ class FactoryStoreRequest extends FormRequest
     }
 
     /**
+     * The zone select submits '' for "no zone chosen" (a Radix Select item
+     * can't be empty) — normalize to null so it validates and saves as a
+     * real null instead of an invalid empty string on the zone_id column.
+     */
+    protected function prepareForValidation(): void
+    {
+        if ($this->input('zone_id') === '') {
+            $this->merge(['zone_id' => null]);
+        }
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
      * @return array<string, ValidationRule|array<mixed>|string>

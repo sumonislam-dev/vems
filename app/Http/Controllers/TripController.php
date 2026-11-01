@@ -80,26 +80,45 @@ class TripController extends Controller implements HasMiddleware
     }
 
     /**
-     * Refuse to seat more named passengers than the vehicle has capacity for.
-     * Vehicles with no capacity on file are left unchecked. Department
-     * headcount slots aren't counted here — their relationship to named
-     * passengers isn't well-defined enough to validate safely.
+     * Trip types that ferry more people than the vehicle's named seats
+     * (e.g. a pick-up/drop-off run covering a whole shift) are exempt from
+     * the seat-capacity check below.
+     */
+    private const CAPACITY_EXEMPT_TRIP_TYPES = ['pick-up', 'drop-off'];
+
+    /**
+     * Refuse to seat more riders than the vehicle has capacity for. Riders
+     * are named passengers plus department headcount slots — both occupy
+     * real seats on the vehicle, just entered two different ways. Vehicles
+     * with no capacity on file are left unchecked.
      *
      * @throws ValidationException
      */
-    private function assertVehicleCapacity(int $vehicleId, int $passengerCount): void
+    private function assertVehicleCapacity(int $vehicleId, int $passengerCount, ?string $tripType = null, int $departmentHeadcount = 0): void
     {
-        if ($passengerCount === 0) {
+        $riderCount = $passengerCount + $departmentHeadcount;
+
+        if ($riderCount === 0) {
+            return;
+        }
+
+        if (in_array($tripType, self::CAPACITY_EXEMPT_TRIP_TYPES, true)) {
             return;
         }
 
         $capacity = Vehicle::whereKey($vehicleId)->value('capacity');
 
-        if ($capacity !== null && $passengerCount > $capacity) {
+        if ($capacity !== null && $riderCount > $capacity) {
             throw ValidationException::withMessages([
-                'passengers' => "This vehicle seats {$capacity}, but {$passengerCount} passengers were selected.",
+                'passengers' => "This vehicle seats {$capacity}, but {$riderCount} riders were selected ({$passengerCount} passengers, {$departmentHeadcount} department headcount).",
             ]);
         }
+    }
+
+    /** Sum of department_slots counts submitted on the request, if any. */
+    private function departmentHeadcount(array $validated): int
+    {
+        return array_sum(array_column($validated['department_slots'] ?? [], 'count'));
     }
 
     /**
@@ -470,7 +489,12 @@ class TripController extends Controller implements HasMiddleware
                 $validated['scheduled_start_time'],
                 $validated['scheduled_end_time']
             );
-            $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+            $this->assertVehicleCapacity(
+                $validated['vehicle_id'],
+                count($validated['passengers'] ?? []),
+                $validated['trip_type'] ?? null,
+                $this->departmentHeadcount($validated)
+            );
         }
 
         DB::beginTransaction();
@@ -542,7 +566,12 @@ class TripController extends Controller implements HasMiddleware
 
         $validated['vehicle_id'] = $this->requestedVehicle($validated);
         if ($validated['vehicle_id']) {
-            $this->assertVehicleCapacity($validated['vehicle_id'], count($validated['passengers'] ?? []));
+            $this->assertVehicleCapacity(
+                $validated['vehicle_id'],
+                count($validated['passengers'] ?? []),
+                $validated['trip_type'] ?? null,
+                $this->departmentHeadcount($validated)
+            );
             foreach ($dates as $date) {
                 $this->assertVehicleAvailable(
                     $validated['vehicle_id'],
@@ -800,7 +829,15 @@ class TripController extends Controller implements HasMiddleware
             $passengerCount = array_key_exists('passengers', $validated)
                 ? count($validated['passengers'] ?? [])
                 : $trip->passengers()->count();
-            $this->assertVehicleCapacity($validated['vehicle_id'], $passengerCount);
+            $departmentHeadcount = array_key_exists('department_slots', $validated)
+                ? $this->departmentHeadcount($validated)
+                : (int) DB::table('department_trip')->where('trip_id', $trip->id)->sum('count');
+            $this->assertVehicleCapacity(
+                $validated['vehicle_id'],
+                $passengerCount,
+                $validated['trip_type'] ?? $trip->trip_type,
+                $departmentHeadcount
+            );
         }
 
         if (isset($validated['passengers'])) {
@@ -904,7 +941,12 @@ class TripController extends Controller implements HasMiddleware
             $trip->scheduled_end_time,
             $trip->id
         );
-        $this->assertVehicleCapacity($validated['vehicle_id'], $trip->passengers()->count());
+        $this->assertVehicleCapacity(
+            $validated['vehicle_id'],
+            $trip->passengers()->count(),
+            $trip->trip_type,
+            (int) DB::table('department_trip')->where('trip_id', $trip->id)->sum('count')
+        );
 
         DB::transaction(function () use ($trip, $validated) {
             // Lock the trip so a concurrent reassignment can't race the

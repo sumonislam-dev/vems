@@ -16,6 +16,14 @@ import { Head, router, useForm } from '@inertiajs/react';
 import { AlertTriangle, ArrowLeft, Edit, ExternalLink, Trash2, UserCog } from 'lucide-react';
 import { FormEvent, useState } from 'react';
 
+const RENTAL_TYPE_LABELS: Record<string, string> = {
+    own: 'Own (Company Owned)',
+    pool: 'Pool (Shared Vehicle)',
+    rental: 'Rental (Leased)',
+    adhoc: 'Ad-hoc Rental',
+    support: 'Support Vehicle',
+};
+
 type Assignment = {
     id: number;
     driver?: { id: number; name: string; email?: string } | null;
@@ -187,6 +195,12 @@ export default function ShowVehicle({
                                         <Badge variant="secondary" className="capitalize">
                                             {vehicle.vehicle_type?.replace('_', ' ') || 'N/A'}
                                         </Badge>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">Rental Type</label>
+                                    <div className="flex items-center space-x-2">
+                                        <Badge variant="secondary">{RENTAL_TYPE_LABELS[vehicle.rental_type] ?? vehicle.rental_type ?? 'N/A'}</Badge>
                                     </div>
                                 </div>
                                 <div>

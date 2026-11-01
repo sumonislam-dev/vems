@@ -30,7 +30,7 @@ class FactoryController extends Controller implements HasMiddleware
     {
         $validated = $request->validated();
         $showDeleted = ! empty($validated['filters']['deleted']);
-        $query = $showDeleted ? Factory::onlyTrashed() : Factory::query();
+        $query = ($showDeleted ? Factory::onlyTrashed() : Factory::query())->with('zone:id,name');
 
         // Apply search
         if (! empty($validated['search'])) {
@@ -124,6 +124,8 @@ class FactoryController extends Controller implements HasMiddleware
             return redirect()->route('factories.index')
                 ->with('success', 'Factory created successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to create factory.');
         }
     }
@@ -160,6 +162,8 @@ class FactoryController extends Controller implements HasMiddleware
             return redirect()->route('factories.index')
                 ->with('success', 'Factory updated successfully.');
         } catch (\Exception $e) {
+            report($e);
+
             return back()->withInput()->with('error', 'Failed to update factory.');
         }
     }
