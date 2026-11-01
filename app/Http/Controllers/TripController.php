@@ -480,6 +480,10 @@ class TripController extends Controller implements HasMiddleware
     public function store(StoreTripRequest $request, TripNotifier $notifier)
     {
         $validated = $request->validated();
+        // schedule_type has no form field of its own; every trip_type value
+        // is also a valid schedule_type, so mirror it there for the reports
+        // and dashboard widgets that group by schedule_type.
+        $validated['schedule_type'] = $validated['trip_type'];
 
         $validated['vehicle_id'] = $this->requestedVehicle($validated);
         if ($validated['vehicle_id']) {
@@ -556,6 +560,10 @@ class TripController extends Controller implements HasMiddleware
     public function storeRecurring(StoreRecurringTripRequest $request, TripNotifier $notifier)
     {
         $validated = $request->validated();
+        // schedule_type has no form field of its own; every trip_type value
+        // is also a valid schedule_type, so mirror it there for the reports
+        // and dashboard widgets that group by schedule_type.
+        $validated['schedule_type'] = $validated['trip_type'];
 
         $start = Carbon::parse($validated['recurring_start_date']);
         $end = Carbon::parse($validated['recurring_end_date']);
@@ -812,6 +820,10 @@ class TripController extends Controller implements HasMiddleware
         }
 
         $validated = $request->validated();
+        // schedule_type has no form field of its own; every trip_type value
+        // is also a valid schedule_type, so mirror it there for the reports
+        // and dashboard widgets that group by schedule_type.
+        $validated['schedule_type'] = $validated['trip_type'];
 
         // Only vehicle assigners (Logistics) may change the vehicle
         if (! auth()->user()->can('assign-vehicles')) {
