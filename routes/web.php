@@ -9,6 +9,7 @@ use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\FactoryController;
+use App\Http\Controllers\GeocodingController;
 use App\Http\Controllers\LogisticsController;
 use App\Http\Controllers\MonthlyVehicleReportController;
 use App\Http\Controllers\NotificationController;
@@ -133,6 +134,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware('throttle:60,1')->group(function () {
         Route::get('/api/stops', [StopController::class, 'index'])->name('api.stops.index');
         Route::post('/api/stops', [StopController::class, 'store'])->name('api.stops.store');
+        Route::get('/api/geocoding/search', [GeocodingController::class, 'search'])->name('api.geocoding.search');
     });
 
     // Trip management routes

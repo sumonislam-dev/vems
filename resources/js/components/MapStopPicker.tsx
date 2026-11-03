@@ -465,10 +465,15 @@ function LeafletStopMap({ stops, selectedStops, onStopSelect, onCreateStop, clas
     // Bias/restrict results to the configured region (see VITE_MAP_* above):
     // countrycodes hard-filters by country, viewbox further prioritizes
     // results within its bounding box (bounded=0 keeps it as a bias, not a
-    // hard cutoff).
+    // hard cutoff). Routed through our own backend (GeocodingController)
+    // rather than calling Nominatim directly from the browser — Nominatim's
+    // public instance requires a proper identifying User-Agent (which a
+    // browser can't set) and a strict 1 req/sec limit that many real users
+    // sharing one office IP can easily exceed, which made this fail
+    // unpredictably with "Failed to fetch" for everyone on that network.
     const searchGeocoding = useCallback(async (query: string): Promise<GeocodingResult[]> => {
         const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=8&addressdetails=1&countrycodes=${MAP_COUNTRY_CODE}&viewbox=${MAP_BOUNDS_WEST},${MAP_BOUNDS_NORTH},${MAP_BOUNDS_EAST},${MAP_BOUNDS_SOUTH}&bounded=0`,
+            `/api/geocoding/search?q=${encodeURIComponent(query)}&countrycodes=${MAP_COUNTRY_CODE}&viewbox=${MAP_BOUNDS_WEST},${MAP_BOUNDS_NORTH},${MAP_BOUNDS_EAST},${MAP_BOUNDS_SOUTH}`,
         );
 
         if (!response.ok) {
