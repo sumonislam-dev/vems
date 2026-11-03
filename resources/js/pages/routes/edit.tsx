@@ -20,6 +20,11 @@ import { FormEventHandler, useEffect, useState } from 'react';
 const envGapMinutes = Number(import.meta.env.VITE_ROUTE_STOP_DEPARTURE_GAP_MINUTES);
 const DEPARTURE_GAP_MINUTES = Number.isFinite(envGapMinutes) && envGapMinutes > 0 ? envGapMinutes : 2;
 
+// DB TIME columns come back as "HH:MM:SS"; the <input type="time"> and the
+// backend's `date_format:H:i` rule both expect "HH:MM", so strip seconds here
+// rather than only when the user edits the field (which already normalizes it).
+const toHHMM = (value: string | null) => (value ? value.slice(0, 5) : '');
+
 interface Stop {
     id: number;
     name: string;
@@ -85,8 +90,8 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
             .sort((a, b) => a.stop_order - b.stop_order)
             .map((routeStop) => ({
                 stop_id: routeStop.stop_id,
-                arrival_time: routeStop.arrival_time || '',
-                departure_time: routeStop.departure_time || '',
+                arrival_time: toHHMM(routeStop.arrival_time),
+                departure_time: toHHMM(routeStop.departure_time),
             }));
         setSelectedStops(initialStops);
         // @ts-expect-error Inertia form typing issue with arrays
