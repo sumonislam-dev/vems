@@ -130,10 +130,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Route management routes
     Route::resource('routes', VehicleRouteController::class);
 
-    // Stop management API routes
+    // Stop management routes
+    Route::resource('stops', StopController::class)->except(['show']);
+
+    // Stop management API routes (inline create/lookup used by searchable
+    // selects and the map picker — not the admin CRUD above)
     Route::middleware('throttle:60,1')->group(function () {
-        Route::get('/api/stops', [StopController::class, 'index'])->name('api.stops.index');
-        Route::post('/api/stops', [StopController::class, 'store'])->name('api.stops.store');
+        Route::get('/api/stops', [StopController::class, 'apiIndex'])->name('api.stops.index');
+        Route::post('/api/stops', [StopController::class, 'apiStore'])->name('api.stops.store');
         Route::get('/api/geocoding/search', [GeocodingController::class, 'search'])->name('api.geocoding.search');
     });
 
