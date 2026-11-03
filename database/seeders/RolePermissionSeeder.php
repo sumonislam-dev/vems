@@ -30,6 +30,8 @@ class RolePermissionSeeder extends Seeder
             'Stops' => [
                 'view-stops',
                 'create-stops',
+                'edit-stops',
+                'delete-stops',
             ],
 
             'Vendors' => [
@@ -212,7 +214,7 @@ class RolePermissionSeeder extends Seeder
                 'view-drivers', 'create-drivers', 'edit-drivers', 'export-drivers', 'import-drivers',
                 'view-vendors', 'create-vendors', 'edit-vendors',
                 'view-routes', 'create-routes', 'edit-routes',
-                'view-stops', 'create-stops',
+                'view-stops', 'create-stops', 'edit-stops',
                 'view-factories', 'create-factories', 'edit-factories',
                 'view-complaints', 'assign-complaints', 'resolve-complaints',
                 'view-reports', 'export-reports',
