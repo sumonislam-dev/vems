@@ -1,5 +1,6 @@
 import { BaseForm, FormField, FormTextarea } from '@/base-components/base-form';
 import { PageHeader } from '@/base-components/page-header';
+import InputError from '@/components/input-error';
 import { SearchableSelect } from '@/components/searchable-select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -73,6 +74,10 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
 
     const [selectedStops, setSelectedStops] = useState<RouteStopForm[]>([]);
     const [stops, setStops] = useState<Stop[]>(initialStops);
+    const [stopsValidationError, setStopsValidationError] = useState<string | null>(null);
+
+    const stopError = (index: number, field: 'stop_id' | 'arrival_time' | 'departure_time') =>
+        (errors as Record<string, string>)[`stops.${index}.${field}`];
 
     // Initialize selected stops from route data
     useEffect(() => {
@@ -183,6 +188,13 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
     const handleSubmit: FormEventHandler = (e) => {
         e.preventDefault();
 
+        const missingLocationIndex = selectedStops.findIndex((stop) => !stop.stop_id);
+        if (missingLocationIndex !== -1) {
+            setStopsValidationError(`Stop ${missingLocationIndex + 1} needs a location selected before you can save.`);
+            return;
+        }
+        setStopsValidationError(null);
+
         put(`/routes/${route.id}`, {
             onSuccess: () => {
                 // Success message will be handled by the backend
@@ -286,6 +298,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                 <CardDescription>Modify and arrange stops for this route. Use the arrows to reorder.</CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
+                                <InputError message={stopsValidationError ?? undefined} />
                                 {selectedStops.map((stop, index) => (
                                     <div key={index} className="space-y-4 rounded-lg border bg-muted/50 p-4">
                                         <div className="flex items-center justify-between">
@@ -323,6 +336,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                                     onCreateStop={handleCreateStop}
                                                     placeholder="Search or add new stop..."
                                                 />
+                                                <InputError message={stopError(index, 'stop_id')} />
                                             </div>
 
                                             <div className="space-y-2">
@@ -335,6 +349,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                                     value={stop.arrival_time}
                                                     onChange={(e) => updateStop(index, 'arrival_time', e.target.value)}
                                                 />
+                                                <InputError message={stopError(index, 'arrival_time')} />
                                             </div>
 
                                             <div className="space-y-2">
@@ -347,6 +362,7 @@ export default function EditRoute({ route, stops: initialStops, zones }: EditRou
                                                     value={stop.departure_time}
                                                     onChange={(e) => updateStop(index, 'departure_time', e.target.value)}
                                                 />
+                                                <InputError message={stopError(index, 'departure_time')} />
                                             </div>
                                         </div>
                                     </div>
