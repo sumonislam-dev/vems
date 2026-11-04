@@ -64,6 +64,7 @@ export default function EditVehicle({ vehicle, vendors = [], drivers = [], zones
         manufacture_year: vehicle.manufacture_year?.toString() || '',
         engine_number: vehicle.engine_number || '',
         chassis_number: vehicle.chassis_number || '',
+        tracker_device_number: vehicle.tracker_device_number || '',
         fuel_type: vehicle.fuel_type || 'none',
         tax_token_alert_enabled: vehicle.tax_token_alert_enabled ?? true,
         fitness_alert_enabled: vehicle.fitness_alert_enabled ?? true,

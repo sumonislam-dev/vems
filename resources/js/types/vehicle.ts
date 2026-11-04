@@ -89,6 +89,7 @@ export interface Vehicle {
     manufacture_year: number | null;
     engine_number: string | null;
     chassis_number: string | null;
+    tracker_device_number: string | null;
     fuel_type: 'petrol' | 'diesel' | 'cng' | 'electric' | 'hybrid' | null;
     tax_token_alert_enabled: boolean;
     fitness_alert_enabled: boolean;

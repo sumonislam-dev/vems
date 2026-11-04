@@ -58,6 +58,8 @@ export type VehicleForm = {
     manufacture_year: string;
     engine_number: string;
     chassis_number: string;
+    /** Vendor (NITS) GPS tracker device number */
+    tracker_device_number: string;
     fuel_type: string;
     // Alert Settings
     tax_token_alert_enabled: boolean;
@@ -359,6 +361,7 @@ export function VehicleFormBody({
                     />
                     {text('engine_number', 'Engine Number', 'Engine number')}
                     {text('chassis_number', 'Chassis Number', 'Chassis number')}
+                    {text('tracker_device_number', 'GPS Tracker Device Number', 'Leave blank if no tracker')}
                 </Section>
 
                 <Section title="Documentation" columns={3}>

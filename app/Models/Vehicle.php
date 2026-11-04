@@ -126,6 +126,7 @@ class Vehicle extends Model
         'manufacture_year',
         'engine_number',
         'chassis_number',
+        'tracker_device_number',
         'fuel_type',
         // Alert Settings
         'tax_token_alert_enabled',
