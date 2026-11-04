@@ -218,6 +218,12 @@ export default function VehiclesIndex({ vehicles, filterOptions, stats, queryPar
             ),
         },
         {
+            key: 'tracker_device_number',
+            label: 'GPS Tracker',
+            sortable: true,
+            render: (value) => (value ? <span className="font-mono text-sm">{value}</span> : <span className="text-muted-foreground">None</span>),
+        },
+        {
             key: 'vendor',
             label: 'Vendor',
             sortable: true,

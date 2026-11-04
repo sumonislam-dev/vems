@@ -15,6 +15,7 @@ class UpdateVehicleRequest extends VehicleFormRequest
             ...$this->sharedRules(),
             // A blank registration on an ad-hoc edit keeps the current one
             'registration_number' => $this->identityRule().'|string|max:255|unique:vehicles,registration_number,'.$vehicle->id,
+            'tracker_device_number' => 'nullable|string|max:255|unique:vehicles,tracker_device_number,'.$vehicle->id,
             // A vehicle can become vendor/driver-less via the "Assign Driver"
             // unassign flow, so editing it afterward must not force one back.
             'vendor_id' => 'nullable|exists:vendors,id',

@@ -278,6 +278,10 @@ export default function ShowVehicle({
                                     <label className="text-sm font-medium text-muted-foreground">Chassis Number</label>
                                     <p className="font-mono text-sm">{vehicle.chassis_number || 'N/A'}</p>
                                 </div>
+                                <div>
+                                    <label className="text-sm font-medium text-muted-foreground">GPS Tracker Device Number</label>
+                                    <p className="font-mono text-sm">{vehicle.tracker_device_number || 'N/A'}</p>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

@@ -64,6 +64,80 @@ class VehicleController extends Controller implements HasMiddleware
     }
 
     /**
+     * The list's search and filters, shared by index() and export() so the
+     * export matches what is on screen.
+     */
+    private function applyListFilters($query, array $validated): void
+    {
+        // Search
+        if (! empty($validated['search'])) {
+            $search = $validated['search'];
+            $query->where(function ($q) use ($search) {
+                $q->where('brand', 'like', "%{$search}%")
+                    ->orWhere('model', 'like', "%{$search}%")
+                    ->orWhere('color', 'like', "%{$search}%")
+                    ->orWhere('registration_number', 'like', "%{$search}%")
+                    ->orWhere('tracker_device_number', 'like', "%{$search}%")
+                    ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
+                        $vendorQuery->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('driver', function ($driverQuery) use ($search) {
+                        $driverQuery->where('name', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        // Filters
+        if (! empty($validated['filters'])) {
+            $filters = $validated['filters'];
+
+            if (! empty($filters['brand'])) {
+                $query->whereIn('brand', $filters['brand']);
+            }
+
+            if (! empty($filters['color'])) {
+                $query->whereIn('color', $filters['color']);
+            }
+
+            if (! empty($filters['vehicle_type'])) {
+                $query->whereIn('vehicle_type', $filters['vehicle_type']);
+            }
+
+            if (! empty($filters['rental_type'])) {
+                $query->whereIn('rental_type', $filters['rental_type']);
+            }
+
+            if (! empty($filters['fuel_type'])) {
+                $query->whereIn('fuel_type', $filters['fuel_type']);
+            }
+
+            if (! empty($filters['vendor_id'])) {
+                $query->whereIn('vendor_id', $filters['vendor_id']);
+            }
+
+            if (! empty($filters['zone_id'])) {
+                $query->whereIn('zone_id', $filters['zone_id']);
+            }
+
+            if (isset($filters['is_active']) && ! empty($filters['is_active'])) {
+                $query->whereIn('is_active', $filters['is_active']);
+            }
+
+            if (! empty($filters['status'])) {
+                $query->whereIn('status', $filters['status']);
+            }
+
+            // Ad-hoc placeholders still waiting for the real car's details
+            if (! empty($filters['details']) && count($filters['details']) === 1) {
+                $filters['details'][0] === 'pending'
+                    ? $query->placeholders()
+                    : $query->whereNot(fn ($q) => $q->placeholders());
+            }
+        }
+    }
+
+    /**
      * Assign (or unassign, with driver_id null) a driver to a vehicle. Shared
      * by both the vehicle-side "Assign Driver" action and the driver-side
      * "Assign Vehicle" action, since both mutate the same driver_id column —
@@ -149,71 +223,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         $query = Vehicle::with(['vendor', 'driver', 'zone', 'defaultRoute:id,name']);
 
-        // Apply search
-        if (! empty($validated['search'])) {
-            $search = $validated['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('brand', 'like', "%{$search}%")
-                    ->orWhere('model', 'like', "%{$search}%")
-                    ->orWhere('color', 'like', "%{$search}%")
-                    ->orWhere('registration_number', 'like', "%{$search}%")
-                    ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
-                        $vendorQuery->where('name', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('driver', function ($driverQuery) use ($search) {
-                        $driverQuery->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        // Apply filters
-        if (! empty($validated['filters'])) {
-            $filters = $validated['filters'];
-
-            if (! empty($filters['brand'])) {
-                $query->whereIn('brand', $filters['brand']);
-            }
-
-            if (! empty($filters['color'])) {
-                $query->whereIn('color', $filters['color']);
-            }
-
-            if (! empty($filters['vehicle_type'])) {
-                $query->whereIn('vehicle_type', $filters['vehicle_type']);
-            }
-
-            if (! empty($filters['rental_type'])) {
-                $query->whereIn('rental_type', $filters['rental_type']);
-            }
-
-            if (! empty($filters['fuel_type'])) {
-                $query->whereIn('fuel_type', $filters['fuel_type']);
-            }
-
-            if (! empty($filters['vendor_id'])) {
-                $query->whereIn('vendor_id', $filters['vendor_id']);
-            }
-
-            if (! empty($filters['zone_id'])) {
-                $query->whereIn('zone_id', $filters['zone_id']);
-            }
-
-            if (isset($filters['is_active']) && ! empty($filters['is_active'])) {
-                $query->whereIn('is_active', $filters['is_active']);
-            }
-
-            if (! empty($filters['status'])) {
-                $query->whereIn('status', $filters['status']);
-            }
-
-            // Ad-hoc placeholders still waiting for the real car's details
-            if (! empty($filters['details']) && count($filters['details']) === 1) {
-                $filters['details'][0] === 'pending'
-                    ? $query->placeholders()
-                    : $query->whereNot(fn ($q) => $q->placeholders());
-            }
-        }
+        $this->applyListFilters($query, $validated);
 
         $this->applySort($query, $validated['sort'], $validated['direction']);
 
@@ -307,69 +317,7 @@ class VehicleController extends Controller implements HasMiddleware
 
         $query = Vehicle::with(['vendor', 'driver']);
 
-        if (! empty($validated['search'])) {
-            $search = $validated['search'];
-            $query->where(function ($q) use ($search) {
-                $q->where('brand', 'like', "%{$search}%")
-                    ->orWhere('model', 'like', "%{$search}%")
-                    ->orWhere('color', 'like', "%{$search}%")
-                    ->orWhere('registration_number', 'like', "%{$search}%")
-                    ->orWhereHas('vendor', function ($vendorQuery) use ($search) {
-                        $vendorQuery->where('name', 'like', "%{$search}%");
-                    })
-                    ->orWhereHas('driver', function ($driverQuery) use ($search) {
-                        $driverQuery->where('name', 'like', "%{$search}%")
-                            ->orWhere('email', 'like', "%{$search}%");
-                    });
-            });
-        }
-
-        if (! empty($validated['filters'])) {
-            $filters = $validated['filters'];
-
-            if (! empty($filters['brand'])) {
-                $query->whereIn('brand', $filters['brand']);
-            }
-
-            if (! empty($filters['color'])) {
-                $query->whereIn('color', $filters['color']);
-            }
-
-            if (! empty($filters['vehicle_type'])) {
-                $query->whereIn('vehicle_type', $filters['vehicle_type']);
-            }
-
-            if (! empty($filters['rental_type'])) {
-                $query->whereIn('rental_type', $filters['rental_type']);
-            }
-
-            if (! empty($filters['fuel_type'])) {
-                $query->whereIn('fuel_type', $filters['fuel_type']);
-            }
-
-            if (! empty($filters['vendor_id'])) {
-                $query->whereIn('vendor_id', $filters['vendor_id']);
-            }
-
-            if (! empty($filters['zone_id'])) {
-                $query->whereIn('zone_id', $filters['zone_id']);
-            }
-
-            if (isset($filters['is_active']) && ! empty($filters['is_active'])) {
-                $query->whereIn('is_active', $filters['is_active']);
-            }
-
-            if (! empty($filters['status'])) {
-                $query->whereIn('status', $filters['status']);
-            }
-
-            // Ad-hoc placeholders still waiting for the real car's details
-            if (! empty($filters['details']) && count($filters['details']) === 1) {
-                $filters['details'][0] === 'pending'
-                    ? $query->placeholders()
-                    : $query->whereNot(fn ($q) => $q->placeholders());
-            }
-        }
+        $this->applyListFilters($query, $validated);
 
         $this->applySort($query, $validated['sort'], $validated['direction']);
 
