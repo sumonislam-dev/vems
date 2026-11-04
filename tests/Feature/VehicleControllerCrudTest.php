@@ -368,3 +368,17 @@ it('saves a GPS tracker device number and refuses one another vehicle already ha
     $this->actingAs($actor)->put("/vehicles/{$vehicle->id}", vehicleCrudPayload(['registration_number' => 'TRK-2', 'tracker_device_number' => 'NITS-200']))
         ->assertSessionHasNoErrors();
 });
+
+it('shows the GPS tracker number on the vehicle list and finds vehicles by it', function () {
+    seedVehicleCrudPermissions();
+    $actor = makeVehicleCrudActor(['view-vehicles']);
+    $tracked = Vehicle::create(['brand' => 'Toyota', 'model' => 'Hiace', 'registration_number' => 'TRK-10', 'tracker_device_number' => 'NITS-555']);
+    Vehicle::create(['brand' => 'Toyota', 'model' => 'Noah', 'registration_number' => 'TRK-11']);
+
+    $rows = fn (array $query) => collect($this->actingAs($actor)->get(route('vehicles.index', $query))->assertOk()
+        ->viewData('page')['props']['vehicles']['data']);
+
+    expect($rows(['search' => 'NITS-555'])->pluck('id')->all())->toBe([$tracked->id])
+        ->and($rows(['search' => 'NITS-555'])->first()['tracker_device_number'])->toBe('NITS-555')
+        ->and($rows(['sort' => 'tracker_device_number', 'direction' => 'desc'])->first()['id'])->toBe($tracked->id);
+});
